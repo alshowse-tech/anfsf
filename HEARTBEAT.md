@@ -91,24 +91,20 @@
 - ✅ 安全审计 100%
 - ✅ 监控指标定义
 - ✅ 回滚方案准备
-- 🟡 ClawHub 发布 (等待用户完成浏览器认证)
+- ✅ openclaw.json 已配置 (移除无效插件配置)
+- ✅ Gateway 运行中 (ws://127.0.0.1:18789)
+- ✅ 本地部署完成
 
-**发布状态**:
-- ✅ skill.yaml 已创建
-- ✅ .clawhubrc.json 已创建
-- ✅ 所有发布文档已准备
-- ⏳ 浏览器认证超时 - 需手动完成
+**本地使用**:
+- 技能路径：`/root/.openclaw/workspace-main/skills/asf-v4/`
+- 部署指南：`skills/asf-v4/DEPLOYMENT-GUIDE.md`
+- 通过 tools.alsoAllow 或直接导入使用
 
-**发布命令** (认证成功后执行):
-```bash
-clawhub publish /root/.openclaw/workspace-main/skills/asf-v4 \
-  --name "ASF V4.0 工业化增强" \
-  --version "1.0.0" \
-  --tags "governance,optimization,security,economics,veto,ownership,kpi,budget" \
-  --changelog "初始发布 - 8 Tools + 6 Commands + 性能基准 + 安全审计 100%"
-```
+**ClawHub 发布**: ⏸️ 暂停
+- 发布包：`/tmp/asf-v4-1.0.0.tar.gz` (36KB)
+- 指南：`QUICK-WEB-PUBLISH.md`
 
-**Git 提交**: 18 次 (最新：670d600)
+**Git 提交**: 20 次 (最新：cc1b71c)
 
 ## 注意事项
 
