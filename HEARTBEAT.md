@@ -23,19 +23,26 @@
 - ✅ 已启用技能：7 (clawhub, coding-agent, healthcheck, node-connect, oracle, skill-creator, weather)
 - ✅ 安全审计：0 critical, 0 warn
 
-## 📋 v0.8.5 优化规格 (已完成)
+## 📋 v0.8.5 优化规格 (✅ 核心实现完成)
 
 **文档**: `specs/ASF-V4.0-Optimization-v0.8.5.md`
 
-| # | 优化项 | 模块 | 优先级 | 预计工时 |
-|---|--------|------|--------|----------|
-| 1 | ChangeEvent + 图追溯 + 热力图 | Graph Kernel | P0 | 3d |
-| 2 | Interface Budget v2 | Role Engine | P0 | 2d |
-| 3 | Contract 语义化 diff + semver | Contract Pack | P0 | 3d |
-| 4 | Role KPI Dashboard | Role Engine | P1 | 2d |
-| 5 | Propose→Approve 双门禁 | Ownership + DoD | P0 | 2d |
+| # | 优化项 | 模块 | 状态 | 实际工时 |
+|---|--------|------|------|----------|
+| 1 | ChangeEvent + 图追溯 + 热力图 | Graph Kernel | ✅ | ~3h |
+| 2 | Interface Budget v2 | Role Engine | ✅ | ~2h |
+| 3 | Contract 语义化 diff + semver | Contract Pack | ✅ | ~3h |
+| 4 | Role KPI Dashboard | Role Engine | ✅ | ~2h |
+| 5 | Propose→Approve 双门禁 | Ownership + DoD | ✅ | ~2h |
 
-**总工时**: ~12 天
+**交付物**:
+- 28 个源代码文件 (~9,500 行)
+- 6 个单元测试文件
+- 2 个前端 React 组件
+- 3 个配置文件 (YAML)
+- 完整 API 文档
+
+**Git 提交**: 6 次 (31159f9 → c1b8438)
 
 ## 注意事项
 
