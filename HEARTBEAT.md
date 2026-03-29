@@ -23,7 +23,7 @@
 - ✅ 已启用技能：7 (clawhub, coding-agent, healthcheck, node-connect, oracle, skill-creator, weather)
 - ✅ 安全审计：0 critical, 0 warn
 
-## 📋 v0.8.5 优化规格 (✅ 完成) + v0.9.0 Role Synthesizer (✅ 完成)
+## 📋 v0.8.5 + v0.9.0 (✅ 完成) + asf-v4 Skill Phase 1 (✅ 完成)
 
 **文档**: `specs/ASF-V4.0-Optimization-v0.8.5.md`
 
@@ -65,6 +65,30 @@
 - 完整 API 文档
 
 **Git 提交**: 953a4f1
+
+---
+
+## 📋 asf-v4 OpenClaw Skill Phase 1 (✅ 完成)
+
+**文档**: `skills/asf-v4/README.md`, `skills/asf-v4/PHASE-1-COMPLETE.md`
+
+| 类别 | 项目 | 状态 |
+|------|------|------|
+| Tools | 8 个工具函数 | ✅ |
+| Commands | 6 个 CLI 命令 | ✅ |
+| 配置 | YAML 配置文件 | ✅ |
+| 文档 | README + Phase 报告 | ✅ |
+| CI/CD | GitHub Actions | ✅ |
+| OpenClaw 注册 | 待添加到 openclaw.json | 🟡 |
+
+**整合度**: 85% → 90% (Phase 1 完成后)
+
+**Phase 2 计划**:
+- Memory Schema 集成 (1 周)
+- Agent Status 扩展 (1 周)
+- Security Audit 集成 (1 周)
+
+**Git 提交**: 51bae07
 
 ## 注意事项
 
