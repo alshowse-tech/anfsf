@@ -23,7 +23,7 @@
 - ✅ 已启用技能：7 (clawhub, coding-agent, healthcheck, node-connect, oracle, skill-creator, weather)
 - ✅ 安全审计：0 critical, 0 warn
 
-## 📋 v0.8.5 优化规格 (✅ 核心实现完成)
+## 📋 v0.8.5 优化规格 (✅ 完成) + v0.9.0 Role Synthesizer (✅ 完成)
 
 **文档**: `specs/ASF-V4.0-Optimization-v0.8.5.md`
 
@@ -43,6 +43,28 @@
 - 完整 API 文档
 
 **Git 提交**: 6 次 (31159f9 → c1b8438)
+
+---
+
+## 📋 v0.9.0 Role Synthesizer 工业化增强 (✅ 完成)
+
+**文档**: `docs/ROLE-SYNTHESIZER-v0.9.0.md`
+
+| 模块 | 功能 | 状态 |
+|------|------|------|
+| VetoEnforcer | 硬/软否决权执行 | ✅ |
+| Economics Scoring | 经济学评分函数 | ✅ |
+| Hot Contract | 契约耦合收敛 | ✅ |
+| Ownership Proof | Single-Writer 证明 | ✅ |
+| Rework Risk | 返工风险预测 | ✅ |
+| Safe Optimizer | 安全在线优化 | ✅ |
+| Conflict Resolver | 冲突解决器 | ✅ |
+
+**交付物**:
+- 8 个核心模块 (~2,500 行)
+- 完整 API 文档
+
+**Git 提交**: 953a4f1
 
 ## 注意事项
 
