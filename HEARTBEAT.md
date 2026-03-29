@@ -20,6 +20,7 @@
 
 ### OpenClaw 系统
 - ✅ 版本：2026.3.24
+- ⚠️ 插件版本警告：部分插件需要 >=2026.3.28 (不影响核心功能)
 - ✅ 已启用技能：7 (clawhub, coding-agent, healthcheck, node-connect, oracle, skill-creator, weather)
 - ✅ 安全审计：0 critical, 0 warn
 
