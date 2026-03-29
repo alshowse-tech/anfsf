@@ -91,9 +91,24 @@
 - ✅ 安全审计 100%
 - ✅ 监控指标定义
 - ✅ 回滚方案准备
-- 🟡 OpenClaw 注册 (待用户操作)
+- 🟡 ClawHub 发布 (等待用户完成浏览器认证)
 
-**Git 提交**: a55ec96
+**发布状态**:
+- ✅ skill.yaml 已创建
+- ✅ .clawhubrc.json 已创建
+- ✅ 所有发布文档已准备
+- ⏳ 浏览器认证超时 - 需手动完成
+
+**发布命令** (认证成功后执行):
+```bash
+clawhub publish /root/.openclaw/workspace-main/skills/asf-v4 \
+  --name "ASF V4.0 工业化增强" \
+  --version "1.0.0" \
+  --tags "governance,optimization,security,economics,veto,ownership,kpi,budget" \
+  --changelog "初始发布 - 8 Tools + 6 Commands + 性能基准 + 安全审计 100%"
+```
+
+**Git 提交**: 18 次 (最新：670d600)
 
 ## 注意事项
 
