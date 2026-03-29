@@ -1,0 +1,317 @@
+/**
+ * ASF V4.0 Ownership Lattice - Contract Proposals
+ * 
+ * Manages contract change proposals and review workflow.
+ * Version: v0.8.5
+ */
+
+import type { ContractProposal, ProposalState, ContractDiff } from './types';
+
+/**
+ * Generate unique proposal ID.
+ */
+export function generateProposalId(): string {
+  return `prop_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/**
+ * Create a new contract proposal.
+ */
+export function createProposal(params: {
+  contractId: string;
+  proposerRoleId: string;
+  diff: ContractDiff;
+}): ContractProposal {
+  return {
+    id: generateProposalId(),
+    contractId: params.contractId,
+    proposerRoleId: params.proposerRoleId,
+    state: 'pending',
+    diff: params.diff,
+    submittedAt: Date.now(),
+  };
+}
+
+/**
+ * Proposal store interface.
+ */
+export interface ProposalStore {
+  /** Save a proposal */
+  save(proposal: ContractProposal): Promise<void>;
+  
+  /** Get proposal by ID */
+  getById(id: string): Promise<ContractProposal | null>;
+  
+  /** Get proposals by contract ID */
+  getByContract(contractId: string): Promise<ContractProposal[]>;
+  
+  /** Get proposals by proposer role */
+  getByProposer(roleId: string): Promise<ContractProposal[]>;
+  
+  /** Get pending proposals */
+  getPending(): Promise<ContractProposal[]>;
+  
+  /** Get proposals by state */
+  getByState(state: ProposalState): Promise<ContractProposal[]>;
+  
+  /** Delete proposal */
+  delete(id: string): Promise<void>;
+}
+
+/**
+ * In-memory proposal store.
+ */
+export class InMemoryProposalStore implements ProposalStore {
+  private proposals: Map<string, ContractProposal>;
+
+  constructor() {
+    this.proposals = new Map();
+  }
+
+  async save(proposal: ContractProposal): Promise<void> {
+    this.proposals.set(proposal.id, proposal);
+  }
+
+  async getById(id: string): Promise<ContractProposal | null> {
+    return this.proposals.get(id) || null;
+  }
+
+  async getByContract(contractId: string): Promise<ContractProposal[]> {
+    return Array.from(this.proposals.values()).filter(
+      (p) => p.contractId === contractId
+    );
+  }
+
+  async getByProposer(roleId: string): Promise<ContractProposal[]> {
+    return Array.from(this.proposals.values()).filter(
+      (p) => p.proposerRoleId === roleId
+    );
+  }
+
+  async getPending(): Promise<ContractProposal[]> {
+    return Array.from(this.proposals.values()).filter(
+      (p) => p.state === 'pending'
+    );
+  }
+
+  async getByState(state: ProposalState): Promise<ContractProposal[]> {
+    return Array.from(this.proposals.values()).filter(
+      (p) => p.state === state
+    );
+  }
+
+  async delete(id: string): Promise<void> {
+    this.proposals.delete(id);
+  }
+
+  /**
+   * Clear all proposals (for testing).
+   */
+  clear(): void {
+    this.proposals.clear();
+  }
+
+  /**
+   * Get count by state.
+   */
+  getCountByState(): Record<ProposalState, number> {
+    const counts: Record<ProposalState, number> = {
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+    };
+
+    for (const proposal of this.proposals.values()) {
+      counts[proposal.state]++;
+    }
+
+    return counts;
+  }
+}
+
+/**
+ * Proposal manager for workflow operations.
+ */
+export class ProposalManager {
+  private store: ProposalStore;
+
+  constructor(store: ProposalStore) {
+    this.store = store;
+  }
+
+  /**
+   * Submit a new proposal.
+   */
+  async submit(params: {
+    contractId: string;
+    proposerRoleId: string;
+    diff: ContractDiff;
+  }): Promise<ContractProposal> {
+    const proposal = createProposal(params);
+    await this.store.save(proposal);
+    return proposal;
+  }
+
+  /**
+   * Approve a proposal.
+   */
+  async approve(
+    proposalId: string,
+    reviewerRoleId: string,
+    comment?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const proposal = await this.store.getById(proposalId);
+
+    if (!proposal) {
+      return { success: false, error: 'Proposal not found' };
+    }
+
+    if (proposal.state !== 'pending') {
+      return {
+        success: false,
+        error: `Proposal is already ${proposal.state}`,
+      };
+    }
+
+    proposal.state = 'approved';
+    proposal.reviewedAt = Date.now();
+    proposal.reviewerRoleId = reviewerRoleId;
+    proposal.reviewComment = comment;
+
+    await this.store.save(proposal);
+    return { success: true };
+  }
+
+  /**
+   * Reject a proposal.
+   */
+  async reject(
+    proposalId: string,
+    reviewerRoleId: string,
+    comment: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const proposal = await this.store.getById(proposalId);
+
+    if (!proposal) {
+      return { success: false, error: 'Proposal not found' };
+    }
+
+    if (proposal.state !== 'pending') {
+      return {
+        success: false,
+        error: `Proposal is already ${proposal.state}`,
+      };
+    }
+
+    proposal.state = 'rejected';
+    proposal.reviewedAt = Date.now();
+    proposal.reviewerRoleId = reviewerRoleId;
+    proposal.reviewComment = comment;
+
+    await this.store.save(proposal);
+    return { success: true };
+  }
+
+  /**
+   * Get pending proposals for a contract.
+   */
+  async getPendingForContract(contractId: string): Promise<ContractProposal[]> {
+    const proposals = await this.store.getByContract(contractId);
+    return proposals.filter((p) => p.state === 'pending');
+  }
+
+  /**
+   * Get approved proposals for a contract.
+   */
+  async getApprovedForContract(contractId: string): Promise<ContractProposal[]> {
+    const proposals = await this.store.getByContract(contractId);
+    return proposals.filter((p) => p.state === 'approved');
+  }
+
+  /**
+   * Get latest approved proposal for a contract.
+   */
+  async getLatestApproved(contractId: string): Promise<ContractProposal | null> {
+    const approved = await this.getApprovedForContract(contractId);
+    if (approved.length === 0) return null;
+
+    // Sort by review date descending
+    approved.sort((a, b) => (b.reviewedAt || 0) - (a.reviewedAt || 0));
+    return approved[0];
+  }
+
+  /**
+   * Check if there are any pending proposals that would block compilation.
+   */
+  async hasBlockingProposals(contractIds: string[]): Promise<{
+    blocking: boolean;
+    blockingProposals: ContractProposal[];
+  }> {
+    const allPending = await this.store.getPending();
+    const blockingProposals = allPending.filter((p) =>
+      contractIds.includes(p.contractId)
+    );
+
+    return {
+      blocking: blockingProposals.length > 0,
+      blockingProposals,
+    };
+  }
+
+  /**
+   * Get proposal statistics.
+   */
+  async getStats(): Promise<{
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    avgReviewTime?: number;
+  }> {
+    const counts = (this.store as InMemoryProposalStore).getCountByState?.() || {
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+    };
+
+    // Calculate average review time
+    const allProposals = [
+      ...(await this.store.getByState('approved')),
+      ...(await this.store.getByState('rejected')),
+    ];
+
+    let totalReviewTime = 0;
+    let reviewedCount = 0;
+
+    for (const proposal of allProposals) {
+      if (proposal.reviewedAt && proposal.submittedAt) {
+        totalReviewTime += proposal.reviewedAt - proposal.submittedAt;
+        reviewedCount++;
+      }
+    }
+
+    return {
+      total: counts.pending + counts.approved + counts.rejected,
+      pending: counts.pending,
+      approved: counts.approved,
+      rejected: counts.rejected,
+      avgReviewTime: reviewedCount > 0 ? totalReviewTime / reviewedCount : undefined,
+    };
+  }
+}
+
+/**
+ * Singleton proposal manager instance.
+ */
+let defaultManager: ProposalManager | null = null;
+
+export function getDefaultProposalManager(): ProposalManager {
+  if (!defaultManager) {
+    defaultManager = new ProposalManager(new InMemoryProposalStore());
+  }
+  return defaultManager;
+}
+
+export function resetDefaultProposalManager(): void {
+  defaultManager = null;
+}
