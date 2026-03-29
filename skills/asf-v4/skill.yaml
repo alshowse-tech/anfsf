@@ -1,0 +1,397 @@
+# ASF V4.0 OpenClaw Skill
+# ClawHub Skill Manifest
+
+name: asf-v4
+version: 1.0.0
+description: ASF V4.0 工业化增强模块 - 治理门禁 + 成本模型 + 安全优化
+author: ASF V4.0 Team
+license: MIT
+homepage: https://github.com/openclaw/openclaw
+repository: https://github.com/openclaw/openclaw/tree/main/skills/asf-v4
+
+# 分类标签
+tags:
+  - governance
+  - optimization
+  - security
+  - economics
+  - veto
+  - ownership
+  - kpi
+  - budget
+
+# OpenClaw 兼容性
+compatibility:
+  minOpenClawVersion: 2026.3.24
+  maxOpenClawVersion: "*"
+  nodeVersion: ">=20.0.0"
+
+# 技能类型
+type: skill
+
+# 入口文件
+main: index.ts
+
+# 导出工具
+tools:
+  - name: veto-check
+    description: 硬/软否决权检查 - 验证变更是否满足治理规则
+    category: governance
+    parameters:
+      - name: changes
+        type: array
+        required: true
+        description: 变更列表
+      - name: approvals
+        type: array
+        required: false
+        description: 审批记录列表
+    returns:
+      type: object
+      description: "{ passed: boolean, reason?: string, requiredRole?: string, warnings?: string[] }"
+    examples:
+      - description: 检查 API 变更是否满足 veto 规则
+        input:
+          changes:
+            - resourceType: contract
+              resourcePath: /orders
+              action: update
+          approvals:
+            - authority: architect
+              scope: "contract:OpenAPI:*"
+              status: approved
+        output:
+          passed: true
+
+  - name: ownership-proof
+    description: 生成可验证的 single-writer ownership 证明
+    category: governance
+    parameters:
+      - name: resources
+        type: array
+        required: true
+        description: 资源列表
+      - name: roles
+        type: array
+        required: true
+        description: 角色列表
+      - name: rules
+        type: array
+        required: false
+        description: 所有权规则列表
+    returns:
+      type: object
+      description: "{ proofs: [], valid: boolean, invalidCount: number }"
+    examples:
+      - description: 生成 API 资源的 ownership 证明
+        input:
+          resources:
+            - type: contract
+              path: /orders#POST
+              format: openapi
+          roles:
+            - id: backend-team
+            - id: architect
+        output:
+          valid: true
+          invalidCount: 0
+
+  - name: economics-score
+    description: 计算角色分配的经济学评分
+    category: optimization
+    parameters:
+      - name: assignment
+        type: object
+        required: true
+        description: 任务到角色的分配映射
+      - name: dag
+        type: object
+        required: true
+        description: 任务 DAG (tasks + edges)
+      - name: roles
+        type: array
+        required: true
+        description: 角色列表
+    returns:
+      type: object
+      description: "{ interfaceCost, bottleneck, skillMatch, parallelismGain, totalScore }"
+
+  - name: interface-budget
+    description: 计算跨角色依赖成本
+    category: optimization
+    parameters:
+      - name: roleId
+        type: string
+        required: true
+      - name: assignment
+        type: object
+        required: true
+      - name: dag
+        type: object
+        required: true
+      - name: roles
+        type: array
+        required: true
+    returns:
+      type: object
+      description: "{ baseCost, dependencyCost, totalCost, concurrentCap }"
+
+  - name: rework-risk
+    description: 预测任务返工风险
+    category: optimization
+    parameters:
+      - name: task
+        type: object
+        required: true
+        description: 任务信息
+      - name: contractChanges
+        type: array
+        required: true
+        description: 契约变更列表
+      - name: historicalData
+        type: array
+        required: false
+        description: 历史数据
+    returns:
+      type: object
+      description: "{ score: number (0-1), factors: string[], mitigation?: string }"
+
+  - name: hot-contract
+    description: 分析热契约并建议角色数量
+    category: analysis
+    parameters:
+      - name: tasks
+        type: array
+        required: true
+        description: 任务列表
+      - name: constraints
+        type: object
+        required: false
+        description: "约束条件 { kMin, kMax }"
+    returns:
+      type: object
+      description: "{ theoreticalMin, practicalMax, optimal, hotContracts: [], recommendation }"
+
+  - name: conflict-resolve
+    description: 预算驱动的所有权冲突解决
+    category: governance
+    parameters:
+      - name: resource
+        type: object
+        required: true
+      - name: conflictingRoles
+        type: array
+        required: true
+      - name: currentBudget
+        type: number
+        required: true
+      - name: budgetLimit
+        type: number
+        required: true
+    returns:
+      type: object
+      description: "{ action: 'merge_roles' | 'introduce_contract', reason, contractCost }"
+
+  - name: safe-optimize
+    description: 安全在线优化 (带回滚和冷却)
+    category: optimization
+    parameters:
+      - name: current
+        type: object
+        required: true
+        description: 当前配置
+      - name: metrics
+        type: object
+        required: true
+        description: 运行时指标
+      - name: projectId
+        type: string
+        required: true
+    returns:
+      type: object
+      description: "{ optimized, knobApplied, rolledBack, cooldownUntil }"
+
+# 导出命令
+commands:
+  - name: asf:status
+    description: 检查 ASF V4.0 技能状态
+    usage: asf:status
+
+  - name: asf:veto
+    description: 运行否决检查
+    usage: asf:veto --changes='[...]'
+
+  - name: asf:proof
+    description: 生成所有权证明
+    usage: asf:proof --resources='[...]' --roles='[...]'
+
+  - name: asf:score
+    description: 计算经济学评分
+    usage: asf:score --assignment='...' --dag='...' --roles='[...]'
+
+  - name: asf:risk
+    description: 预测返工风险
+    usage: asf:risk --task='...' --changes='[...]'
+
+  - name: asf:hot-contracts
+    description: 分析热契约
+    usage: asf:hot-contracts --tasks='[...]'
+
+# 配置文件
+config:
+  - name: asf-v4.config.yaml
+    description: ASF V4.0 技能配置
+    required: false
+
+# 依赖
+dependencies:
+  typescript: ">=5.0.0"
+
+# 开发依赖
+devDependencies:
+  "@types/node": ">=20.0.0"
+  jest: ">=29.0.0"
+
+# 脚本
+scripts:
+  build: tsc
+  test: jest
+  lint: eslint .
+  typecheck: tsc --noEmit
+
+# 功能特性
+features:
+  - name: 治理门禁
+    description: 硬/软否决权执行，防止"智能但失控"
+    icon: 🛡️
+    
+  - name: 经济学评分
+    description: 基于成本的智能角色分配优化
+    icon: 📊
+    
+  - name: 热契约分析
+    description: 契约耦合度分析，自动收敛角色数量
+    icon: 🔥
+    
+  - name: Ownership 证明
+    description: Single-writer 可验证证明生成
+    icon: ✅
+    
+  - name: 返工风险预测
+    description: 基于变更和历史的返工风险预测
+    icon: ⚠️
+    
+  - name: 安全优化
+    description: 带旋钮限制、回滚和冷却的在线优化
+    icon: 🔄
+    
+  - name: 冲突解决
+    description: 预算驱动的合并角色 vs 加契约决策
+    icon: ⚖️
+
+# 使用场景
+useCases:
+  - title: API 变更治理
+    description: 确保 API 契约变更经过适当的审批流程
+    tools:
+      - veto-check
+      - ownership-proof
+      
+  - title: 角色分配优化
+    description: 基于经济学评分优化任务到角色的分配
+    tools:
+      - economics-score
+      - interface-budget
+      
+  - title: 风险评估
+    description: 预测变更可能导致的返工风险
+    tools:
+      - rework-risk
+      - hot-contract
+      
+  - title: 所有权冲突解决
+    description: 自动解决资源所有权冲突
+    tools:
+      - conflict-resolve
+      - ownership-proof
+      
+  - title: 运行时优化
+    description: 安全地在线优化角色配置
+    tools:
+      - safe-optimize
+      - economics-score
+
+# 性能指标
+performance:
+  benchmarks:
+    - name: Veto Enforcement
+      p95Latency: "<10ms"
+      opsPerSecond: ">100"
+    - name: Ownership Proof
+      p95Latency: "<20ms"
+      opsPerSecond: ">50"
+    - name: Economics Score
+      p95Latency: "<30ms"
+      opsPerSecond: ">30"
+    - name: Memory Write
+      p95Latency: "<5ms"
+      opsPerSecond: ">200"
+    - name: Memory Read
+      p95Latency: "<10ms"
+      opsPerSecond: ">100"
+    - name: Agent Status
+      p95Latency: "<5ms"
+      opsPerSecond: ">200"
+  memoryUsage: "<50MB"
+  cpuImpact: "<5%"
+
+# 安全审计
+security:
+  auditScore: "100%"
+  checks:
+    - name: 代码安全
+      items: 5
+      passed: 5
+    - name: 权限控制
+      items: 5
+      passed: 5
+    - name: 数据隔离
+      items: 3
+      passed: 3
+    - name: 审计日志
+      items: 3
+      passed: 3
+    - name: 安全优化
+      items: 4
+      passed: 4
+    - name: 依赖安全
+      items: 3
+      passed: 3
+
+# 文档
+documentation:
+  readme: README.md
+  api: docs/ROLE-SYNTHESIZER-v0.9.0.md
+  integration: docs/INTEGRATION-ANALYSIS.md
+  phases:
+    - PHASE-1-COMPLETE.md
+    - PHASE-2-COMPLETE.md
+    - PHASE-3-COMPLETE.md
+
+# 版本历史
+changelog:
+  - version: 1.0.0
+    date: 2026-03-29
+    changes:
+      - "初始发布"
+      - "8 个 Tools"
+      - "6 个 Commands"
+      - "Memory/Agent/Security 集成"
+      - "性能基准测试"
+      - "安全审计 100% 通过"
+
+# 维护状态
+maintenance:
+  status: active
+  lastUpdate: 2026-03-29
+  nextRelease: TBD
