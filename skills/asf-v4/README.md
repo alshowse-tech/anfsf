@@ -1,14 +1,15 @@
-# ASF V4.0 OpenClaw Skill
+# AI Native Full-Stack Software Factory V1.0 OpenClaw Skill
 
-**Version**: v0.9.0  
+**Architecture**: AI Native Full-Stack Software Factory  
+**Version**: V1.0.0  
 **OpenClaw Compatibility**: >=2026.3.24  
-**Status**: ✅ Phase 1 Complete
+**Status**: ✅ Production Ready
 
 ---
 
 ## Overview
 
-ASF V4.0 skill brings industrial-grade governance and optimization to OpenClaw:
+ANFSF V1.0 skill brings industrial-grade governance and optimization to OpenClaw:
 
 - **Veto Enforcement**: Hard/soft veto rules for governance
 - **Ownership Proof**: Verifiable single-writer proofs

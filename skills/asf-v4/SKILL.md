@@ -1,12 +1,12 @@
 ---
-name: asf-v4
-description: ASF V4.0 工业化增强模块 - 治理门禁 + 成本模型 + 安全优化。提供否决权执行、所有权证明、经济学评分、返工风险预测、安全在线优化等工业级能力。
+name: anfsf-v1
+description: AI Native Full-Stack Software Factory V1.0 - 工业化增强模块 (治理门禁 + 成本模型 + 安全优化)。提供否决权执行、所有权证明、经济学评分、返工风险预测、安全在线优化等工业级能力。
 metadata: { "openclaw": { "emoji": "🏭", "requires": { "bins": ["node"] } } }
 ---
 
-# ASF V4.0 - 工业化增强模块
+# AI Native Full-Stack Software Factory V1.0 - 工业化增强模块
 
-**版本**: v0.9.0  
+**架构版本**: V1.0.0  
 **OpenClaw 兼容性**: >=2026.3.24
 
 ---
@@ -77,13 +77,16 @@ asf:hot-contracts --tasks='[{"id":"task-1","contractIds":["api-orders","db-order
 
 ## 架构影响
 
-激活 ASF V4.0 后，ANFSF 架构获得以下增强：
+激活 AI Native Full-Stack Software Factory V1.0 后，17 层架构获得以下增强：
 
-1. **Layer 4 (Requirement Graph)** - 变更追溯和热力图
-2. **Layer 8.5 (Role Control Plane)** - Interface Budget v2 和否决门禁
-3. **Layer 9 (Agent OS)** - 角色 KPI 仪表板
-4. **Layer 13 (Semantic Consistency)** - 契约语义化 diff
-5. **Layer 16 (Runtime Intelligence)** - 自动回滚和进化守卫
+1. **Layer 3 (Input Governance)** - 否决门禁和冲突解决
+2. **Layer 4 (Requirement Graph)** - 变更追溯和热力图
+3. **Layer 8 (Adaptive DAG)** - 动态任务图和失败重规划
+4. **Layer 9 (Agent OS)** - 角色 KPI 仪表板和 Agent 通信
+5. **Layer 12 (Long-Chain Stability)** - Budgeted Reasoning 和安全 RLM
+6. **Layer 13 (Semantic Consistency)** - 契约语义化 diff
+7. **Layer 16 (Runtime Intelligence)** - 自动回滚和进化守卫
+8. **Layer 17 (Evolution Guard)** - 回归检测和风险评分
 
 ---
 

@@ -1,7 +1,7 @@
 {
-  "name": "@asf-v4/openclaw-skill",
-  "version": "0.9.0",
-  "description": "ASF V4.0 OpenClaw Skill - Industrial Governance & Optimization",
+  "name": "@anfsf-v1/openclaw-skill",
+  "version": "1.3.0",
+  "description": "AI Native Full-Stack Software Factory V1.3 - Agentic Self-Organizing + UI/UX Intelligent Synthesis + Data Flywheel",
   "main": "index.ts",
   "types": "index.ts",
   "scripts": {
@@ -30,7 +30,9 @@
     "node": ">=20.0.0"
   },
   "openclaw": {
-    "skillName": "asf-v4",
+    "skillName": "anfsf-v1",
+    "architectureName": "AI Native Full-Stack Software Factory",
+    "architectureVersion": "1.3.0",
     "minOpenClawVersion": "2026.3.24",
     "tools": [
       "veto-check",

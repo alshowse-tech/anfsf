@@ -1,10 +1,10 @@
-# ASF V4.0 OpenClaw Skill
+# AI Native Full-Stack Software Factory V1.3 OpenClaw Skill
 # ClawHub Skill Manifest
 
-name: asf-v4
-version: 1.0.0
-description: ASF V4.0 工业化增强模块 - 治理门禁 + 成本模型 + 安全优化
-author: ASF V4.0 Team
+name: anfsf-v1
+version: 1.3.0
+description: AI Native Full-Stack Software Factory V1.3 - Agentic 自组织 + UI/UX 智能合成 + 数据飞轮闭环 (最终完整融合版)
+author: ANFSF V1.3 Team
 license: MIT
 homepage: https://github.com/openclaw/openclaw
 repository: https://github.com/openclaw/openclaw/tree/main/skills/asf-v4
@@ -213,29 +213,29 @@ tools:
 
 # 导出命令
 commands:
-  - name: asf:status
-    description: 检查 ASF V4.0 技能状态
-    usage: asf:status
+  - name: anfsf:status
+    description: 检查 ANFSF V1.0 技能状态
+    usage: anfsf:status
 
-  - name: asf:veto
+  - name: anfsf:veto
     description: 运行否决检查
-    usage: asf:veto --changes='[...]'
+    usage: anfsf:veto --changes='[...]' --approvals='[...]'
 
-  - name: asf:proof
+  - name: anfsf:proof
     description: 生成所有权证明
-    usage: asf:proof --resources='[...]' --roles='[...]'
+    usage: anfsf:proof --resources='[...]' --roles='[...]'
 
-  - name: asf:score
+  - name: anfsf:score
     description: 计算经济学评分
-    usage: asf:score --assignment='...' --dag='...' --roles='[...]'
+    usage: anfsf:score --assignment='...' --dag='...' --roles='[...]'
 
-  - name: asf:risk
+  - name: anfsf:risk
     description: 预测返工风险
-    usage: asf:risk --task='...' --changes='[...]'
+    usage: anfsf:risk --task='...' --changes='[...]'
 
-  - name: asf:hot-contracts
+  - name: anfsf:hot-contracts
     description: 分析热契约
-    usage: asf:hot-contracts --tasks='[...]'
+    usage: anfsf:hot-contracts --tasks='[...]'
 
 # 配置文件
 config:
