@@ -100,11 +100,11 @@ async function benchmarkVetoEnforcement(): Promise<BenchmarkResult> {
   const enforcer = new VetoEnforcer();
   
   const mockChanges = [
-    { resourceType: 'contract', resourcePath: '/orders', action: 'update' },
+    { resourceType: 'contract', resourcePath: '/orders', action: 'update' as const },
   ];
   
   const mockApprovals = [
-    { authority: 'architect', scope: 'contract:OpenAPI:*', status: 'approved' },
+    { authority: 'architect' as const, scope: 'contract:OpenAPI:*', status: 'approved' as const, approverRoleId: 'architect-team', timestamp: Date.now() },
   ];
   
   return runBenchmark('Veto Enforcement', () => {
@@ -157,8 +157,8 @@ async function benchmarkEconomicsScore(): Promise<BenchmarkResult> {
   };
   
   const mockRoles = [
-    { id: 'role-1', economics: { costPerTask: 1.0, overheadPerDependency: 0.5, parallelismCap: 5 } },
-    { id: 'role-2', economics: { costPerTask: 1.0, overheadPerDependency: 0.5, parallelismCap: 5 } },
+    { id: 'role-1', name: 'Role 1', economics: { costPerTask: 1.0, overheadPerDependency: 0.5, parallelismCap: 5 } },
+    { id: 'role-2', name: 'Role 2', economics: { costPerTask: 1.0, overheadPerDependency: 0.5, parallelismCap: 5 } },
   ];
   
   return runBenchmark('Economics Score Calculation', () => {

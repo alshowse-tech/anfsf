@@ -48,7 +48,7 @@ import {
 // ============================================================================
 export const asf_v4 = {
   name: 'asf-v4',
-  version: '0.9.0',
+  version: '1.3.0',
   description: 'ASF V4.0 工业化增强模块 - 治理门禁 + 成本模型 + 安全优化',
   author: 'ASF V4.0 Team',
   license: 'MIT',
@@ -210,7 +210,7 @@ export const asf_v4 = {
      */
     'asf:status': async () => {
       return {
-        version: '0.9.0',
+        version: '1.3.0',
         modules: [
           'veto-enforcement',
           'economics-scoring',

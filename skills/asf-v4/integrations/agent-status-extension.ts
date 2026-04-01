@@ -99,7 +99,7 @@ export async function extendAgentStatusWithKPI(
   
   // Determine triggered actions based on KPI
   if (kpiData.queuePressure > 1.2) {
-    extension.roleKPI.triggeredActions.push({
+    extension.roleKPI!.triggeredActions.push({
       action: 'suggest_split',
       priority: 'high',
       message: `Queue pressure critical (${kpiData.queuePressure.toFixed(2)})`,
@@ -107,7 +107,7 @@ export async function extendAgentStatusWithKPI(
   }
   
   if (kpiData.driftIndex > 0.35) {
-    extension.roleKPI.triggeredActions.push({
+    extension.roleKPI!.triggeredActions.push({
       action: 'suggest_reassign',
       priority: 'high',
       message: `Drift index high (${kpiData.driftIndex.toFixed(2)})`,
@@ -115,7 +115,7 @@ export async function extendAgentStatusWithKPI(
   }
   
   if (kpiData.conflictRate > 0.15) {
-    extension.roleKPI.triggeredActions.push({
+    extension.roleKPI!.triggeredActions.push({
       action: 'alert',
       priority: 'medium',
       message: `Conflict rate elevated (${(kpiData.conflictRate * 100).toFixed(1)}%)`,
@@ -156,7 +156,7 @@ export async function extendAgentStatusWithBudget(
     crossRoleEdges: number;
   }
 ): Promise<void> {
-  const existing = await getAgentStatusExtension(agentId);
+  const existing = await getExtendedAgentStatus(agentId);
   
   const extension: AsfAgentStatusExtension = {
     ...existing,
@@ -191,7 +191,7 @@ export async function extendAgentStatusWithGovernance(
     ownershipProofValid: boolean;
   }
 ): Promise<void> {
-  const existing = await getAgentStatusExtension(agentId);
+  const existing = await getExtendedAgentStatus(agentId);
   
   const extension: AsfAgentStatusExtension = {
     ...existing,
