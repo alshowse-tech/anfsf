@@ -607,6 +607,7 @@ export class AgentHarness {
 
       // Check 1: Critical CSS inlined
       const criticalInline = await page.evaluate(() => {
+        // @ts-ignore - browser context
         const criticalStyle = document.querySelector('style[data-critical]');
         return criticalStyle !== null;
       });
@@ -649,19 +650,23 @@ export class AgentHarness {
 
       // Check 4: Count total styles
       const styleCount = await page.evaluate(() => {
+        // @ts-ignore - browser context
         const stylesheets = Array.from(document.styleSheets);
+        // @ts-ignore - browser context
         const inlineStyles = document.querySelectorAll('style');
         return stylesheets.length + inlineStyles.length;
       });
 
       // Check 5: Verify no FOUC (check if body is visible before styles load)
       const foucDetected = await page.evaluate(() => {
-        // Check if body was visible before styles loaded
+        // @ts-ignore - browser context
         const body = document.body;
+        // @ts-ignore - browser context
         const computedStyle = window.getComputedStyle(body);
-        // If body has opacity < 1 before styles load, FOUC protection is active
+        // @ts-ignore - browser context
         return computedStyle.opacity === '1' && 
                computedStyle.visibility === 'visible' &&
+               // @ts-ignore - browser context
                !document.querySelector('style[data-critical]');
       });
 

@@ -231,15 +231,15 @@ export class MCPBus {
     message.to = '*';
     this.stats.totalBroadcasts++;
 
-    // Get all subscribers
-    const allSubscribers = new Set<Function>();
+    // Get all subscribers (use array to allow same callback for multiple agents)
+    const allSubscribers: Function[] = [];
     for (const [agentId, callbacks] of this.subscriptions.entries()) {
       if (agentId !== '*') {
-        callbacks.forEach(cb => allSubscribers.add(cb));
+        callbacks.forEach(cb => allSubscribers.push(cb));
       }
     }
 
-    if (allSubscribers.size === 0) {
+    if (allSubscribers.length === 0) {
       this.log('[MCPBus] No subscribers for broadcast');
       if (message.idempotentKey) this.idempotencyPending.delete(message.idempotentKey);
       return [];
@@ -265,7 +265,7 @@ export class MCPBus {
     }
 
     this.stats.totalMessagesSent++;
-    this.stats.totalMessagesReceived += allSubscribers.size;
+    this.stats.totalMessagesReceived += allSubscribers.length;
     this.updateStats(startTime);
 
     // Cache response and clean up pending

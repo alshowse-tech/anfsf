@@ -177,7 +177,7 @@ describe('Ownership Flow Integration', () => {
     );
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('Architect');
+    expect(result.error).toContain('architect');
   });
 
   it('should prevent approving own proposal', async () => {
@@ -316,7 +316,7 @@ describe('Full Workflow: Propose → Approve → Compile', () => {
     lattice.setAuthority('architect', 'architect');
     
     const proposalStore = new InMemoryProposalStore();
-    const proposalManager = new ProposalManager(proposalStore);
+    const proposalManager = new ProposalManager(proposalStore, lattice as any);
     const stateMachine = new ContractStateMachine('api-v1', 'draft', '1.0.0');
     const stateProvider = new MockContractStateProvider();
 

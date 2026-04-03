@@ -338,13 +338,21 @@ export class ProposalManager {
 }
 
 /**
+ * Mock ownership lattice for default manager.
+ */
+class DefaultOwnershipLattice {
+  hasAuthority(): boolean { return true; }
+  getOwner(): string | null { return null; }
+}
+
+/**
  * Singleton proposal manager instance.
  */
 let defaultManager: ProposalManager | null = null;
 
 export function getDefaultProposalManager(): ProposalManager {
   if (!defaultManager) {
-    defaultManager = new ProposalManager(new InMemoryProposalStore());
+    defaultManager = new ProposalManager(new InMemoryProposalStore(), new DefaultOwnershipLattice());
   }
   return defaultManager;
 }
