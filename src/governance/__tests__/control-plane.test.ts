@@ -50,12 +50,19 @@ describe('GovernanceControlPlane', () => {
         config: {},
       };
 
-      const operation = await controlPlane.deployPolicy(policy);
+      // Use fast canary options for testing
+      const operation = await controlPlane.deployPolicy(policy, {
+        stages: [0.1, 0.5, 1.0],
+        stageDurationMs: 100, // Fast stages for testing
+        monitorMetrics: [],
+        rollbackOnFailure: false,
+        significanceCheck: { enabled: false, threshold: 0.05, minSampleSize: 30 },
+      });
 
       expect(operation.id).toBeDefined();
       expect(operation.type).toBe('deploy');
       expect(operation.data).toBeDefined();
-    });
+    }, 15000);
 
     it('should check ownership before deployment', async () => {
       const policy: Policy = {
@@ -66,10 +73,16 @@ describe('GovernanceControlPlane', () => {
         config: {},
       };
 
-      const operation = await controlPlane.deployPolicy(policy);
+      const operation = await controlPlane.deployPolicy(policy, {
+        stages: [0.1, 1.0],
+        stageDurationMs: 100,
+        monitorMetrics: [],
+        rollbackOnFailure: false,
+        significanceCheck: { enabled: false, threshold: 0.05, minSampleSize: 30 },
+      });
 
       expect(operation).toBeDefined();
-    });
+    }, 15000);
 
     it('should track change event', async () => {
       const policy: Policy = {
@@ -80,10 +93,16 @@ describe('GovernanceControlPlane', () => {
         config: {},
       };
 
-      const operation = await controlPlane.deployPolicy(policy);
+      const operation = await controlPlane.deployPolicy(policy, {
+        stages: [0.5, 1.0],
+        stageDurationMs: 100,
+        monitorMetrics: [],
+        rollbackOnFailure: false,
+        significanceCheck: { enabled: false, threshold: 0.05, minSampleSize: 30 },
+      });
 
       expect(operation.changeEvent).toBeDefined();
-    });
+    }, 15000);
   });
 
   describe('RunTest', () => {

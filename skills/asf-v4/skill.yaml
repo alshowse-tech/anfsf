@@ -1,9 +1,9 @@
-# AI Native Full-Stack Software Factory V1.3 OpenClaw Skill
-# ClawHub Skill Manifest
+# AI Native Full-Stack Software Factory V1.5 OpenClaw Skill
+# ClawHub Skill Manifest - Layer 8.5 Governance Control Plane
 
 name: anfsf-v1
-version: 1.3.0
-description: AI Native Full-Stack Software Factory V1.3 - Agentic 自组织 + UI/UX 智能合成 + 数据飞轮闭环 (最终完整融合版)
+version: 1.5.0
+description: AI Native Full-Stack Software Factory V1.5 - Layer 8.5 治理控制平面 + UI/UX 智能合成 + 治理门禁 + 成本模型 + 安全优化
 author: ANFSF V1.3 Team
 license: MIT
 homepage: https://github.com/openclaw/openclaw
@@ -31,6 +31,18 @@ type: skill
 
 # 入口文件
 main: index.ts
+
+# V1.5.0: GenUI Skill version requirements
+genuiSkill:
+  minVersion: 1.1.0
+  required: true
+  features:
+    - assetManifest
+    - criticalCSSInlining
+    - styleValidation
+  compatibility:
+    - v1.0.0: false  # v1.0.0 does not support assetManifest
+    - v1.1.0: true   # v1.1.0+ required
 
 # 导出工具
 tools:
@@ -211,6 +223,79 @@ tools:
       type: object
       description: "{ optimized, knobApplied, rolledBack, cooldownUntil }"
 
+  # UI/UX Tools
+  - name: ui-synthesize
+    description: 从 PRD 需求生成 UI 组件代码
+    category: ui
+    parameters:
+      - name: requirement
+        type: object
+        required: true
+        description: UI 需求
+      - name: config
+        type: object
+        required: false
+        description: "配置 { framework, uiLibrary, styling }"
+    returns:
+      type: object
+      description: "{ componentName, code, props, dependencies, a11yScore }"
+
+  - name: ui-layout
+    description: 从用户流程生成页面布局
+    category: ui
+    parameters:
+      - name: userFlow
+        type: array
+        required: true
+        description: 用户流程列表
+      - name: requirements
+        type: array
+        required: true
+        description: UI 需求列表
+    returns:
+      type: object
+      description: "{ id, type, sections, breakpoints, visualHierarchy }"
+
+  - name: ui-design-tokens
+    description: 从 PRD 提取设计令牌
+    category: ui
+    parameters:
+      - name: prd
+        type: object
+        required: true
+        description: PRD 文档
+    returns:
+      type: object
+      description: "{ colors, typography, spacing, shadows, radii }"
+
+  - name: ui-interaction
+    description: 从用户流程生成交互流程
+    category: ui
+    parameters:
+      - name: userFlow
+        type: object
+        required: true
+        description: 用户流程
+    returns:
+      type: array
+      description: "InteractionFlow[]"
+
+  - name: ui-prototype
+    description: 从 PRD 生成完整可交互原型
+    category: ui
+    parameters:
+      - name: prd
+        type: object
+        required: true
+        description: PRD 文档
+      - name: config
+        type: object
+        required: false
+        description: 生成配置
+    returns:
+      type: object
+      description: "{ id, pages, flows, designTokens, previewUrl, shareUrl }"
+
 # 导出命令
 commands:
   - name: anfsf:status
@@ -236,6 +321,31 @@ commands:
   - name: anfsf:hot-contracts
     description: 分析热契约
     usage: anfsf:hot-contracts --tasks='[...]'
+
+  # Layer 8.5 Governance Control Plane Commands
+  - name: anfsf:cli
+    description: 'Layer 8.5 - 运行 CLI 命令 (synthesize|preview|verify|role|ui|skill|harness|mcp)'
+    usage: anfsf:cli --command=synthesize --k-auto --dry-run
+
+  - name: anfsf:deploy
+    description: 'Layer 8.5 - 金丝雀部署策略'
+    usage: anfsf:deploy --policy='...' --canary-options='...'
+
+  - name: anfsf:test
+    description: 'Layer 8.5 - 运行测试场景'
+    usage: anfsf:test --scenario='...'
+
+  - name: anfsf:load-skill
+    description: 'Layer 8.5 - 加载技能'
+    usage: anfsf:load-skill --skillName=utils --version=1.0.0
+
+  - name: anfsf:mcp-send
+    description: 'Layer 8.5 - 发送 MCP 消息'
+    usage: anfsf:mcp-send --from=agent1 --to=agent2 --type=command --payload='...'
+
+  - name: anfsf:mcp-broadcast
+    description: 'Layer 8.5 - 广播 MCP 消息'
+    usage: anfsf:mcp-broadcast --from=agent1 --type=proposal --payload='...'
 
 # 配置文件
 config:
@@ -288,6 +398,26 @@ features:
   - name: 冲突解决
     description: 预算驱动的合并角色 vs 加契约决策
     icon: ⚖️
+    
+  - name: UI 组件合成
+    description: 从 PRD 需求自动生成 React/Vue/Angular 组件
+    icon: 🎨
+    
+  - name: 布局生成
+    description: 基于用户流程自动生成响应式布局
+    icon: 📐
+    
+  - name: 设计系统映射
+    description: PRD 语义到设计令牌的自动映射
+    icon: 🎯
+    
+  - name: 交互流程生成
+    description: 用户操作到状态转换的自动映射
+    icon: ⚡
+    
+  - name: 原型生成
+    description: 从 PRD 到可交互原型的完整自动生成
+    icon: 🚀
 
 # 使用场景
 useCases:
@@ -320,6 +450,25 @@ useCases:
     tools:
       - safe-optimize
       - economics-score
+      
+  - title: UI 组件生成
+    description: 从 PRD 需求自动生成 UI 组件代码
+    tools:
+      - ui-synthesize
+      - ui-design-tokens
+      
+  - title: 页面布局生成
+    description: 基于用户流程生成响应式布局
+    tools:
+      - ui-layout
+      - ui-interaction
+      
+  - title: 原型生成
+    description: 从 PRD 到可交互原型的完整流程
+    tools:
+      - ui-prototype
+      - ui-design-tokens
+      - ui-interaction
 
 # 性能指标
 performance:
@@ -380,6 +529,18 @@ documentation:
 
 # 版本历史
 changelog:
+  - version: 1.5.0
+    date: 2026-04-01
+    changes:
+      - "样式加载优化 (V1.5.0)"
+      - "assetManifest 强制纳入 Contract Pack"
+      - "Readiness Gate 样式探针实时检测"
+      - "Ownership Lattice ui:style/** autoApprove 规则"
+      - "Harness 样式加载断言 testStyleLoading()"
+      - "Critical CSS 内联校验"
+      - "ProgressiveEvolutionFramework 样式 KPI (>99%)"
+      - "GenUI Skill v1.1 兼容性要求"
+      
   - version: 1.0.0
     date: 2026-03-29
     changes:

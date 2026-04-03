@@ -132,7 +132,7 @@ export class InputGovernanceEngine {
     }
 
     // 检查 API 完整性
-    if (!prd.backendSpecs || !prd.backendSpecs.api) {
+    if (!prd.backendSpecs || prd.backendSpecs.length === 0 || !prd.backendSpecs[0]?.api) {
       missing.push({
         category: 'api',
         item: 'API specifications',

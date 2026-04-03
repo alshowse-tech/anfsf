@@ -60,7 +60,13 @@ export class LayoutGenerator {
     layout: LayoutDefinition,
     breakpoint: 'mobile' | 'tablet' | 'desktop'
   ): LayoutDefinition {
-    const bpConfig = BREAKPOINTS[breakpoint];
+    const bpConfig: Breakpoint = {
+      name: breakpoint,
+      minWidth: BREAKPOINTS[breakpoint].minWidth,
+      maxWidth: BREAKPOINTS[breakpoint].maxWidth,
+      columns: BREAKPOINTS[breakpoint].columns,
+      gutter: BREAKPOINTS[breakpoint].gutter,
+    };
     
     // Adapt sections for the breakpoint
     const adaptedSections = this.adaptSections(layout.sections, breakpoint);

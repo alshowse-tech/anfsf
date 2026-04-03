@@ -5,7 +5,8 @@
  * Version: v0.8.5
  */
 
-import type { ContractProposal, ProposalState, ContractDiff } from './types';
+import type { ContractProposal, ProposalState } from './types';
+import type { ContractDiff } from '../contract/types';
 
 /**
  * Generate unique proposal ID.
@@ -19,16 +20,20 @@ export function generateProposalId(): string {
  */
 export function createProposal(params: {
   contractId: string;
+  contractType?: string;
   proposerRoleId: string;
   diff: ContractDiff;
 }): ContractProposal {
   return {
     id: generateProposalId(),
     contractId: params.contractId,
-    proposerRoleId: params.proposerRoleId,
+    contractType: params.contractType || 'OpenAPI',
+    proposerId: params.proposerRoleId,
     state: 'pending',
     diff: params.diff,
     submittedAt: Date.now(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   };
 }
 
@@ -84,13 +89,13 @@ export class InMemoryProposalStore implements ProposalStore {
 
   async getByProposer(roleId: string): Promise<ContractProposal[]> {
     return Array.from(this.proposals.values()).filter(
-      (p) => p.proposerRoleId === roleId
+      (p) => p.proposerId === roleId
     );
   }
 
   async getPending(): Promise<ContractProposal[]> {
     return Array.from(this.proposals.values()).filter(
-      (p) => p.state === 'pending'
+      (p) => p.state === 'pending' || p.state === 'submitted'
     );
   }
 
@@ -116,7 +121,9 @@ export class InMemoryProposalStore implements ProposalStore {
    */
   getCountByState(): Record<ProposalState, number> {
     const counts: Record<ProposalState, number> = {
+      draft: 0,
       pending: 0,
+      submitted: 0,
       approved: 0,
       rejected: 0,
     };
@@ -166,7 +173,7 @@ export class ProposalManager {
       return { success: false, error: 'Proposal not found' };
     }
 
-    if (proposal.state !== 'pending') {
+    if (proposal.state !== 'pending' && proposal.state !== 'submitted') {
       return {
         success: false,
         error: `Proposal is already ${proposal.state}`,
@@ -177,6 +184,7 @@ export class ProposalManager {
     proposal.reviewedAt = Date.now();
     proposal.reviewerRoleId = reviewerRoleId;
     proposal.reviewComment = comment;
+    proposal.updatedAt = Date.now();
 
     await this.store.save(proposal);
     return { success: true };
@@ -196,7 +204,7 @@ export class ProposalManager {
       return { success: false, error: 'Proposal not found' };
     }
 
-    if (proposal.state !== 'pending') {
+    if (proposal.state !== 'pending' && proposal.state !== 'submitted') {
       return {
         success: false,
         error: `Proposal is already ${proposal.state}`,
@@ -207,6 +215,7 @@ export class ProposalManager {
     proposal.reviewedAt = Date.now();
     proposal.reviewerRoleId = reviewerRoleId;
     proposal.reviewComment = comment;
+    proposal.updatedAt = Date.now();
 
     await this.store.save(proposal);
     return { success: true };
@@ -217,7 +226,7 @@ export class ProposalManager {
    */
   async getPendingForContract(contractId: string): Promise<ContractProposal[]> {
     const proposals = await this.store.getByContract(contractId);
-    return proposals.filter((p) => p.state === 'pending');
+    return proposals.filter((p) => p.state === 'pending' || p.state === 'submitted');
   }
 
   /**
@@ -235,8 +244,8 @@ export class ProposalManager {
     const approved = await this.getApprovedForContract(contractId);
     if (approved.length === 0) return null;
 
-    // Sort by review date descending
-    approved.sort((a, b) => (b.reviewedAt || 0) - (a.reviewedAt || 0));
+    // Sort by updated date descending
+    approved.sort((a, b) => b.updatedAt - a.updatedAt);
     return approved[0];
   }
 
@@ -269,7 +278,9 @@ export class ProposalManager {
     avgReviewTime?: number;
   }> {
     const counts = (this.store as InMemoryProposalStore).getCountByState?.() || {
+      draft: 0,
       pending: 0,
+      submitted: 0,
       approved: 0,
       rejected: 0,
     };
@@ -291,8 +302,8 @@ export class ProposalManager {
     }
 
     return {
-      total: counts.pending + counts.approved + counts.rejected,
-      pending: counts.pending,
+      total: counts.pending + counts.submitted + counts.approved + counts.rejected + counts.draft,
+      pending: counts.pending + counts.submitted,
       approved: counts.approved,
       rejected: counts.rejected,
       avgReviewTime: reviewedCount > 0 ? totalReviewTime / reviewedCount : undefined,

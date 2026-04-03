@@ -416,6 +416,7 @@ export class ${pattern.name}Component {
   }
 
   private wrapWithMemo(code: string): string {
+    // Handle named export: export default ComponentName;
     const exportMatch = code.match(/export default (\w+);/);
     if (exportMatch) {
       const componentName = exportMatch[1];
@@ -424,6 +425,23 @@ export class ${pattern.name}Component {
         `export default React.memo(${componentName});`
       );
     }
+    
+    // Handle inline function export: export default function ComponentName()
+    const inlineMatch = code.match(/export default function (\w+)\(/);
+    if (inlineMatch) {
+      const componentName = inlineMatch[1];
+      return code.replace(
+        `export default function ${componentName}(`,
+        `const ${componentName} = React.memo(function ${componentName}(`
+      ).replace(
+        /}\n*export default \w+;?$/,
+        '});\n\nexport default ' + componentName + ';'
+      ).replace(
+        /}\n*$/,
+        '});'
+      );
+    }
+    
     return code;
   }
 }

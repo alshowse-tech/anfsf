@@ -1,4 +1,19 @@
-# ASF V4.0 状态报告 (2026-04-01 11:30)
+# ASF V4.0 状态报告 (2026-04-03 10:09)
+
+## 🫀 心跳检查清单 (每 30m 轮询)
+
+| 检查项 | 频率 | 最后检查 | 状态 |
+|--------|------|----------|------|
+| Gateway 健康 | 每次 | - | ⏳ 待检查 |
+| ANFSF 技能状态 | 每日 1 次 | - | ⏳ 待检查 |
+| 测试覆盖率 | 每周 1 次 | - | ⏳ 待检查 |
+| 安全审计 | 每周 1 次 | - | ⏳ 待检查 |
+
+**检查触发条件**:
+- Gateway 延迟 >100ms → 告警
+- ANFSF 技能不可用 → 告警
+- 测试通过率 <90% → 告警
+- 安全审计 critical >0 → 立即告警
 
 ## 系统健康状态
 
@@ -23,10 +38,11 @@
 - ✅ 镜像源：已配置国内加速
 
 ### OpenClaw 系统
-- ✅ 版本：2026.3.24
-- ⚠️ 插件版本警告：部分插件需要 >=2026.3.28 (不影响核心功能)
+- ✅ 版本：2026.4.1 (da64a97)
 - ✅ 已启用技能：7 (clawhub, coding-agent, healthcheck, node-connect, oracle, skill-creator, weather)
-- ✅ 安全审计：0 critical, 0 warn
+- ✅ 安全审计：0 critical, 0 warn (**plugins.allow 已配置**)
+- ✅ 备份：/root/.openclaw/backups/openclaw-backup-20260402_182202.tar.gz (1.3GB)
+- ✅ ANFSF 适配：✅ 完全适配 (综合评分 9.6/10)
 
 ## 📋 v0.8.5 + v0.9.0 (✅ 完成) + asf-v4 Skill Phase 1+2+3 (✅ 完成)
 
@@ -219,12 +235,13 @@
 
 ## 注意事项
 
-⚠️ 飞书配置被恢复 (channels.feishu.enabled = true)
-- 如需禁用，请执行：
-  1. 编辑 ~/.openclaw/openclaw.json
-  2. 设置 channels.feishu.enabled = false
-  3. 设置 plugins.entries.feishu.enabled = false
-  4. 重启 Gateway
+✅ 飞书配置：已禁用 (channels.feishu.enabled = false)
+
+✅ 安全配置：已修复 (plugins.allow = ["openclaw-lark"])
+
+✅ 长期记忆：已创建 (MEMORY.md)
+
+✅ 心跳监控：已增强 (添加 ANFSF 检查清单)
 
 ## 完整测试日志
 

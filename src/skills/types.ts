@@ -272,6 +272,9 @@ export interface SkillLoadOptions {
   
   /** Initialize with config */
   initConfig?: Record<string, any>;
+  
+  /** Skill dependencies */
+  dependencies?: string[];
 }
 
 /**

@@ -5,7 +5,7 @@
  * Version: v0.8.5
  */
 
-import type { ContractState, StateTransition, ContractStateMachine as IContractStateMachine } from './types';
+import type { ContractState, StateTransition, ContractStateMachine as IContractStateMachine, ProposalState } from './types';
 
 /**
  * Valid state transitions.
@@ -105,7 +105,7 @@ export class ContractStateMachine {
    * Bump version based on approval count.
    */
   private bumpVersion(): string {
-    const approvedCount = this.state.history.filter((t) => t.to === 'approved').length;
+    const approvedCount = this.state.history.filter((t: StateTransition) => t.to === 'approved').length;
     
     // Parse current version
     const parts = this.state.version.split('.').map(Number);

@@ -1,0 +1,142 @@
+# 捷阅证券信息助手 - Prometheus 告警规则
+groups:
+  - name: jieyue-securities-alerts
+    interval: 30s
+    rules:
+      # ============== 服务可用性告警 ==============
+      
+      # 服务宕机
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "实例 {{ $labels.instance }} 已宕机"
+          description: "{{ $labels.instance }} 已经宕机超过 1 分钟"
+
+      # API 高错误率
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) 
+          / sum(rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 错误率过高"
+          description: "API 5xx 错误率超过 5% (当前值：{{ $value | humanizePercentage }})"
+
+      # API 响应时间过长
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API 响应时间过长"
+          description: "P95 响应时间超过 1 秒 (当前值：{{ $value | humanizeDuration }})"
+
+      # ============== 数据库告警 ==============
+      
+      # MySQL 连接数过多
+      - alert: MySQLHighConnections
+        expr: |
+          mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MySQL 连接数过高"
+          description: "MySQL 连接数使用率超过 80% (当前值：{{ $value | humanizePercentage }})"
+
+      # MySQL 慢查询
+      - alert: MySQLSlowQueries
+        expr: rate(mysql_global_status_slow_queries[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MySQL 慢查询过多"
+          description: "MySQL 慢查询速率超过 10 次/秒 (当前值：{{ $value | humanize }}qps)"
+
+      # ============== Redis 告警 ==============
+      
+      # Redis 内存使用过高
+      - alert: RedisHighMemory
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis 内存使用过高"
+          description: "Redis 内存使用率超过 80% (当前值：{{ $value | humanizePercentage }})"
+
+      # Redis 连接数过多
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis 连接数过多"
+          description: "Redis 连接数超过 100 (当前值：{{ $value }})"
+
+      # ============== 系统资源告警 ==============
+      
+      # CPU 使用率过高
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 使用率过高"
+          description: "{{ $labels.instance }} CPU 使用率超过 80% (当前值：{{ $value | humanizePercentage }})"
+
+      # 内存使用率过高
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "内存使用率过高"
+          description: "{{ $labels.instance }} 内存使用率超过 80% (当前值：{{ $value | humanizePercentage }})"
+
+      # 磁盘使用率过高
+      - alert: HighDiskUsage
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "磁盘使用率过高"
+          description: "{{ $labels.instance }} {{ $labels.mountpoint }} 磁盘使用率超过 80% (当前值：{{ $value | humanizePercentage }})"
+
+      # ============== 认证安全告警 ==============
+      
+      # 登录失败过多
+      - alert: HighLoginFailures
+        expr: rate(auth_login_failures_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "登录失败过多"
+          description: "登录失败速率超过 10 次/秒，可能存在暴力破解攻击 (当前值：{{ $value | humanize }}qps)"
+
+      # JWT 令牌验证失败
+      - alert: HighTokenValidationFailures
+        expr: rate(auth_token_validation_failures_total[5m]) > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "令牌验证失败过多"
+          description: "JWT 令牌验证失败速率超过 20 次/秒 (当前值：{{ $value | humanize }}qps)"

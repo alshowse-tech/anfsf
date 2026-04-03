@@ -10,8 +10,8 @@ import type {
   ContractAction,
   PermissionCondition,
   ContractProposal,
-  ContractDiff,
 } from './types';
+import type { ContractDiff } from '../contract/types';
 
 /**
  * Ownership lattice interface.
@@ -78,6 +78,20 @@ export class ContractGate {
         action: 'reject',
         allowedRoles: ['architect'],
       },
+      // V1.5.0 NEW: UI Style resources - auto-approve for Frontend Role
+      {
+        contractType: 'ui:style/**',
+        action: 'write',
+        allowedRoles: ['frontend', 'ui-designer', 'architect', 'system'],
+        conditions: [{ type: 'auto_approve', value: true }],
+      },
+      // V1.5.0 NEW: UI Style resources - immutable protection
+      {
+        contractType: 'ui:style/critical/**',
+        action: 'write',
+        allowedRoles: ['architect', 'system'],
+        conditions: [{ type: 'requires_review', value: true }],
+      },
     ];
   }
 
@@ -115,7 +129,7 @@ export class ContractGate {
 
     if (!isAllowed) {
       // Check if role has required authority
-      const hasAuthority = rule.allowedRoles.some((role) =>
+      const hasAuthority = rule.allowedRoles.some((role: string) =>
         this.lattice.hasAuthority(actorRoleId, role)
       );
 
@@ -183,7 +197,7 @@ export class ContractGate {
     }
 
     // Check proposal state
-    if (proposal.state !== 'pending') {
+    if (proposal.state !== 'pending' && proposal.state !== 'submitted') {
       return {
         allowed: false,
         reason: `Proposal is already ${proposal.state}`,
@@ -191,7 +205,7 @@ export class ContractGate {
     }
 
     // Cannot approve own proposal (separation of duties)
-    if (proposal.proposerRoleId === actorRoleId) {
+    if (proposal.proposerId === actorRoleId) {
       return {
         allowed: false,
         reason: 'Cannot approve your own proposal',
@@ -218,6 +232,11 @@ export class ContractGate {
    * Check if a diff can be auto-approved (low-risk changes).
    */
   canAutoApprove(diff: ContractDiff): boolean {
+    // V1.5.0 NEW: UI style resources have special auto-approve rules
+    if (this.isUIStyleResource(diff.contractType)) {
+      return this.canAutoApproveUIStyle(diff);
+    }
+
     // Must not be breaking
     if (diff.breaking) {
       return false;
@@ -249,6 +268,71 @@ export class ContractGate {
       if (item.details?.required === true) {
         return false;
       }
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if contract type is a UI style resource.
+   */
+  private isUIStyleResource(contractType: string): boolean {
+    return contractType.startsWith('ui:style');
+  }
+
+  /**
+   * Auto-approve rules for UI style resources.
+   * 
+   * V1.5.0: UI styles can be auto-approved if:
+   * - Not breaking changes
+   * - No critical CSS removal
+   * - Risk score below threshold
+   */
+  private canAutoApproveUIStyle(diff: ContractDiff): boolean {
+    // Critical CSS changes require review (immutable protection)
+    if (diff.contractType.includes('ui:style/critical')) {
+      return false;
+    }
+
+    // Must not be breaking
+    if (diff.breaking) {
+      return false;
+    }
+
+    // No removed external styles (could cause FOUC)
+    for (const item of diff.changes.removed) {
+      if (item.type === 'external_style' || item.type === 'stylesheet') {
+        return false;
+      }
+    }
+
+    // Check risk score (lower threshold for styles)
+    const riskScore = diff.riskScore || 50;
+    if (riskScore >= 15) {
+      return false;
+    }
+
+    // Adding styles is generally safe
+    if (diff.changes.added.length > 0 && diff.changes.modified.length === 0 && diff.changes.removed.length === 0) {
+      return true;
+    }
+
+    // Modifying non-critical styles with low risk is safe
+    if (diff.changes.modified.length > 0) {
+      for (const item of diff.changes.modified) {
+        // Color changes, spacing changes are safe
+        if (
+          item.type.includes('color') ||
+          item.type.includes('spacing') ||
+          item.type.includes('margin') ||
+          item.type.includes('padding')
+        ) {
+          continue;
+        }
+        // Other modifications need review
+        return false;
+      }
+      return true;
     }
 
     return true;

@@ -174,8 +174,15 @@ function compareTables(before: TableSchema, after: TableSchema): {
 } {
   const diff: DiffItem[] = [];
   let breaking = false;
-  const columnsDiff = { added: [], removed: [], modified: [] };
-  const indexesDiff = { added: [], removed: [] };
+  const columnsDiff: { added: ColumnSchema[]; removed: ColumnSchema[]; modified: ColumnSchema[] } = { 
+    added: [], 
+    removed: [], 
+    modified: [] 
+  };
+  const indexesDiff: { added: IndexDefinition[]; removed: IndexDefinition[] } = { 
+    added: [], 
+    removed: [] 
+  };
 
   const beforeColumns = new Map(before.columns.map((c) => [c.name, c]));
   const afterColumns = new Map(after.columns.map((c) => [c.name, c]));

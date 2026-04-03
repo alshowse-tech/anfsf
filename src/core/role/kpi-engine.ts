@@ -282,46 +282,46 @@ export async function calculateKPIsForRoles(
 export const DEFAULT_KPI_POLICIES: KPIActionPolicy[] = [
   {
     name: 'queue_pressure_split',
-    condition: (kpi) => kpi.queuePressure > KPI_THRESHOLDS.QUEUE_PRESSURE_CRITICAL,
+    condition: (kpi: RoleKPISnapshot) => kpi.queuePressure > KPI_THRESHOLDS.QUEUE_PRESSURE_CRITICAL,
     action: 'suggest_split',
     message: (kpi: RoleKPISnapshot) =>
       `Role ${kpi.roleId} has critical queue pressure (${kpi.queuePressure.toFixed(2)}). Consider splitting responsibilities.`,
     priority: 'high',
-  } as any,
+  },
   {
     name: 'drift_reassign',
-    condition: (kpi) =>
+    condition: (kpi: RoleKPISnapshot) =>
       kpi.driftIndex > KPI_THRESHOLDS.DRIFT_INDEX_CRITICAL &&
       kpi.failureRate > KPI_THRESHOLDS.FAILURE_RATE_WARNING,
     action: 'suggest_reassign',
     message: (kpi: RoleKPISnapshot) =>
       `Role ${kpi.roleId} has high drift (${kpi.driftIndex.toFixed(2)}) and elevated failure rate. Tasks may not match capabilities.`,
     priority: 'high',
-  } as any,
+  },
   {
     name: 'conflict_tighten',
-    condition: (kpi) => kpi.conflictRate > KPI_THRESHOLDS.CONFLICT_RATE_CRITICAL,
+    condition: (kpi: RoleKPISnapshot) => kpi.conflictRate > KPI_THRESHOLDS.CONFLICT_RATE_CRITICAL,
     action: 'alert',
     message: (kpi: RoleKPISnapshot) =>
       `Role ${kpi.roleId} has high conflict rate (${(kpi.conflictRate * 100).toFixed(1)}%). Consider tightening ownership rules.`,
     priority: 'medium',
-  } as any,
+  },
   {
     name: 'rework_review',
-    condition: (kpi) => kpi.reworkRate > KPI_THRESHOLDS.REWORK_RATE_CRITICAL,
+    condition: (kpi: RoleKPISnapshot) => kpi.reworkRate > KPI_THRESHOLDS.REWORK_RATE_CRITICAL,
     action: 'alert',
     message: (kpi: RoleKPISnapshot) =>
       `Role ${kpi.roleId} has high rework rate (${(kpi.reworkRate * 100).toFixed(1)}%). Review DoD gates and quality processes.`,
     priority: 'medium',
-  } as any,
+  },
   {
     name: 'failure_investigate',
-    condition: (kpi) => kpi.failureRate > KPI_THRESHOLDS.FAILURE_RATE_CRITICAL,
+    condition: (kpi: RoleKPISnapshot) => kpi.failureRate > KPI_THRESHOLDS.FAILURE_RATE_CRITICAL,
     action: 'alert',
     message: (kpi: RoleKPISnapshot) =>
       `Role ${kpi.roleId} has high failure rate (${(kpi.failureRate * 100).toFixed(1)}%). Investigate root causes.`,
     priority: 'high',
-  } as any,
+  },
 ];
 
 /**

@@ -575,6 +575,181 @@ export class AgentHarness {
     this.ownershipLattice.setOwnership(resourceType, resourcePath, roleId);
     this.log(`[AgentHarness] Ownership set: ${resourceType}:${resourcePath} -> ${roleId}`);
   }
+
+  // ============================================================================
+  // V1.5.0 NEW: Style Loading Tests
+  // ============================================================================
+
+  /**
+   * Test style loading to prevent FOUC (Flash of Unstyled Content).
+   * 
+   * Checks:
+   * - Critical CSS is inlined
+   * - External stylesheets load successfully
+   * - No style flash during page load
+   */
+  async testStyleLoading(page: any): Promise<TestResult> {
+    const startTime = now();
+    this.log('[AgentHarness] Testing style loading...');
+
+    const result: TestResult = {
+      passed: false,
+      scenarioId: 'style-loading-test',
+      status: 'running',
+      metrics: {},
+      executionTime: 0,
+      sampleSize: 1,
+    };
+
+    try {
+      // Wait for page to be ready
+      await page.waitForLoadState('domcontentloaded');
+
+      // Check 1: Critical CSS inlined
+      const criticalInline = await page.evaluate(() => {
+        const criticalStyle = document.querySelector('style[data-critical]');
+        return criticalStyle !== null;
+      });
+
+      if (!criticalInline) {
+        result.status = 'failed';
+        result.error = 'Critical CSS not inlined - may cause FOUC';
+        result.executionTime = now() - startTime;
+        this.log('[AgentHarness] Style loading test FAILED: Critical CSS not inlined');
+        return result;
+      }
+
+      // Check 2: Monitor style requests
+      const styleRequests: string[] = [];
+      const failedStyles: string[] = [];
+
+      page.on('response', async (response: any) => {
+        const url = response.url();
+        const type = response.request().resourceType();
+        
+        if (type === 'stylesheet' || url.endsWith('.css')) {
+          styleRequests.push(url);
+          if (response.status() >= 400) {
+            failedStyles.push(url);
+          }
+        }
+      });
+
+      // Reload page to capture style requests
+      await page.reload({ waitUntil: 'networkidle', timeout: 10000 });
+
+      // Check 3: Verify no failed style requests
+      if (failedStyles.length > 0) {
+        result.status = 'failed';
+        result.error = `Failed to load ${failedStyles.length} stylesheet(s): ${failedStyles.join(', ')}`;
+        result.executionTime = now() - startTime;
+        this.log(`[AgentHarness] Style loading test FAILED: ${failedStyles.length} styles failed`);
+        return result;
+      }
+
+      // Check 4: Count total styles
+      const styleCount = await page.evaluate(() => {
+        const stylesheets = Array.from(document.styleSheets);
+        const inlineStyles = document.querySelectorAll('style');
+        return stylesheets.length + inlineStyles.length;
+      });
+
+      // Check 5: Verify no FOUC (check if body is visible before styles load)
+      const foucDetected = await page.evaluate(() => {
+        // Check if body was visible before styles loaded
+        const body = document.body;
+        const computedStyle = window.getComputedStyle(body);
+        // If body has opacity < 1 before styles load, FOUC protection is active
+        return computedStyle.opacity === '1' && 
+               computedStyle.visibility === 'visible' &&
+               !document.querySelector('style[data-critical]');
+      });
+
+      // Build metrics
+      result.metrics = {
+        styleCount,
+        criticalInline: true,
+        failedStyles: failedStyles.length,
+        totalStyleRequests: styleRequests.length,
+        foucDetected,
+      };
+
+      // Final pass/fail
+      result.passed = criticalInline && failedStyles.length === 0;
+      result.status = result.passed ? 'passed' : 'failed';
+
+      this.log(`[AgentHarness] Style loading test ${result.passed ? 'PASSED' : 'FAILED'}: ${styleCount} styles, critical=${criticalInline}, failed=${failedStyles.length}`);
+
+    } catch (error) {
+      result.status = 'failed';
+      result.error = `Style loading test error: ${error}`;
+      result.stackTrace = error instanceof Error ? error.stack : undefined;
+      this.log(`[AgentHarness] Style loading test ERROR: ${error}`);
+    }
+
+    result.executionTime = now() - startTime;
+    return result;
+  }
+
+  /**
+   * Run comprehensive style readiness check.
+   * 
+   * Combines style loading test with resource probing.
+   */
+  async checkStyleReadiness(
+    page: any,
+    styleUrls: string[] = []
+  ): Promise<{
+    passed: boolean;
+    testResult: TestResult;
+    missingStyles: string[];
+    recommendations: string[];
+  }> {
+    const recommendations: string[] = [];
+    const missingStyles: string[] = [];
+
+    // Run style loading test
+    const testResult = await this.testStyleLoading(page);
+
+    // Check for missing external styles
+    if (styleUrls.length > 0) {
+      for (const url of styleUrls) {
+        const isLoaded = await page.evaluate((styleUrl: string) => {
+          const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+          return links.some(link => link.href === styleUrl);
+        }, url);
+
+        if (!isLoaded) {
+          missingStyles.push(url);
+        }
+      }
+    }
+
+    // Generate recommendations
+    if (!testResult.passed) {
+      if (testResult.error?.includes('Critical CSS not inlined')) {
+        recommendations.push('Inline critical CSS in <head> to prevent FOUC');
+      }
+      if (testResult.error?.includes('Failed to load')) {
+        recommendations.push('Ensure all external stylesheets are accessible and load successfully');
+      }
+    }
+
+    if (missingStyles.length > 0) {
+      recommendations.push(`Add missing stylesheets: ${missingStyles.join(', ')}`);
+    }
+
+    if (testResult.metrics?.foucDetected) {
+      recommendations.push('Implement FOUC protection (e.g., body { visibility: hidden } until styles load)');
+    }
+
+    return {
+      passed: testResult.passed && missingStyles.length === 0,
+      testResult,
+      missingStyles,
+      recommendations,
+    };
+  }
 }
 
 // ============================================================================

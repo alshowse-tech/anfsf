@@ -154,7 +154,7 @@ export const RISK_THRESHOLDS = {
   
   /** Low risk: score < 40, multiplier = 1.0 */
   LOW_MULTIPLIER: 1.0,
-} as const;
+};
 
 /**
  * Calculate risk weight multiplier from risk score.

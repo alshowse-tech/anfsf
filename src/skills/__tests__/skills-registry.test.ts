@@ -49,15 +49,21 @@ describe('SkillsRegistry', () => {
 
     it('should throw error when unloading skill with dependents', async () => {
       await registry.load('base-skill', '1.0.0');
-      await registry.load('dependent-skill', '1.0.0');
+      // Load dependent skill with dependency on base-skill
+      await registry.load('dependent-skill', '1.0.0', {
+        dependencies: ['base-skill']
+      });
 
       // Try to unload base skill (should fail)
-      await expect(registry.unload('base-skill')).rejects.toThrow();
+      await expect(registry.unload('base-skill')).rejects.toThrow(/Cannot unload skill with dependents/);
     });
 
     it('should force unload even with dependents', async () => {
       await registry.load('base-skill', '1.0.0');
-      await registry.load('dependent-skill', '1.0.0');
+      // Load dependent skill with dependency on base-skill
+      await registry.load('dependent-skill', '1.0.0', {
+        dependencies: ['base-skill']
+      });
 
       await expect(registry.unload('base-skill', { force: true })).resolves.not.toThrow();
     });

@@ -1,8 +1,8 @@
 # AI Native Full-Stack Software Factory V1.0
 
 **架构名称**: AI Native Full-Stack Software Factory  
-**架构版本**: V1.0.0  
-**发布日期**: 2026-03-31  
+**架构版本**: V1.5.0 (Layer 8.5 Governance Control Plane)  
+**发布日期**: 2026-04-01  
 **状态**: ✅ 生产就绪
 
 ---
@@ -20,6 +20,161 @@ AI Native Full-Stack Software Factory (ANFSF) V1.0 是一个完整的 17 层软�
 | 🛡️ **治理门禁** | L3 输入治理 + L17 进化护栏 | 防止"智能但失控" |
 | 📊 **成本模型** | L10 效率层 + L12 稳定性层 | 60-80% token 节省 |
 | 🔄 **安全优化** | L16 运行时智能 + 自动回滚 | 零风险进化 |
+| 🎛️ **治理控制平面** | Layer 8.5 - MCP 总线 + Skills Registry + Harness | 统一治理操作 |
+
+---
+
+## 🎛️ Layer 8.5: Governance Control Plane (V1.5.0 NEW)
+
+Layer 8.5 是 V1.5.0 新增的治理控制平面，位于 Layer 8 (Adaptive Task DAG Generator) 和 Layer 9 (Agent Operating System) 之间，提供统一的治理操作接口。
+
+### 核心模块
+
+| 模块 | 位置 | 功能 |
+|------|------|------|
+| **MCP Bus** | `src/mcp/mcp-bus.ts` | 消息通信协议总线，支持幂等键、TTL、全链路追踪 |
+| **Skills Registry** | `src/skills/skills-registry.ts` | 技能注册表，依赖拓扑检查、沙箱执行 |
+| **Sandbox Executor** | `src/skills/sandbox-executor.ts` | 安全沙箱，内存限制 256MB、时间限制 30s |
+| **Agent Harness** | `src/harness/agent-harness.ts` | Agent 测试和部署工具，所有权仲裁、统计显著性检验 |
+| **Canary Deployer** | `src/harness/canary-deployer.ts` | 金丝雀部署，渐进式 rollout (0.01→0.05→0.2→0.5→1.0) |
+| **AB Test Runner** | `src/harness/ab-test-runner.ts` | A/B 测试，统计显著性分析 (p<0.05) |
+| **Control Plane** | `src/governance/control-plane.ts` | 整合所有模块的统一控制平面 |
+
+### CLI 命令
+
+```bash
+# 触发角色合成与架构生成
+anfsf synthesize --k-auto --dry-run
+
+# 预览架构变更
+anfsf preview --output json
+
+# 验证架构一致性
+anfsf verify --project my-project
+
+# 重新平衡角色分配
+anfsf role rebalance --algorithm economics-optimized
+
+# 生成 UI 原型
+anfsf ui gen --framework react
+
+# 加载技能
+anfsf skill load utils --version 1.0.0
+
+# 运行测试
+anfsf harness test --scenario integration
+
+# 检查 MCP 消息
+anfsf mcp inspect --trace trace_123
+```
+
+### 核心特性
+
+1. **幂等键支持**: 防止网络抖动导致的重复执行
+2. **TTL 过期机制**: 消息自动过期，避免僵尸消息
+3. **全链路追踪**: traceId 追踪消息完整路径
+4. **依赖拓扑检查**: 防止循环依赖
+5. **沙箱隔离**: 内存/时间限制，API 访问控制
+6. **所有权仲裁**: 所有操作前强制检查所有权
+7. **统计显著性检验**: p<0.05 可配置阈值
+8. **金丝雀部署**: 渐进式流量切换，自动回滚
+
+---
+
+### Layer 8.5.6: UI Contract Pack (V1.5.0 NEW) ⭐
+
+UI Contract Pack 负责管理 UI 组件合成的资产清单，确保样式资源完整性和 MCP 同步。
+
+**位置**: `src/core/contract/ui-synthesis-module.ts`
+
+**核心功能**:
+
+| 功能 | 说明 | 验收标准 |
+|------|------|----------|
+| **Asset Manifest** | 强制纳入 styles.critical, styles.external, styles.dynamic, styles.tailwind | 100% 包含 |
+| **MCP 同步** | 向 PreviewController 发送资产清单 | 实时同步 |
+| **完整性校验** | 验证 manifest 不为空 | 抛出 Error 如果为空 |
+| **Critical CSS** | 支持关键样式内联 | 防止 FOUC |
+
+**代码示例**:
+
+```typescript
+const assetManifest = {
+  styles: {
+    critical: styles.critical,
+    external: styles.external,
+    dynamic: styles.dynamic,
+    tailwind: styles.tailwind
+  },
+  fonts: styles.fonts,
+  assets: {
+    images: componentTree.images,
+    icons: componentTree.icons
+  }
+};
+
+// MCP 同步
+await this.mcpBus.send({
+  type: "command",
+  payload: { assetManifest, target: "PreviewController" }
+});
+
+// 完整性校验
+if (!assetManifest.styles.critical && assetManifest.styles.external.length === 0) {
+  throw new Error('Style asset manifest empty - GenUI output validation failed');
+}
+```
+
+---
+
+### Layer 8.5.7: Readiness Gate (V1.5.0 NEW) ⭐
+
+Readiness Gate 负责样式资源的实时探针检测和自动修复触发。
+
+**位置**: `src/governance/preview-controller-ui-extension.ts`
+
+**核心功能**:
+
+| 功能 | 说明 | 验收标准 |
+|------|------|----------|
+| **Style Probe** | HEAD 请求检查样式资源可用性 | 实时检测 |
+| **Auto Healing** | 检测到缺失自动触发 Frontend Role 修复 | 自动触发 |
+| **User Feedback** | 友好的状态提示 | 清晰易懂 |
+| **Ticket Tracking** | 修复工单追踪 | 完整记录 |
+
+**代码示例**:
+
+```typescript
+private async probeStyles(url: string): Promise<StyleProbeResult> {
+  const failedUrls: string[] = [];
+  // ... HEAD 请求检查逻辑
+  
+  if (failedUrls.length > 0) {
+    await this.triggerSelfHealing({ /* 参数 */ });
+    console.log(`🔧 检测到 ${failedUrls.length} 个样式资源缺失，已自动触发 Frontend Role 修复`);
+  }
+  return { passed: failedUrls.length === 0, failedUrls, repairTicketId };
+}
+```
+
+**CLI 诊断命令**:
+
+```bash
+# 检查样式加载状态
+anfsf:style:status
+
+# 探测样式资源可用性
+anfsf:style:probe [urls...]
+
+# 查看 KPI 指标
+anfsf:style:kpi
+
+# 检查 UI Contract Pack
+anfsf:style:contract
+
+# 生成完整报告
+anfsf:style:report [--output=file.json]
+```
 
 ---
 
@@ -118,6 +273,16 @@ AI Native Full-Stack Software Factory (ANFSF) V1.0 是一个完整的 17 层软�
 | 冷却机制 | `safe-optimize` | 30 分钟冷却 |
 | 失败恢复 | `self-healing-probe` | 7 步诊断链 |
 | 预算推理 | `interface-budget` | 固定步数限制 |
+
+### 增强 4: UI/UX 智能合成 (V1.4.0 新增) ⭐
+
+| 功能 | 工具 | 说明 |
+|------|------|------|
+| 组件合成 | `ui-synthesize` | 从 PRD 生成 React/Vue/Angular 组件 |
+| 布局生成 | `ui-layout` | 响应式布局自动适配 (Mobile/Tablet/Desktop) |
+| 设计系统 | `ui-design-tokens` | PRD 语义到设计令牌映射 |
+| 交互流程 | `ui-interaction` | 用户操作到状态转换映射 |
+| 原型生成 | `ui-prototype` | 完整可交互原型自动生成 |
 
 ---
 

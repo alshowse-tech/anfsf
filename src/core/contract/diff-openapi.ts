@@ -443,8 +443,8 @@ export function canAutoApproveOpenAPI(diff: OpenAPIDiff): boolean {
 
   // Must only add optional fields
   for (const item of diff.changes.added) {
-    // Check if adding required fields
-    if (item.schema?.required?.length > 0) {
+    // Check if adding required fields (via details or schema)
+    if (item.details?.required === true || item.schema?.required?.length > 0) {
       return false;
     }
   }

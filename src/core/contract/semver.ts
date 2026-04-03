@@ -104,6 +104,7 @@ export function bumpVersion(currentVersion: string, bumpType: BumpType): string 
       
     case 'patch':
       ver.patch += 1;
+      ver.prerelease = undefined;
       ver.build = undefined;
       break;
   }

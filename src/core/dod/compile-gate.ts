@@ -5,7 +5,8 @@
  * Version: v0.8.5
  */
 
-import type { ContractProposal, ContractDiff } from '../ownership/types';
+import type { ContractProposal } from '../ownership/types';
+import type { ContractDiff } from '../contract/types';
 
 /**
  * Compile gate check result.

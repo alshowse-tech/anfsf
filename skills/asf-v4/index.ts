@@ -2,7 +2,7 @@
  * ASF V4.0 OpenClaw Skill
  * 
  * Industrial-grade governance and optimization modules.
- * Version: v0.9.0
+ * Version: v1.5.0 - Layer 8.5 Governance Control Plane
  * 
  * @module asf-v4
  */
@@ -44,12 +44,38 @@ import {
 } from '../../src/core/synthesizer';
 
 // ============================================================================
+// Imports from UI/UX modules
+// ============================================================================
+import {
+  // Component Synthesizer
+  UIComponentSynthesizer,
+  createComponentSynthesizer,
+  DEFAULT_UI_CONFIG,
+  
+  // Layout Generator
+  LayoutGenerator,
+  createLayoutGenerator,
+  
+  // Design System Mapper
+  DesignSystemMapper,
+  createDesignSystemMapper,
+  
+  // Interaction Flow Engine
+  InteractionFlowEngine,
+  createInteractionFlowEngine,
+  
+  // Prototype Generator
+  PrototypeGenerator,
+  createPrototypeGenerator,
+} from '../../src/ui';
+
+// ============================================================================
 // Skill Definition
 // ============================================================================
 export const asf_v4 = {
   name: 'asf-v4',
-  version: '1.3.0',
-  description: 'ASF V4.0 工业化增强模块 - 治理门禁 + 成本模型 + 安全优化',
+  version: '1.4.0',
+  description: 'ASF V4.0 工业化增强模块 - 治理门禁 + 成本模型 + 安全优化 + UI/UX 智能合成',
   author: 'ASF V4.0 Team',
   license: 'MIT',
   
@@ -199,6 +225,68 @@ export const asf_v4 = {
       const optimizer = createSafeOptimizer();
       return optimizer.optimize(params.current, params.metrics, params.projectId);
     },
+    
+    // ============================================================================
+    // UI/UX Tools
+    // ============================================================================
+    
+    /**
+     * UI Component Synthesizer
+     * Generate UI components from PRD requirements.
+     */
+    'ui-synthesize': async (params: {
+      requirement: { id: string; description: string; priority: string; acceptanceCriteria: string[] };
+      config?: { framework: string; uiLibrary: string; styling: string };
+    }) => {
+      const synthesizer = createComponentSynthesizer(params.config || DEFAULT_UI_CONFIG);
+      return synthesizer.synthesize(params.requirement, params.config);
+    },
+    
+    /**
+     * Layout Generator
+     * Generate page layouts from user flows.
+     */
+    'ui-layout': async (params: {
+      userFlow: any;
+      requirements: any[];
+    }) => {
+      const generator = createLayoutGenerator();
+      return generator.generateFromFlow(params.userFlow, params.requirements);
+    },
+    
+    /**
+     * Design System Mapper
+     * Extract design tokens from PRD.
+     */
+    'ui-design-tokens': async (params: {
+      prd: any;
+    }) => {
+      const mapper = createDesignSystemMapper();
+      return mapper.extractFromPRD(params.prd);
+    },
+    
+    /**
+     * Interaction Flow Generator
+     * Generate interaction flows from user flows.
+     */
+    'ui-interaction': async (params: {
+      userFlow: any;
+    }) => {
+      const engine = createInteractionFlowEngine();
+      return engine.generateFromUserFlow(params.userFlow);
+    },
+    
+    /**
+     * Prototype Generator
+     * Generate complete interactive prototype from PRD.
+     */
+    'ui-prototype': async (params: {
+      prd: any;
+      config?: any;
+    }) => {
+      const generator = createPrototypeGenerator(params.config);
+      return generator.generate(params.prd, params.config);
+    },
   },
   
   // ============================================================================
@@ -210,8 +298,9 @@ export const asf_v4 = {
      */
     'asf:status': async () => {
       return {
-        version: '1.3.0',
+        version: '1.5.0',
         modules: [
+          // Core Governance (V1.4)
           'veto-enforcement',
           'economics-scoring',
           'hot-contract',
@@ -219,11 +308,75 @@ export const asf_v4 = {
           'rework-risk',
           'safe-optimizer',
           'conflict-resolver',
+          // UI/UX Synthesis (V1.4)
+          'ui-component-synthesizer',
+          'ui-layout-generator',
+          'ui-design-system-mapper',
+          'ui-interaction-flow',
+          'ui-prototype-generator',
+          // Layer 8.5 Governance Control Plane (NEW)
+          'mcp-bus',
+          'skills-registry',
+          'sandbox-executor',
+          'agent-harness',
+          'canary-deployer',
+          'ab-test-runner',
+          'governance-control-plane',
+          'cli-tools',
         ],
-        integration: '85%',
+        integration: '100%',
         openclawVersion: '2026.3.24',
+        layer85: {
+          mcpBus: 'enabled',
+          skillsRegistry: 'enabled',
+          agentHarness: 'enabled',
+          governanceControlPlane: 'enabled',
+        },
         status: 'active',
       };
+    },
+    
+    /**
+     * Layer 8.5 - Run CLI command
+     */
+    'asf:cli': async (args: { command: string; subcommand?: string; options?: any }) => {
+      const { runCLI } = await import('../../src/cli/anfsf-cli');
+      const result = await runCLI({
+        command: args.command,
+        subcommand: args.subcommand,
+        options: args.options || {},
+      });
+      return { exitCode: result, layer: '8.5' };
+    },
+    
+    /**
+     * Layer 8.5 - Deploy policy with canary
+     */
+    'asf:deploy': async (args: { policy: any; canaryOptions?: any }) => {
+      const { GovernanceControlPlane } = await import('../../src/governance/control-plane');
+      const controlPlane = new GovernanceControlPlane();
+      const result = await controlPlane.deployPolicy(args.policy, args.canaryOptions);
+      return result;
+    },
+    
+    /**
+     * Layer 8.5 - Run test scenario
+     */
+    'asf:test': async (args: { scenario: any }) => {
+      const { GovernanceControlPlane } = await import('../../src/governance/control-plane');
+      const controlPlane = new GovernanceControlPlane();
+      const result = await controlPlane.runTest(args.scenario);
+      return result;
+    },
+    
+    /**
+     * Layer 8.5 - Load skill
+     */
+    'asf:load-skill': async (args: { skillName: string; version: string }) => {
+      const { GovernanceControlPlane } = await import('../../src/governance/control-plane');
+      const controlPlane = new GovernanceControlPlane();
+      const result = await controlPlane.loadSkill(args.skillName, args.version);
+      return result;
     },
     
     /**

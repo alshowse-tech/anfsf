@@ -31,8 +31,7 @@ describe('MCPBus', () => {
 
   describe('MessageBuilder', () => {
     it('should build valid message', () => {
-      const message = MessageBuilder
-        .createMessageBuilder()
+      const message = new MessageBuilder()
         .from('agent-1')
         .to('agent-2')
         .type('command')
@@ -51,8 +50,7 @@ describe('MCPBus', () => {
 
     it('should throw error for missing required fields', () => {
       expect(() => {
-        MessageBuilder
-          .createMessageBuilder()
+        new MessageBuilder()
           .from('agent-1')
           .build();
       }).toThrow('Missing required fields');
@@ -91,8 +89,7 @@ describe('MCPBus', () => {
       
       bus.subscribe('agent-1', callback);
 
-      const message = MessageBuilder
-        .createMessageBuilder()
+      const message = new MessageBuilder()
         .from('sender')
         .to('agent-1')
         .type('command')
@@ -108,8 +105,7 @@ describe('MCPBus', () => {
     });
 
     it('should return error for non-existent recipient', async () => {
-      const message = MessageBuilder
-        .createMessageBuilder()
+      const message = new MessageBuilder()
         .from('sender')
         .to('unknown-agent')
         .type('command')
@@ -126,8 +122,7 @@ describe('MCPBus', () => {
       const callback = jest.fn();
       bus.subscribe('agent-1', callback);
 
-      const message = MessageBuilder
-        .createMessageBuilder()
+      const message = new MessageBuilder()
         .from('sender')
         .to('agent-1')
         .type('command')
@@ -154,8 +149,7 @@ describe('MCPBus', () => {
       bus.subscribe('agent-2', callback);
       bus.subscribe('agent-3', callback);
 
-      const message = MessageBuilder
-        .createMessageBuilder()
+      const message = new MessageBuilder()
         .from('sender')
         .to('*')
         .type('proposal')
@@ -174,8 +168,7 @@ describe('MCPBus', () => {
       const callback = jest.fn();
       bus.subscribe('agent-1', callback);
 
-      const message = MessageBuilder
-        .createMessageBuilder()
+      const message = new MessageBuilder()
         .from('sender')
         .to('agent-1')
         .type('command')
@@ -199,8 +192,7 @@ describe('MCPBus', () => {
       bus.subscribe('agent-1', callback);
 
       for (let i = 0; i < 5; i++) {
-        const message = MessageBuilder
-          .createMessageBuilder()
+        const message = new MessageBuilder()
           .from('sender')
           .to('agent-1')
           .type('command')

@@ -5,7 +5,9 @@
  * Version: v0.8.5
  */
 
-import type { ContractDiff, AutoApproveRule } from '../ownership/types';
+import type { ContractDiff } from '../contract/types';
+import type { AutoApproveRule } from '../ownership/types';
+import type { DiffItem } from '../contract/types';
 import { canAutoApproveOpenAPI } from '../contract/diff-openapi';
 import { canAutoApproveDBSchema } from '../contract/diff-dbschema';
 
@@ -202,7 +204,7 @@ export function getAutoApproveReport(
 
   // Check type changes
   if (rule.conditions.noTypeChanges) {
-    const typeChanges = diff.changes.modified.filter((item) =>
+    const typeChanges = diff.changes.modified.filter((item: DiffItem) =>
       item.type.includes('type_change')
     );
     if (typeChanges.length > 0) {
@@ -214,7 +216,7 @@ export function getAutoApproveReport(
 
   // Check constraint tightening
   if (rule.conditions.noConstraintTighten) {
-    const constraintChanges = diff.changes.modified.filter((item) =>
+    const constraintChanges = diff.changes.modified.filter((item: DiffItem) =>
       item.type.includes('constraint')
     );
     if (constraintChanges.length > 0) {
@@ -227,7 +229,7 @@ export function getAutoApproveReport(
   // Check optional fields only
   if (rule.conditions.onlyAddOptionalFields) {
     const requiredAdds = diff.changes.added.filter(
-      (item) => item.details?.required === true
+      (item: DiffItem) => item.details?.required === true
     );
     if (requiredAdds.length > 0) {
       failedConditions.push(

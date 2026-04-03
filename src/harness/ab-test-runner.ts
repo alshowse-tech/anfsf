@@ -118,7 +118,7 @@ export class ABTestRunner {
     }
 
     // Determine winner
-    let result: ABTestResult = {
+    const result: ABTestResult = {
       testId: this.config.testId,
       status: 'running',
       variantResults,
@@ -129,14 +129,24 @@ export class ABTestRunner {
     if (minSamples >= this.config.minSampleSize) {
       // Calculate significance between variants
       if (variantResults.length >= 2) {
+        // Calculate actual variance from samples
+        const getVariance = (variantId: string): number => {
+          const data = this.variantData.get(variantId);
+          if (!data || data.samples.length < 2) return 0;
+          const n = data.samples.length;
+          const mean = data.sum / n;
+          const variance = (data.sumSquares - data.sum * data.sum / n) / (n - 1);
+          return Math.max(0, variance); // Ensure non-negative
+        };
+
         const variantA = {
           mean: variantResults[0].metricValue,
-          variance: variantResults[0].confidenceInterval.upper - variantResults[0].confidenceInterval.lower,
+          variance: getVariance(variantResults[0].variantId),
           size: variantResults[0].sampleSize,
         };
         const variantB = {
           mean: variantResults[1].metricValue,
-          variance: variantResults[1].confidenceInterval.upper - variantResults[1].confidenceInterval.lower,
+          variance: getVariance(variantResults[1].variantId),
           size: variantResults[1].sampleSize,
         };
 

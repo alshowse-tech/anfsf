@@ -155,8 +155,8 @@ export interface KPIActionPolicy {
   /** Action to trigger */
   action: KPIAction;
   
-  /** Human-readable message */
-  message: string;
+  /** Human-readable message (string or function) */
+  message: string | ((kpi: RoleKPISnapshot) => string);
   
   /** Priority level */
   priority: ActionPriority;

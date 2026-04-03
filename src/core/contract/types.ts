@@ -87,25 +87,43 @@ export interface ContractDiff {
 /**
  * OpenAPI-specific diff.
  */
-export interface OpenAPIDiff extends ContractDiff {
+export interface OpenAPIDiff {
   contractType: 'OpenAPI';
+  version: {
+    before: string;
+    after: string;
+    bump: BumpType | null;
+  };
   changes: {
-    added: Array<{ path: string; method: string; schema: any }>;
+    added: Array<{ path: string; method: string; schema: any; details?: { required?: boolean } }>;
     removed: Array<{ path: string; method: string }>;
     modified: Array<{ path: string; method: string; schemaDiff: any }>;
   };
+  breaking: boolean;
+  requiresApproval: boolean;
+  changelog: string;
+  riskScore?: number;
 }
 
 /**
  * DB Schema-specific diff.
  */
-export interface DBSchemaDiff extends ContractDiff {
+export interface DBSchemaDiff {
   contractType: 'DBSchema';
+  version: {
+    before: string;
+    after: string;
+    bump: BumpType | null;
+  };
   changes: {
     added: Array<{ table: string; columns: any[]; indexes: any[] }>;
     removed: Array<{ table: string }>;
     modified: Array<{ table: string; columnsDiff: any; indexesDiff: any }>;
   };
+  breaking: boolean;
+  requiresApproval: boolean;
+  changelog: string;
+  riskScore?: number;
   /** Optional migration SQL */
   migration?: {
     up: string;
@@ -116,13 +134,22 @@ export interface DBSchemaDiff extends ContractDiff {
 /**
  * UI Props-specific diff.
  */
-export interface UIPropsDiff extends ContractDiff {
+export interface UIPropsDiff {
   contractType: 'UIProps';
+  version: {
+    before: string;
+    after: string;
+    bump: BumpType | null;
+  };
   changes: {
     added: Array<{ prop: string; type: string; required: boolean }>;
     removed: Array<{ prop: string; type: string }>;
     modified: Array<{ prop: string; typeBefore: string; typeAfter: string }>;
   };
+  breaking: boolean;
+  requiresApproval: boolean;
+  changelog: string;
+  riskScore?: number;
 }
 
 // ============================================================================

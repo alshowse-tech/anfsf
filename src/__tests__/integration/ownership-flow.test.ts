@@ -136,7 +136,7 @@ describe('Ownership Flow Integration', () => {
     });
 
     expect(proposal.state).toBe('pending');
-    expect(proposal.proposerRoleId).toBe('backend-team');
+    expect(proposal.proposerId).toBe('backend-team');
 
     // 4. Architect approves proposal
     const approveResult = await proposalManager.approve(
@@ -275,10 +275,13 @@ describe('Auto-Approve + Compile Gate Integration', () => {
     stateProvider.addProposal({
       id: 'prop-1',
       contractId: 'api-gateway-v1',
-      proposerRoleId: 'backend-team',
+      proposerId: 'backend-team',
       state: 'pending',
       diff: {} as ContractDiff,
       submittedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      contractType: 'OpenAPI',
     });
 
     const compileResult = await checkCompileGate({
