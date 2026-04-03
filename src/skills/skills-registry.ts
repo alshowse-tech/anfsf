@@ -163,7 +163,13 @@ export class SkillsRegistry {
     // For demo purposes, create a mock skill
     // In production, this would load from storage or remote
     skill.code = this.generateMockSkillCode(skillName, version);
-    skill.dependencies = this.getMockDependencies(skillName);
+    
+    // Use provided dependencies or mock dependencies
+    if (options.dependencies && options.dependencies.length > 0) {
+      skill.dependencies = options.dependencies;
+    } else {
+      skill.dependencies = this.getMockDependencies(skillName);
+    }
 
     // Check dependencies
     if (!options.skipDependencyCheck) {

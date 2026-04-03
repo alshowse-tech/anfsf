@@ -100,7 +100,7 @@ describe('Ownership Flow Integration', () => {
     lattice.setAuthority('backend-team', 'developer');
     
     proposalStore = new InMemoryProposalStore();
-    proposalManager = new ProposalManager(proposalStore);
+    proposalManager = new ProposalManager(proposalStore, lattice as any);
     gate = new ContractGate(lattice as any);
   });
 

@@ -137,13 +137,23 @@ export class InMemoryProposalStore implements ProposalStore {
 }
 
 /**
+ * Ownership lattice interface for authority checks.
+ */
+export interface OwnershipLattice {
+  hasAuthority(roleId: string, authority: string): boolean;
+  getOwner(nodeId: string): string | null;
+}
+
+/**
  * Proposal manager for workflow operations.
  */
 export class ProposalManager {
   private store: ProposalStore;
+  private lattice: OwnershipLattice;
 
-  constructor(store: ProposalStore) {
+  constructor(store: ProposalStore, lattice: OwnershipLattice) {
     this.store = store;
+    this.lattice = lattice;
   }
 
   /**
@@ -177,6 +187,22 @@ export class ProposalManager {
       return {
         success: false,
         error: `Proposal is already ${proposal.state}`,
+      };
+    }
+
+    // Check if reviewer has architect authority
+    if (!this.lattice.hasAuthority(reviewerRoleId, 'architect')) {
+      return {
+        success: false,
+        error: 'Only architect can approve contract changes',
+      };
+    }
+
+    // Check if reviewer is the proposer (self-approval not allowed)
+    if (proposal.proposerId === reviewerRoleId) {
+      return {
+        success: false,
+        error: 'Cannot approve own proposal',
       };
     }
 

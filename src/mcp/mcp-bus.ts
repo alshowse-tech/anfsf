@@ -251,9 +251,8 @@ export class MCPBus {
     for (const callback of allSubscribers) {
       try {
         callback(message);
-        if (message.requiresAck) {
-          responses.push(this.createSuccessResponse(message.id, message.correlationId, message.from));
-        }
+        // Broadcast always returns responses (broadcast implies acknowledgment)
+        responses.push(this.createSuccessResponse(message.id, message.correlationId, message.from));
       } catch (error) {
         hasError = true;
         responses.push(this.createErrorResponse(message.id, message.correlationId, 'DELIVERY_ERROR', String(error)));
@@ -290,14 +289,17 @@ export class MCPBus {
 
     this.log(`[MCPBus] Agent subscribed: ${agentId}`);
 
-    return {
+    const subscription: Subscription = {
       id: generateUUID(),
       agentId,
       isActive: true,
       unsubscribe: () => {
+        subscription.isActive = false;
         this.unsubscribe(agentId, callback);
       },
     };
+
+    return subscription;
   }
 
   // ============================================================================
@@ -534,6 +536,11 @@ export class MessageBuilder {
   build(): MCPMessage {
     if (!this.message.from || !this.message.to || !this.message.type || !this.message.payload) {
       throw new Error('Missing required fields: from, to, type, payload');
+    }
+
+    // Set timestamp at build time for TTL to work correctly
+    if (!this.message.timestamp) {
+      this.message.timestamp = now();
     }
 
     return this.message as MCPMessage;
