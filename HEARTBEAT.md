@@ -1,13 +1,15 @@
-# ASF V4.0 状态报告 (2026-04-03 22:09)
+# ASF V4.0 状态报告 (2026-04-04 00:30)
 
 ## 🫀 心跳检查清单 (每 30m 轮询)
 
 | 检查项 | 频率 | 最后检查 | 状态 |
 |--------|------|----------|------|
-| Gateway 健康 | 每次 | 2026-04-03 22:09 | ✅ 36ms |
-| ANFSF 技能状态 | 每日 1 次 | 2026-04-03 22:09 | ✅ 可用 |
+| Gateway 健康 | 每次 | 2026-04-04 00:30 | ✅ 36ms |
+| ANFSF 技能状态 | 每日 1 次 | 2026-04-04 00:30 | ✅ 可用 |
 | 测试覆盖率 | 每周 1 次 | 2026-04-03 18:55 | ✅ 100% (292/292) |
 | 安全审计 | 每周 1 次 | 2026-04-03 22:09 | ✅ 0 critical, 0 warn |
+| 性能基准 | 每周 1 次 | 2026-04-04 00:25 | ✅ 已建立 (834,937 ops/s) |
+| Layer 8.5 拆解 | 阶段 1 | 2026-04-04 00:30 | 🔄 执行中 (DynamicRouter + 2 Harness) |
 
 **检查触发条件**:
 - Gateway 延迟 >100ms → 告警
@@ -50,7 +52,8 @@
 - ✅ 备份：/root/.openclaw/backups/openclaw-backup-20260402_182202.tar.gz (1.3GB)
 - ✅ ANFSF 适配：✅ 完全适配 (综合评分 10/10)
 - ✅ 测试通过率：100% (292/292) - 所有测试通过
-- ✅ 安全加固：未使用插件已移除，最小化攻击面
+- ✅ 性能基准：834,937 ops/s, P95 0.05ms
+- 🔄 Layer 8.5 拆解：阶段 1 执行中 (DynamicRouter + Orchestration + Governance Harness)
 
 ## 📋 v0.8.5 + v0.9.0 (✅ 完成) + asf-v4 Skill Phase 1+2+3 (✅ 完成)
 
@@ -250,6 +253,41 @@
 ✅ 长期记忆：已创建 (MEMORY.md)
 
 ✅ 心跳监控：已增强 (添加 ANFSF 检查清单)
+
+---
+
+## Layer 8.5 拆解执行进度 (2026-04-04 00:30)
+
+### P3: 性能基准建立 ✅ 已完成
+- 基准文件：`benchmarks/baseline-2026-04-04.json`
+- 总操作数：834,937 ops/s
+- 平均 P95 延迟：0.05ms
+- 所有基准测试通过
+
+### P0: 语义验证层 ✅ 已完成
+- 工具：`tools/style-diagnostic.ts`
+- 功能：样式加载诊断 + 业务规则注入
+
+### P1: Layer 8.5 拆解（阶段 1） 🔄 执行中
+- ✅ DynamicRouter (`src/governance/dynamic-router.ts`)
+- ✅ Orchestration Harness (`src/harness/orchestration-harness.ts`)
+- ✅ Governance Harness (`src/harness/governance-harness.ts`)
+- ✅ 复杂度度量 (`src/governance/complexity-metrics.ts`)
+- ⏳ 待验证：Harness 集成测试
+
+### P2: 动态路由 ✅ 已完成
+- DynamicRouter 支持 light/standard/full 模式
+- 基于 token 预算和复杂度自动激活 Harness
+
+### P2: 经济学权重校准 ⏳ 待执行
+- 需收集 10+ 项目数据
+- 周期：4 周内
+
+### 附加条件跟踪
+- ✅ 性能基准已建立
+- ✅ 治理复杂度度量公式已定义
+- ⏳ L13-L17 价值证明 (需 10 个项目后验证)
+- ✅ 分阶段执行 (阶段 1 进行中)
 
 ---
 
