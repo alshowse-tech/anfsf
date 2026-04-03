@@ -27,6 +27,19 @@ const DEFAULT_CONFIG: Required<SandboxConfig> = {
   readOnlyPaths: [],
 };
 
+// Task type specific limits
+const TASK_TYPE_LIMITS: Record<string, { maxMemoryMB: number; maxExecutionTimeMs: number }> = {
+  'requirement-graph': { maxMemoryMB: 512, maxExecutionTimeMs: 60000 },
+  'deep-reasoning': { maxMemoryMB: 512, maxExecutionTimeMs: 60000 },
+  'ui-synthesis': { maxMemoryMB: 256, maxExecutionTimeMs: 30000 },
+  'layout-generator': { maxMemoryMB: 256, maxExecutionTimeMs: 30000 },
+  'default': { maxMemoryMB: 256, maxExecutionTimeMs: 30000 },
+};
+
+// Hard upper limits
+const MAX_MEMORY_MB = 1024;
+const MAX_EXECUTION_TIME_MS = 120000;
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -97,9 +110,17 @@ export class SandboxExecutor {
   private consoleBuffer: string[];
   private executionStartTime: number;
   private memoryUsage: number;
+  private taskType: string;
 
-  constructor(config: SandboxConfig = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  constructor(config: SandboxConfig = {}, taskType: string = 'default') {
+    this.taskType = taskType;
+    const limits = TASK_TYPE_LIMITS[taskType] || TASK_TYPE_LIMITS['default'];
+    this.config = {
+      ...DEFAULT_CONFIG,
+      ...config,
+      maxMemoryMB: Math.min(limits.maxMemoryMB, MAX_MEMORY_MB),
+      maxExecutionTimeMs: Math.min(limits.maxExecutionTimeMs, MAX_EXECUTION_TIME_MS),
+    };
     this.consoleBuffer = [];
     this.executionStartTime = 0;
     this.memoryUsage = 0;

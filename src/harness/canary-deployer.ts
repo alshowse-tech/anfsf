@@ -143,10 +143,12 @@ export class CanaryDeployer {
     for (const [metric, value] of Object.entries(metrics)) {
       const threshold = thresholds[metric as keyof typeof thresholds];
       if (threshold !== undefined) {
+        // Boundary condition: value AT threshold is considered unhealthy for error/latency
+        // and unhealthy for success rate (conservative approach)
         if (metric.includes('error') || metric.includes('latency')) {
-          if (value > threshold) return false;
+          if (value >= threshold) return false;
         } else if (metric.includes('success') || metric.includes('rate')) {
-          if (value < threshold) return false;
+          if (value <= threshold) return false;
         }
       }
     }

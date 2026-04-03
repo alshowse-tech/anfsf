@@ -70,6 +70,7 @@ export class MCPBus {
   private config: Required<MCPBusConfig>;
   private subscriptions: Map<AgentId, Set<(msg: MCPMessage) => void>>;
   private idempotencyCache: Map<string, IdempotencyRecord>;
+  private idempotencyPending: Set<string>; // Track in-flight idempotent keys
   private messageTraces: Map<string, MessageTrace>;
   private stats: MCPBusStats;
   private messageQueue: MCPMessage[];
@@ -79,6 +80,7 @@ export class MCPBus {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.subscriptions = new Map();
     this.idempotencyCache = new Map();
+    this.idempotencyPending = new Set();
     this.messageTraces = new Map();
     this.messageQueue = [];
     this.logBuffer = [];
@@ -121,12 +123,18 @@ export class MCPBus {
         this.stats.duplicateMessagesRejected++;
         return cachedResponse;
       }
+      
+      // Mark as in-flight to prevent concurrent duplicates
+      this.idempotencyPending.add(message.idempotentKey);
     }
 
     // Check TTL
     if (this.isExpired(message)) {
       this.log(`[MCPBus] Message expired: ${message.id}`);
       this.stats.messagesDroppedTTL++;
+      if (message.idempotentKey) {
+        this.idempotencyPending.delete(message.idempotentKey);
+      }
       return this.createErrorResponse(message.id, message.correlationId, 'TTL_EXPIRED', 'Message TTL expired');
     }
 
@@ -150,6 +158,9 @@ export class MCPBus {
     
     if (!subscribers || subscribers.size === 0) {
       this.log(`[MCPBus] No subscribers for: ${message.to}`);
+      if (message.idempotentKey) {
+        this.idempotencyPending.delete(message.idempotentKey);
+      }
       return this.createErrorResponse(message.id, message.correlationId, 'RECIPIENT_NOT_FOUND', `No subscribers found for agent: ${message.to}`);
     }
 
@@ -179,6 +190,11 @@ export class MCPBus {
     // Update stats
     this.updateStats(startTime);
 
+    // Clean up idempotency pending flag
+    if (message.idempotentKey) {
+      this.idempotencyPending.delete(message.idempotentKey);
+    }
+
     // Return first response or success
     return responses[0] || this.createSuccessResponse(message.id, message.correlationId, message.from);
   }
@@ -192,7 +208,23 @@ export class MCPBus {
     // Validate message
     const validationError = this.validateMessage(message);
     if (validationError) {
+      if (message.idempotentKey) this.idempotencyPending.delete(message.idempotentKey);
       return [this.createErrorResponse(message.id, message.correlationId, validationError, 'Message validation failed')];
+    }
+
+    // Check idempotency
+    if (this.config.enableIdempotency && message.idempotentKey) {
+      const cachedResponse = this.checkIdempotency(message.idempotentKey);
+      if (cachedResponse) {
+        return [cachedResponse];
+      }
+      this.idempotencyPending.add(message.idempotentKey);
+    }
+
+    // Check TTL
+    if (this.isExpired(message)) {
+      if (message.idempotentKey) this.idempotencyPending.delete(message.idempotentKey);
+      return [this.createErrorResponse(message.id, message.correlationId, 'TTL_EXPIRED', 'Message TTL expired')];
     }
 
     // Set to broadcast
@@ -209,11 +241,13 @@ export class MCPBus {
 
     if (allSubscribers.size === 0) {
       this.log('[MCPBus] No subscribers for broadcast');
+      if (message.idempotentKey) this.idempotencyPending.delete(message.idempotentKey);
       return [];
     }
 
     // Deliver to all
     const responses: MCPResponse[] = [];
+    let hasError = false;
     for (const callback of allSubscribers) {
       try {
         callback(message);
@@ -221,13 +255,24 @@ export class MCPBus {
           responses.push(this.createSuccessResponse(message.id, message.correlationId, message.from));
         }
       } catch (error) {
+        hasError = true;
         responses.push(this.createErrorResponse(message.id, message.correlationId, 'DELIVERY_ERROR', String(error)));
       }
+    }
+
+    // Clean up pending on error
+    if (hasError && message.idempotentKey) {
+      this.idempotencyPending.delete(message.idempotentKey);
     }
 
     this.stats.totalMessagesSent++;
     this.stats.totalMessagesReceived += allSubscribers.size;
     this.updateStats(startTime);
+
+    // Cache response and clean up pending
+    if (message.idempotentKey) {
+      this.cacheIdempotency(message.idempotentKey, message.id, responses[0] || this.createSuccessResponse(message.id, message.correlationId, message.from));
+    }
 
     return responses;
   }
@@ -320,6 +365,7 @@ export class MCPBus {
     };
 
     this.idempotencyCache.set(key, record);
+    this.idempotencyPending.delete(key);
     this.stats.idempotencyCacheSize = this.idempotencyCache.size;
   }
 
