@@ -715,8 +715,10 @@ export class AgentHarness {
     if (styleUrls.length > 0) {
       for (const url of styleUrls) {
         const isLoaded = await page.evaluate((styleUrl: string) => {
-          const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]')) as HTMLLinkElement[];
-          return links.some((link: HTMLLinkElement) => link.href === styleUrl);
+          // @ts-ignore - browser context has document
+          const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+          // @ts-ignore - browser context
+          return links.some((link: any) => link.href === styleUrl);
         }, url);
 
         if (!isLoaded) {
