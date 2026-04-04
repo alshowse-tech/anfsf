@@ -1,15 +1,15 @@
-# ASF V4.0 状态报告 (2026-04-04 00:30)
+# ASF V4.0 状态报告 (2026-04-04 15:45)
 
 ## 🫀 心跳检查清单 (每 30m 轮询)
 
 | 检查项 | 频率 | 最后检查 | 状态 |
 |--------|------|----------|------|
-| Gateway 健康 | 每次 | 2026-04-04 00:30 | ✅ 36ms |
-| ANFSF 技能状态 | 每日 1 次 | 2026-04-04 00:30 | ✅ 可用 |
-| 测试覆盖率 | 每周 1 次 | 2026-04-03 18:55 | ✅ 100% (292/292) |
+| Gateway 健康 | 每次 | 2026-04-04 15:45 | ✅ 36ms |
+| ANFSF 技能状态 | 每日 1 次 | 2026-04-04 15:45 | ✅ 可用 |
+| 测试覆盖率 | 每周 1 次 | 2026-04-04 15:45 | ✅ 100% (310/310) |
 | 安全审计 | 每周 1 次 | 2026-04-03 22:09 | ✅ 0 critical, 0 warn |
 | 性能基准 | 每周 1 次 | 2026-04-04 00:25 | ✅ 已建立 (834,937 ops/s) |
-| Layer 8.5 拆解 | 阶段 1 | 2026-04-04 00:30 | 🔄 执行中 (DynamicRouter + 2 Harness) |
+| Layer 8.5 拆解 | 阶段 1 | 2026-04-04 15:45 | ✅ 已完成 + 集成测试通过 |
 
 **检查触发条件**:
 - Gateway 延迟 >100ms → 告警
@@ -51,9 +51,9 @@
 - ✅ 安全审计：**0 critical, 0 warn** (openclaw-lark 已移除)
 - ✅ 备份：/root/.openclaw/backups/openclaw-backup-20260402_182202.tar.gz (1.3GB)
 - ✅ ANFSF 适配：✅ 完全适配 (综合评分 10/10)
-- ✅ 测试通过率：100% (292/292) - 所有测试通过
+- ✅ 测试通过率：100% (310/310) - 所有测试通过
 - ✅ 性能基准：834,937 ops/s, P95 0.05ms
-- 🔄 Layer 8.5 拆解：阶段 1 执行中 (DynamicRouter + Orchestration + Governance Harness)
+- ✅ Layer 8.5 拆解：阶段 1 完成 + 集成测试验证通过
 
 ## 📋 v0.8.5 + v0.9.0 (✅ 完成) + asf-v4 Skill Phase 1+2+3 (✅ 完成)
 
@@ -256,7 +256,7 @@
 
 ---
 
-## Layer 8.5 拆解执行进度 (2026-04-04 00:30)
+## Layer 8.5 拆解执行进度 (2026-04-04 15:45 更新)
 
 ### P3: 性能基准建立 ✅ 已完成
 - 基准文件：`benchmarks/baseline-2026-04-04.json`
@@ -268,16 +268,18 @@
 - 工具：`tools/style-diagnostic.ts`
 - 功能：样式加载诊断 + 业务规则注入
 
-### P1: Layer 8.5 拆解（阶段 1） 🔄 执行中
+### P1: Layer 8.5 拆解（阶段 1） ✅ 已完成 + 集成测试通过
 - ✅ DynamicRouter (`src/governance/dynamic-router.ts`)
 - ✅ Orchestration Harness (`src/harness/orchestration-harness.ts`)
 - ✅ Governance Harness (`src/harness/governance-harness.ts`)
 - ✅ 复杂度度量 (`src/governance/complexity-metrics.ts`)
-- ⏳ 待验证：Harness 集成测试
+- ✅ 集成测试 (`src/harness/__tests__/harness-integration.test.ts`)
+- ✅ 测试通过率：100% (18/18)
 
 ### P2: 动态路由 ✅ 已完成
 - DynamicRouter 支持 light/standard/full 模式
 - 基于 token 预算和复杂度自动激活 Harness
+- 真实项目验证：anfsf-v1.1 (light), jieyue-securities (standard)
 
 ### P2: 经济学权重校准 ⏳ 待执行
 - 需收集 10+ 项目数据
@@ -287,7 +289,7 @@
 - ✅ 性能基准已建立
 - ✅ 治理复杂度度量公式已定义
 - ⏳ L13-L17 价值证明 (需 10 个项目后验证)
-- ✅ 分阶段执行 (阶段 1 进行中)
+- ✅ 分阶段执行 (阶段 1 完成)
 
 ---
 
