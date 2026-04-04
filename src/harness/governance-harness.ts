@@ -112,10 +112,10 @@ export class GovernanceHarness {
     }
 
     // Lazy import to avoid circular dependency
-    const { generateOwnershipProof } = await import('../core/synthesizer/ownership/proof-generator');
+    const { generateOwnershipProof, DEFAULT_OWNERSHIP_RULES } = await import('../core/synthesizer/ownership/proof-generator');
 
     try {
-      const proofs = generateOwnershipProof(resources, roles);
+      const proofs = generateOwnershipProof(resources, roles, DEFAULT_OWNERSHIP_RULES || []);
       return {
         valid: proofs.length > 0,
         proofs,
@@ -180,10 +180,14 @@ export class GovernanceHarness {
       const result = await deployer.deploy(policy, metricsCollector, healthCheck);
       return {
         deploymentId: result.deploymentId,
-        status: result.status,
-        currentStage: result.currentStage,
-        trafficPercentage: result.trafficPercentage,
-        rollbackInfo: result.rollbackInfo,
+        status: result.status as 'deploying' | 'complete' | 'rolled_back' | 'failed',
+        currentStage: result.currentStage || 0,
+        trafficPercentage: result.trafficPercentage || 0,
+        rollbackInfo: result.rollbackInfo ? {
+          triggered: result.rollbackInfo.triggered,
+          reason: result.rollbackInfo.reason || 'Unknown',
+          timestamp: result.rollbackInfo.timestamp || Date.now(),
+        } : undefined,
       };
     } catch (error) {
       return {
