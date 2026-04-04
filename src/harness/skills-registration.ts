@@ -1,9 +1,10 @@
 /**
- * ANFSF V1.5.0 - Skills Registration to Harnesses
+ * ANFSF V1.5.0 - Skills Registration to Harnesses (更新版)
  * 
  * Registers fusion skills to their corresponding Harnesses:
  * - Orchestration Harness: ContextCompressorSkill
  * - Evolution Harness: MemoryConsolidationSkill
+ * - UI/UX Harness: (无 Skills，纯 UI 功能)
  * - Governance Harness: HybridRetrieverSkill, CitationTracerSkill, HallucinationGuardSkill
  */
 
@@ -24,6 +25,10 @@ declare class EvolutionHarness {
   registry: any;
 }
 
+declare class UIUXHarness {
+  registry: any;
+}
+
 declare class GovernanceHarness {
   registry: any;
 }
@@ -33,7 +38,6 @@ declare class GovernanceHarness {
  */
 export function registerFusionSkillsToHarnesses(): void {
   // Note: Skills will be registered when Harnesses are instantiated
-  // This function provides the registration logic for each Harness
 }
 
 /**
@@ -55,6 +59,13 @@ export function registerToEvolutionHarness(harness: EvolutionHarness): void {
 }
 
 /**
+ * Register skills to UI/UX Harness (no skills, UI only).
+ */
+export function registerToUIUXHarness(_harness: UIUXHarness): void {
+  // UI/UX Harness has no skills, pure UI functionality
+}
+
+/**
  * Register skills to Governance Harness.
  */
 export function registerToGovernanceHarness(harness: GovernanceHarness): void {
@@ -72,6 +83,7 @@ export function getHarnessSkills(): Record<string, string[]> {
   return {
     orchestration: ['context-compressor'],
     evolution: ['memory-consolidation'],
+    uiux: [], // UI/UX Harness has no skills
     governance: ['hybrid-retriever', 'citation-tracer', 'hallucination-guard'],
   };
 }

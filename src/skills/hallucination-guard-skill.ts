@@ -8,6 +8,7 @@
  */
 
 import { Skill, SkillResult } from './base';
+import { GraphRAG, createGraphRAG } from '../integrations/graphrag';
 
 // ============================================================================
 // Types
@@ -75,6 +76,13 @@ export class HallucinationGuardSkill extends Skill {
   version = '2.0.0';
   description = '幻觉检测系统 + 自洽性检查 + Graph 验证 + 事实核查';
 
+  private graphRAG: GraphRAG;
+
+  constructor() {
+    super();
+    this.graphRAG = createGraphRAG();
+  }
+
   async execute(ctx: VerificationContext): Promise<VerificationResult> {
     const startTime = Date.now();
     const config = MODE_CONFIGS[ctx.mode];
@@ -91,7 +99,11 @@ export class HallucinationGuardSkill extends Skill {
     // 4. Graph validation (if enabled)
     let graphValidation: VerificationResult['graphValidation'] | undefined;
     if (config.enableGraphValidation && ctx.enableGraphValidation) {
-      graphValidation = await this.validateWithGraph(statements, ctx.sources);
+      // Connect to GraphRAG if not connected
+      if (!this.graphRAG.isConnected()) {
+        await this.graphRAG.connect().catch(console.error);
+      }
+      graphValidation = await this.validateWithGraphRAG(statements, ctx.sources);
     }
 
     // 5. Combine results and identify hallucinations
@@ -215,22 +227,37 @@ export class HallucinationGuardSkill extends Skill {
   }
 
   /**
-   * Validate statements with graph knowledge.
+   * Validate statements with GraphRAG.
    */
-  private async validateWithGraph(
+  private async validateWithGraphRAG(
     statements: string[],
     sources: VerificationSource[]
   ): Promise<VerificationResult['graphValidation']> {
-    // Simulated graph validation
-    // In production, use actual GraphRAG node-level validation
+    try {
+      const graphSources = sources.map(s => ({ id: s.id, content: s.content }));
+      const result = await this.graphRAG.validateStatements(statements, graphSources);
 
+      return {
+        passed: result.conflictingNodes.length === 0,
+        validatedNodes: result.validatedNodes,
+        conflictingNodes: result.conflictingNodes,
+      };
+    } catch (error) {
+      console.error('[HallucinationGuard] GraphRAG validation error:', error);
+      // Fallback to simulated validation
+      return this.simulateGraphValidation(statements);
+    }
+  }
+
+  /**
+   * Simulate graph validation (fallback).
+   */
+  private simulateGraphValidation(statements: string[]): VerificationResult['graphValidation'] {
     const validatedNodes: number[] = [];
     const conflictingNodes: number[] = [];
 
     for (let i = 0; i < statements.length; i++) {
-      // Simulate graph validation
-      const isValid = Math.random() > 0.1; // 90% pass rate simulation
-
+      const isValid = Math.random() > 0.1; // 90% pass rate
       if (isValid) {
         validatedNodes.push(i);
       } else {

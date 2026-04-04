@@ -8,6 +8,7 @@
  */
 
 import { Skill, SkillContext, SkillResult } from './base';
+import { Quantizer, createQuantizer, type QuantizationResult } from '../integrations/quantization';
 
 // ============================================================================
 // Types
@@ -74,6 +75,13 @@ export class ContextCompressorSkill extends Skill {
   name = 'context-compressor';
   version = '2.0.0';
   description = '超长上下文分层压缩 + 4-bit 量化 + 稀疏注意力路由';
+
+  private quantizer: Quantizer;
+
+  constructor() {
+    super();
+    this.quantizer = createQuantizer({ bits: 4 });
+  }
 
   async execute(ctx: CompressionContext): Promise<CompressionResult> {
     const startTime = Date.now();
@@ -144,18 +152,36 @@ export class ContextCompressorSkill extends Skill {
    * Apply 4-bit quantization to tokens.
    */
   private async apply4BitQuantization(tokens: string[]): Promise<string[]> {
-    // Simulated 4-bit quantization
-    // In production, use actual quantization library
-    const quantized = tokens.map((token, idx) => {
-      // Group tokens into clusters of 16
+    try {
+      // Use actual quantization
+      const result = await this.quantizer.quantize(tokens);
+      
+      // Convert quantized tokens to string representation
+      return result.tokens.map((qt, idx) => {
+        const clusterId = Math.floor(idx / 16);
+        if (idx % 16 === 0) {
+          return `[Q4_${clusterId}_scale=${qt.scale.toFixed(4)}]${qt.original}`;
+        }
+        return null;
+      }).filter(Boolean) as string[];
+    } catch (error) {
+      console.error('[ContextCompressor] Quantization error:', error);
+      // Fallback to simulated quantization
+      return this.simulateQuantization(tokens);
+    }
+  }
+
+  /**
+   * Simulate quantization (fallback).
+   */
+  private simulateQuantization(tokens: string[]): string[] {
+    return tokens.map((token, idx) => {
       const clusterId = Math.floor(idx / 16);
       if (idx % 16 === 0) {
         return `[Q4_${clusterId}]${token}`;
       }
       return null;
     }).filter(Boolean) as string[];
-
-    return quantized;
   }
 
   /**

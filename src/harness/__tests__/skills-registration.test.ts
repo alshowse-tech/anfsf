@@ -1,5 +1,5 @@
 /**
- * ANFSF V1.5.0 - Skills Registration Tests
+ * ANFSF V1.5.0 - Skills Registration Tests (更新版)
  * 
  * Verifies that fusion skills are registered to their corresponding Harnesses.
  */
@@ -17,6 +17,7 @@ describe('Skills Registration Tests', () => {
 
       expect(skills.orchestration).toBeDefined();
       expect(skills.evolution).toBeDefined();
+      expect(skills.uiux).toBeDefined();
       expect(skills.governance).toBeDefined();
     });
 
@@ -32,6 +33,13 @@ describe('Skills Registration Tests', () => {
 
       expect(skills.evolution).toContain('memory-consolidation');
       expect(skills.evolution.length).toBe(1);
+    });
+
+    it('should return empty skills for UI/UX Harness', () => {
+      const skills = getHarnessSkills();
+
+      expect(skills.uiux).toEqual([]);
+      expect(skills.uiux.length).toBe(0);
     });
 
     it('should return correct skills for Governance Harness', () => {
@@ -57,6 +65,7 @@ describe('Skills Registration Tests', () => {
 
       expect(result.byHarness.orchestration).toEqual(['context-compressor']);
       expect(result.byHarness.evolution).toEqual(['memory-consolidation']);
+      expect(result.byHarness.uiux).toEqual([]);
       expect(result.byHarness.governance).toEqual([
         'hybrid-retriever',
         'citation-tracer',
@@ -82,6 +91,11 @@ describe('Skills Registration Tests', () => {
       expect(skills.evolution).toContain('memory-consolidation');
     });
 
+    it('should not map any skills to UI/UX Harness', () => {
+      const skills = getHarnessSkills();
+      expect(skills.uiux).toEqual([]);
+    });
+
     it('should map RAG skills to Governance Harness', () => {
       const skills = getHarnessSkills();
       expect(skills.governance).toContain('hybrid-retriever');
@@ -105,6 +119,9 @@ describe('Skills Registration Tests', () => {
 
       // Evolution: 1 skill (memory consolidation)
       expect(skills.evolution.length).toBe(1);
+
+      // UI/UX: 0 skills (pure UI functionality)
+      expect(skills.uiux.length).toBe(0);
 
       // Governance: 3 skills (RAG pipeline)
       expect(skills.governance.length).toBe(3);
