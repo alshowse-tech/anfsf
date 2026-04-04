@@ -5,7 +5,16 @@
  * economics scoring weights.
  */
 
-import type { ProjectData } from '../../harness/evolution-harness';
+export interface ProjectData {
+  projectId: string;
+  tokenBudget: number;
+  featureCount: number;
+  complexity: number;
+  economicsScore: number;
+  reworkRate: number;
+  successRate: number;
+  timestamp: number;
+}
 
 export interface EconomicsWeights {
   interfaceCost: number;
