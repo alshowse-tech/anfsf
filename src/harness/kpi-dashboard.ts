@@ -16,12 +16,25 @@ export interface AlertConfig {
   action: string;
 }
 
+export interface ArchitectureMetrics {
+  l13_l17_call_rate: number;
+  layer8_5_code_delta: number;
+  efficiency_ratio: number;
+}
+
 /**
  * KPI Dashboard for tracking evolution metrics.
  */
 export class KPIDashboard {
   private metrics: KPIMetric[] = [];
   private alertCallback?: (alert: AlertConfig) => void;
+
+  // Architecture monitoring thresholds
+  private readonly THRESHOLDS = {
+    L13_L17_CALL_RATE: 0.45, // ≤45%
+    LAYER_8_5_CODE_DELTA: 30, // ≤30 lines
+    EFFICIENCY_RATIO: 4.8, // ≥4.8:1
+  };
 
   /**
    * Record a metric value.
@@ -90,6 +103,39 @@ export class KPIDashboard {
       latest.set(m.metric, m.value);
     }
     return Object.fromEntries(latest);
+  }
+
+  /**
+   * Daily architecture self-check.
+   */
+  async dailyArchitectureSelfCheck(currentMetrics: ArchitectureMetrics): Promise<{ passed: boolean; violations: string[] }> {
+    const violations: string[] = [];
+
+    // L13-L17 call rate check (≤45%)
+    if (currentMetrics.l13_l17_call_rate > this.THRESHOLDS.L13_L17_CALL_RATE) {
+      violations.push(`L13-L17 call rate ${currentMetrics.l13_l17_call_rate} > ${this.THRESHOLDS.L13_L17_CALL_RATE}`);
+    }
+
+    // Layer 8.5 code delta check (≤30 lines)
+    if (currentMetrics.layer8_5_code_delta > this.THRESHOLDS.LAYER_8_5_CODE_DELTA) {
+      violations.push(`Layer 8.5 code delta ${currentMetrics.layer8_5_code_delta} > ${this.THRESHOLDS.LAYER_8_5_CODE_DELTA}`);
+    }
+
+    // Efficiency ratio check (≥4.8:1)
+    if (currentMetrics.efficiency_ratio < this.THRESHOLDS.EFFICIENCY_RATIO) {
+      violations.push(`Efficiency ratio ${currentMetrics.efficiency_ratio} < ${this.THRESHOLDS.EFFICIENCY_RATIO}`);
+    }
+
+    // Send alert if violations found
+    if (violations.length > 0) {
+      await this.sendAlert({
+        level: 'critical',
+        message: `Architecture violation detected: ${violations.join(', ')}`,
+        action: 'full_rollback',
+      });
+    }
+
+    return { passed: violations.length === 0, violations };
   }
 }
 

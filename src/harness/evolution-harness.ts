@@ -213,6 +213,14 @@ export class EvolutionHarness {
   }
 
   /**
+   * Rollback to baseline (when two-source improvement < threshold).
+   */
+  async rollbackToBaseline(): Promise<void> {
+    console.log('[EvolutionHarness] Rolling back to baseline (two-source improvement below threshold)');
+    // In production, update Graph ChangeEvent and memory
+  }
+
+  /**
    * Get current evolution metrics.
    */
   async getCurrentMetrics(): Promise<EvolutionMetrics> {
