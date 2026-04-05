@@ -47,6 +47,9 @@ export interface RetrievalResult extends SkillResult {
 
 const RRF_K = 60; // Reciprocal Rank Fusion smoothing constant
 
+// Performance optimization: cache BM25 results
+const BM25_CACHE = new Map<string, Array<{ doc: any; score: number }>>();
+
 const MODE_CONFIGS = {
   sparse_only: {
     methods: ['bm25'] as const,
@@ -148,9 +151,14 @@ export class HybridRetrieverSkill extends Skill {
   }
 
   /**
-   * BM25 retrieval (keyword-based).
+   * BM25 retrieval (keyword-based) with caching.
    */
   private bm25Retrieval(query: string, documents: Document[]): Array<{ doc: Document; score: number }> {
+    const cacheKey = `${query}-${documents.length}`;
+    if (BM25_CACHE.has(cacheKey)) {
+      return BM25_CACHE.get(cacheKey)!;
+    }
+
     const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
     const results: Array<{ doc: Document; score: number }> = [];
 
@@ -161,7 +169,6 @@ export class HybridRetrieverSkill extends Skill {
       let score = 0;
       for (const word of queryWords) {
         if (wordSet.has(word)) {
-          // Simplified BM25 scoring
           const tf = docWords.filter(w => w === word).length;
           const idf = Math.log((documents.length + 1) / (1 + documents.filter(d => d.content.toLowerCase().includes(word)).length));
           score += tf * idf;
@@ -173,7 +180,9 @@ export class HybridRetrieverSkill extends Skill {
       }
     }
 
-    return results.sort((a, b) => b.score - a.score);
+    const sorted = results.sort((a, b) => b.score - a.score);
+    BM25_CACHE.set(cacheKey, sorted);
+    return sorted;
   }
 
   /**

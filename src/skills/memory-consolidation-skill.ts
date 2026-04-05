@@ -105,6 +105,7 @@ export class MemoryConsolidationSkill extends Skill {
 
   private memories: Map<string, MemoryData> = new Map();
   private importanceCache: Map<string, number> = new Map();
+  private projectData: any[] = [];
 
   async execute(ctx: ConsolidationContext): Promise<ConsolidationResult> {
     const startTime = Date.now();
@@ -353,6 +354,13 @@ export class MemoryConsolidationSkill extends Skill {
   addMemory(memory: MemoryData): void {
     this.memories.set(memory.id, memory);
     this.importanceCache.delete(memory.id); // Invalidate cache
+  }
+
+  /**
+   * Collect project data (for Evolution Harness).
+   */
+  collectProjectData(data: any): void {
+    this.projectData.push(data);
   }
 
   /**

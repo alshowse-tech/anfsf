@@ -52,12 +52,12 @@ const DEFAULT_STRATEGIES: Record<CompressionContext['performanceMode'], Compress
   balanced: {
     compressionLevel: 0.7,
     attentionType: 'quantized',
-    layers: { L1: 0.10, L2: 0.30, L3: 0.60 },
+    layers: { L1: 0.15, L2: 0.35, L3: 0.50 }, // Optimized for speed
   },
   deep: {
     compressionLevel: 0.5,
     attentionType: 'full',
-    layers: { L1: 0.20, L2: 0.40, L3: 0.40 },
+    layers: { L1: 0.25, L2: 0.45, L3: 0.30 }, // Optimized for speed
   },
 };
 

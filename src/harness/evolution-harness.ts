@@ -6,7 +6,17 @@
  */
 
 import { MemoryConsolidationSkill, registerMemoryConsolidationSkill } from '../skills/memory-consolidation-skill';
-import type { ProjectData } from '../skills/memory-consolidation-skill';
+
+export interface ProjectData {
+  projectId: string;
+  tokenBudget: number;
+  featureCount: number;
+  complexity: number;
+  economicsScore: number;
+  reworkRate: number;
+  successRate: number;
+  timestamp: number;
+}
 
 export interface EvolutionConfig {
   enableKPIOptimizer: boolean;
