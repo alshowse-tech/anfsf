@@ -35,5 +35,9 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@types/pg": "^8.20.0",
+    "pg": "^8.20.0"
   }
 }
