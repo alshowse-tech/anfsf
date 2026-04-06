@@ -15,6 +15,22 @@ export {
   type CompressionStrategy,
 } from './context-compressor-skill';
 
+export {
+  CodeQualityGuardSkill,
+  type GuardResult,
+  type StaticAnalysisResult,
+  type SemanticValidationResult,
+  type PerformancePredictionResult,
+  type PolicyCheckResult,
+} from './code-quality-guard-skill';
+
+export {
+  PolicyGuardSkill,
+  type PolicyCheckResult as PolicyGuardResult,
+  type PolicyViolation,
+  type OwnershipCheckResult,
+} from './policy-guard-skill';
+
 export function registerContextCompressorSkill(registry: any): void {
   registry.register(new ContextCompressorSkill());
 }
