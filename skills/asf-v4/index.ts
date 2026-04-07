@@ -462,17 +462,13 @@ export const asf_v4 = {
           { name: 'video-frames', status: 'ready', priority: 'P2', reason: '视频帧提取' },
         ],
         pending: [
-          { name: '1password', status: 'needs-setup', priority: 'P1', reason: '缺少 op CLI' },
-          { name: 'openai-whisper', status: 'needs-setup', priority: 'P1', reason: '缺少 whisper CLI' },
           { name: 'model-usage', status: 'needs-setup', priority: 'P1', reason: '需要 macOS' },
-          { name: 'summarize', status: 'needs-setup', priority: 'P1', reason: '缺少 summarize CLI' },
-          { name: 'mcporter', status: 'needs-setup', priority: 'P1', reason: '缺少 mcporter CLI' },
         ],
         summary: {
           total: 16,
-          ready: 11,
-          needsSetup: 5,
-          integrationRate: '68.75%'
+          ready: 15,
+          needsSetup: 1,
+          integrationRate: '93.75%'
         }
       };
     },
