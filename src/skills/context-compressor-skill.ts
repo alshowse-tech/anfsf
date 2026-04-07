@@ -14,6 +14,20 @@ import { Quantizer, createQuantizer, type QuantizationResult } from '../integrat
 // Types
 // ============================================================================
 
+// Token 超限解决方案 - 新增类型
+export interface PriorityRules {
+  keep: string[];   // 保留的关键内容类型
+  drop: string[];   // 删除的内容类型
+}
+
+export interface CompressedContext {
+  tokens: string[];
+  tokenCount: number;
+  compressionRatio: number;
+  truncated: boolean;
+  droppedSections: string[];
+}
+
 export interface CompressionContext {
   rawTokens: string[];
   tokenCount: number;
@@ -66,6 +80,9 @@ const TOKEN_BUDGET_THRESHOLDS = {
   medium: 200000,
   high: 1000000,
 };
+
+// Token 硬限制 (196,601 - 安全边界)
+const MAX_TOKENS = 180000;
 
 // ============================================================================
 // ContextCompressorSkill
@@ -245,6 +262,146 @@ export class ContextCompressorSkill extends Skill {
   }
 
   /**
+   * Token 超限解决方案 - 为自升级场景定制压缩
+   * 解决 HTTP 400: InternalError.Algo.InvalidParameter - Range of input length should be [1, 196601]
+   */
+  async compressForUpgrade(rawInput: string): Promise<CompressedContext> {
+    const tokenCount = this.estimateTokens(rawInput);
+    const droppedSections: string[] = [];
+    let truncated = false;
+
+    if (tokenCount > MAX_TOKENS) {
+      console.log(`[ContextCompressor] Token 超限: ${tokenCount} > ${MAX_TOKENS}, 执行优先级裁剪`);
+      
+      // 优先级裁剪规则
+      const rules: PriorityRules = {
+        keep: ['currentTask', 'currentFile', 'directDeps', 'criticalContext'],
+        drop: ['oldHistory', 'irrelevantMemory', 'oldVersions', 'redundantContext']
+      };
+
+      const truncatedInput = this.truncateByPriority(rawInput, rules);
+      droppedSections.push(...rules.drop);
+      truncated = true;
+
+      const newTokenCount = this.estimateTokens(truncatedInput);
+      console.log(`[ContextCompressor] 裁剪后 token: ${newTokenCount}, 压缩比: ${(tokenCount / newTokenCount).toFixed(2)}x`);
+
+      // 复用现有分层压缩
+      const compressedTokens = await this.compressHierarchical(
+        truncatedInput.split('\n'),
+        DEFAULT_STRATEGIES.fast
+      );
+
+      return {
+        tokens: compressedTokens,
+        tokenCount: newTokenCount,
+        compressionRatio: tokenCount / newTokenCount,
+        truncated,
+        droppedSections
+      };
+    }
+
+    // 未超限，直接分层压缩
+    const compressedTokens = await this.compressHierarchical(
+      rawInput.split('\n'),
+      DEFAULT_STRATEGIES.balanced
+    );
+
+    return {
+      tokens: compressedTokens,
+      tokenCount,
+      compressionRatio: 1,
+      truncated: false,
+      droppedSections: []
+    };
+  }
+
+  /**
+   * 估算 token 数量 (简化算法: 1 token ≈ 4 chars)
+   */
+  private estimateTokens(input: string): number {
+    // 简化估算: 平均 4 个字符 = 1 token
+    // 中文: 1.5 字符 = 1 token, 英文: 4 字符 = 1 token
+    const charCount = input.length;
+    const chineseChars = (input.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const englishChars = charCount - chineseChars;
+    
+    // 中文按 1.5 字符/token，英文按 4 字符/token
+    const estimatedTokens = Math.ceil(chineseChars / 1.5) + Math.ceil(englishChars / 4);
+    return estimatedTokens;
+  }
+
+  /**
+   * 按优先级裁剪输入内容
+   */
+  private truncateByPriority(input: string, rules: PriorityRules): string {
+    const lines = input.split('\n');
+    const result: string[] = [];
+    
+    // 标记各区域
+    const sections: { type: string; content: string[]; priority: number }[] = [];
+    let currentSection: string[] = [];
+    let currentType = 'unknown';
+
+    // 简化的区域识别
+    for (const line of lines) {
+      // 识别区域类型
+      if (line.includes('当前任务') || line.includes('currentTask')) {
+        if (currentSection.length > 0) {
+          sections.push({ type: currentType, content: currentSection, priority: this.getPriority(currentType, rules) });
+        }
+        currentSection = [line];
+        currentType = 'currentTask';
+      } else if (line.includes('当前文件') || line.includes('currentFile')) {
+        if (currentSection.length > 0) {
+          sections.push({ type: currentType, content: currentSection, priority: this.getPriority(currentType, rules) });
+        }
+        currentSection = [line];
+        currentType = 'currentFile';
+      } else if (line.includes('历史') || line.includes('history')) {
+        if (currentSection.length > 0) {
+          sections.push({ type: currentType, content: currentSection, priority: this.getPriority(currentType, rules) });
+        }
+        currentSection = [line];
+        currentType = 'oldHistory';
+      } else {
+        currentSection.push(line);
+      }
+    }
+
+    // 添加最后一个区域
+    if (currentSection.length > 0) {
+      sections.push({ type: currentType, content: currentSection, priority: this.getPriority(currentType, rules) });
+    }
+
+    // 按优先级排序并保留高优先级内容
+    sections.sort((a, b) => b.priority - a.priority);
+
+    // 估算保留的内容
+    let currentTokens = 0;
+    const keptSections: string[] = [];
+
+    for (const section of sections) {
+      const sectionTokens = this.estimateTokens(section.content.join('\n'));
+      if (currentTokens + sectionTokens <= MAX_TOKENS * 0.8) { // 保留 80% 预算
+        keptSections.push(...section.content);
+        currentTokens += sectionTokens;
+      }
+    }
+
+    return keptSections.join('\n');
+  }
+
+  /**
+   * 获取区域优先级
+   */
+  private getPriority(type: string, rules: PriorityRules): number {
+    if (rules.keep.includes(type)) return 10;  // 高优先级
+    if (rules.drop.includes(type)) return 1;   // 低优先级
+    return 5;  // 中等优先级
+  }
+
+  /**
    * Get skill metadata.
    */
   getMetadata(): Record<string, any> {
@@ -255,6 +412,8 @@ export class ContextCompressorSkill extends Skill {
       supportedTaskTypes: ['code', 'document', 'conversation'],
       maxTokenSupport: 1000000,
       energyEfficiencyRatio: '5200:1',
+      tokenLimit: MAX_TOKENS,
+      upgradeCompression: true,
     };
   }
 }

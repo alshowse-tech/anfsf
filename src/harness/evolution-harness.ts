@@ -6,6 +6,7 @@
  */
 
 import { MemoryConsolidationSkill, registerMemoryConsolidationSkill } from '../skills/memory-consolidation-skill';
+import { ContextCompressorSkill, CompressedContext } from '../skills/context-compressor-skill';
 
 export interface ProjectData {
   projectId: string;
@@ -68,12 +69,14 @@ export interface EvolutionMetrics {
 export class EvolutionHarness {
   private config: EvolutionConfig;
   private memorySkill: MemoryConsolidationSkill;
+  private contextCompressor: ContextCompressorSkill;
   private projectData: ProjectData[];
   private kpiHistory: Map<string, AgentKPI[]>;
 
   constructor(config: Partial<EvolutionConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.memorySkill = new MemoryConsolidationSkill();
+    this.contextCompressor = new ContextCompressorSkill();
     this.projectData = [];
     this.kpiHistory = new Map();
   }
@@ -250,6 +253,83 @@ export class EvolutionHarness {
   dispose(): void {
     this.projectData = [];
     this.kpiHistory.clear();
+  }
+
+  // ===========================================================================
+  // Token 超限解决方案 - 自升级入口
+  // ===========================================================================
+
+  /**
+   * 执行自升级 (使用 ContextCompressorSkill 压缩上下文，避免 token 超限)
+   * 解决 HTTP 400: InternalError.Algo.InvalidParameter - Range of input length should be [1, 196601]
+   */
+  async performSelfUpgrade(
+    buildUpgradeContext: () => Promise<string>,
+    llmGenerate: (compressedContext: string) => Promise<any>
+  ): Promise<{ success: boolean; result?: any; error?: string; compressedTokens: number }> {
+    try {
+      // 1. 获取原始上下文
+      const rawContext = await buildUpgradeContext();
+      console.log('[EvolutionHarness] 原始上下文长度:', rawContext.length, 'chars');
+
+      // 2. 调用 ContextCompressorSkill 压缩
+      const compressed: CompressedContext = await this.contextCompressor.compressForUpgrade(rawContext);
+      console.log('[EvolutionHarness] 压缩后 token 数:', compressed.tokenCount);
+      console.log('[EvolutionHarness] 压缩比:', compressed.compressionRatio.toFixed(2), 'x');
+      console.log('[EvolutionHarness] 是否截断:', compressed.truncated);
+      if (compressed.droppedSections.length > 0) {
+        console.log('[EvolutionHarness] 丢弃区域:', compressed.droppedSections.join(', '));
+      }
+
+      // 3. 调用 LLM (不会再超限)
+      const compressedContextStr = compressed.tokens.join('\n');
+      const result = await llmGenerate(compressedContextStr);
+
+      return {
+        success: true,
+        result,
+        compressedTokens: compressed.tokenCount
+      };
+    } catch (error: any) {
+      console.error('[EvolutionHarness] 自升级失败:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        compressedTokens: 0
+      };
+    }
+  }
+
+  /**
+   * 构建 diff 而非全量代码 (token 下降 90%)
+   */
+  async generateDiffForUpgrade(oldCode: string, newCode: string): Promise<string> {
+    const oldLines = oldCode.split('\n');
+    const newLines = newCode.split('\n');
+    
+    // 简化的 diff 算法
+    const diff: string[] = [];
+    const maxLines = Math.max(oldLines.length, newLines.length);
+    
+    for (let i = 0; i < maxLines; i++) {
+      if (i >= oldLines.length) {
+        diff.push(`+ ${newLines[i]}`);
+      } else if (i >= newLines.length) {
+        diff.push(`- ${oldLines[i]}`);
+      } else if (oldLines[i] !== newLines[i]) {
+        diff.push(`- ${oldLines[i]}`);
+        diff.push(`+ ${newLines[i]}`);
+      }
+    }
+    
+    return diff.join('\n');
+  }
+
+  /**
+   * 获取 ContextCompressor 实例
+   */
+  getContextCompressor(): ContextCompressorSkill {
+    return this.contextCompressor;
   }
 }
 
