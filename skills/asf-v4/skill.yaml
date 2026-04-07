@@ -19,6 +19,57 @@ tags:
   - ownership
   - kpi
   - budget
+  - fullstack
+  - ai-native
+
+# 推荐集成技能 (OpenClaw v2026.4.5)
+recommendedSkills:
+  # 强烈推荐 (核心开发)
+  core:
+    - name: coding-agent
+      reason: 代码生成/重构/PR 审核，与双层结构配合
+      priority: P0
+    - name: skill-creator
+      reason: ANFSF 自身技能开发与维护
+      priority: P0
+    - name: clawhub
+      reason: ANFSF 技能分发与更新
+      priority: P0
+    - name: github
+      reason: 代码仓库操作，CI/CD 集成
+      priority: P0
+    - name: gh-issues
+      reason: 自动化 issue 处理，PR 创建
+      priority: P0
+    - name: healthcheck
+      reason: 安全审计与风险容忍配置
+      priority: P0
+  # 推荐 (增强功能)
+  enhanced:
+    - name: oracle
+      reason: Prompt 优化与文件捆绑
+      priority: P1
+    - name: openai-whisper-api
+      reason: 语音输入处理
+      priority: P1
+    - name: model-usage
+      reason: 模型成本统计与优化
+      priority: P1
+    - name: summarize
+      reason: 长文本/URL 摘要
+      priority: P1
+    - name: node-connect
+      reason: 多节点部署支持
+      priority: P1
+    - name: mcporter
+      reason: MCP 协议集成
+      priority: P1
+    - name: session-logs
+      reason: 会话日志搜索分析
+      priority: P1
+    - name: video-frames
+      reason: 视频帧提取
+      priority: P2
 
 # OpenClaw 兼容性
 compatibility:

@@ -436,6 +436,86 @@ export const asf_v4 = {
         args.constraints || { kMin: 2, kMax: 8 }
       );
     },
+    
+    // =========================================================================
+    // 推荐技能集成 (OpenClaw v2026.4.5)
+    // =========================================================================
+    
+    /**
+     * 获取推荐技能状态
+     */
+    'asf:recommended-skills': async () => {
+      return {
+        core: [
+          { name: 'coding-agent', status: 'ready', priority: 'P0', reason: '代码生成/重构/PR 审核' },
+          { name: 'skill-creator', status: 'ready', priority: 'P0', reason: 'ANFSF 自身技能开发' },
+          { name: 'clawhub', status: 'ready', priority: 'P0', reason: '技能分发与更新' },
+          { name: 'github', status: 'ready', priority: 'P0', reason: 'GitHub 仓库操作' },
+          { name: 'gh-issues', status: 'ready', priority: 'P0', reason: 'Issue 自动处理' },
+          { name: 'healthcheck', status: 'ready', priority: 'P0', reason: '安全审计' },
+        ],
+        enhanced: [
+          { name: 'oracle', status: 'ready', priority: 'P1', reason: 'Prompt 优化' },
+          { name: 'openai-whisper-api', status: 'ready', priority: 'P1', reason: '语音输入' },
+          { name: 'session-logs', status: 'ready', priority: 'P1', reason: '会话日志' },
+          { name: 'node-connect', status: 'ready', priority: 'P1', reason: '多节点部署' },
+          { name: 'video-frames', status: 'ready', priority: 'P2', reason: '视频帧提取' },
+        ],
+        pending: [
+          { name: '1password', status: 'needs-setup', priority: 'P1', reason: '缺少 op CLI' },
+          { name: 'openai-whisper', status: 'needs-setup', priority: 'P1', reason: '缺少 whisper CLI' },
+          { name: 'model-usage', status: 'needs-setup', priority: 'P1', reason: '需要 macOS' },
+          { name: 'summarize', status: 'needs-setup', priority: 'P1', reason: '缺少 summarize CLI' },
+          { name: 'mcporter', status: 'needs-setup', priority: 'P1', reason: '缺少 mcporter CLI' },
+        ],
+        summary: {
+          total: 16,
+          ready: 11,
+          needsSetup: 5,
+          integrationRate: '68.75%'
+        }
+      };
+    },
+    
+    /**
+     * 调用 coding-agent (P0 强烈推荐)
+     */
+    'asf:code': async (args: { task: string; model?: string }) => {
+      return {
+        skill: 'coding-agent',
+        task: args.task,
+        model: args.model || 'default',
+        status: 'delegated',
+        message: 'Use coding-agent skill directly via openclaw'
+      };
+    },
+    
+    /**
+     * 调用 github 技能 (P0 强烈推荐)
+     */
+    'asf:github': async (args: { action: string; params?: any }) => {
+      return {
+        skill: 'github',
+        action: args.action,
+        params: args.params,
+        status: 'delegated',
+        message: 'Use github skill directly via openclaw'
+      };
+    },
+    
+    /**
+     * 调用 gh-issues 技能 (P0 强烈推荐)
+     */
+    'asf:issues': async (args: { repo: string; label?: string; limit?: number }) => {
+      return {
+        skill: 'gh-issues',
+        repo: args.repo,
+        label: args.label,
+        limit: args.limit || 5,
+        status: 'delegated',
+        message: 'Use gh-issues skill directly via openclaw'
+      };
+    },
   },
   
   // ============================================================================
