@@ -761,7 +761,10 @@ class BailianClientSDK:
             api_key: API Key
         """
         try:
-            import dashscope
+            # 忽略 dashscope API (aiohttp 依赖冲突)
+        return None
+    
+    async def _fallback_to_path_one(
             dashscope.api_key = api_key or os.getenv("ALIYUN_BAILIAN_API_KEY")
             self.sdk_available = True
         except ImportError:
