@@ -9,7 +9,7 @@ ANFSF V1.5.0 角色定义，包含：
 - Gen UI Agent: UI 生成
 """
 
-from src.roles.url_parser_agent import (
+from roles.url_parser_agent import (
     URLParserAgent,
     URLParseRequest,
     URLParseResult,
@@ -20,10 +20,10 @@ from src.roles.url_parser_agent import (
 
 
 # 预留其他 Agent 的导入
-# from src.roles.media_processor_agent import MediaProcessorAgent
-# from src.roles.transcription_agent import TranscriptionAgent
-# from src.roles.quality_checker_agent import QualityCheckerAgent
-# from src.roles.gen_ui_agent import GenUIAgent
+# from roles.media_processor_agent import MediaProcessorAgent
+# from roles.transcription_agent import TranscriptionAgent
+# from roles.quality_checker_agent import QualityCheckerAgent
+# from roles.gen_ui_agent import GenUIAgent
 
 
 __all__ = [

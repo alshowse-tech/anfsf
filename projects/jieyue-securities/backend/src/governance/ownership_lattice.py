@@ -15,10 +15,10 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, BigInteger, String, DateTime, JSON, UniqueConstraint, Index
-from sqlalchemy.orm import Session
+from db.session import Session
 from sqlalchemy.sql import func
 
-from src.db.session import Base
+from db.session import Base
 
 
 # ==================== 数据模型 ====================
@@ -114,7 +114,7 @@ class OwnershipLattice:
     基于晶格理论实现细粒度资源所有权管理
     """
     
-    def __init__(self, db_session: Session, cache=None, signing_key: str = "default-key"):
+    def __init__(self, db_session=None, cache=None, signing_key: str = "default-key"):
         """
         初始化所有权晶格
         
@@ -123,7 +123,7 @@ class OwnershipLattice:
             cache: Redis 缓存客户端 (可选)
             signing_key: 签名密钥
         """
-        self.db = db_session
+        self.db = db_session or Session()
         self.cache = cache
         self.signing_key = signing_key
         self.rules: List[OwnershipRule] = []

@@ -10,9 +10,9 @@ from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 from datetime import datetime
 
-from src.services.url_parser import parse_url as original_parse_url
-from src.services.url_expander import expand_url as original_expand_url
-from src.governance.mcp_bus import MCPMessage, MCPBus
+from services.url_parser import get_url_parser as original_parse_url
+from services.url_expander import create_url_expander as original_expand_url
+from governance.mcp_bus import MCPMessage, MCPBus
 
 
 # ==================== 消息模型 ====================

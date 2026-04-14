@@ -9,7 +9,7 @@ ANFSF V1.5.0 治理控制面，包含：
 - Readiness Gate: 就绪门禁
 """
 
-from src.governance.ownership_lattice import (
+from governance.ownership_lattice import (
     OwnershipLattice,
     OwnershipRecord,
     CheckResult,
@@ -21,10 +21,10 @@ from src.governance.ownership_lattice import (
     create_ownership_lattice,
 )
 
-from src.governance.contract_pack import (
+from governance.contract_pack import (
     ContractPack,
-    Contract,
-    ContractChange,
+    APIContract,
+    APIContractChange,
     RegisterResult,
     ValidationResult,
     CompatibilityResult,
@@ -38,7 +38,7 @@ from src.governance.contract_pack import (
     create_contract_pack,
 )
 
-from src.governance.mcp_bus import (
+from governance.mcp_bus import (
     MCPBus,
     MCPMessage,
     MCPMessageLog,
@@ -55,7 +55,7 @@ from src.governance.mcp_bus import (
     create_message,
 )
 
-from src.governance.preview_controller import (
+from governance.preview_controller import (
     PreviewController,
     Preview,
     ProbeResult,
@@ -72,7 +72,7 @@ from src.governance.preview_controller import (
     create_preview_controller,
 )
 
-from src.governance.readiness_gate import (
+from governance.readiness_gate import (
     ReadinessGate,
     Service,
     ProbeCheck,

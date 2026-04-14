@@ -1,7 +1,7 @@
 # 数据库配置
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session, relationship
 import os
 
 # 从环境变量读取数据库 URL
@@ -28,3 +28,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# 别名：Session = SessionLocal
+def Session():
+    return SessionLocal()

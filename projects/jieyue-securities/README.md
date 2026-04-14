@@ -1,218 +1,76 @@
 # 捷阅证券信息助手
 
-> 🦾 AI Native Full-Stack Software Factory V1.0 全周期开发项目
+## 视频解析功能配置
 
-**项目名称**: 捷阅证券信息助手 (JieYue Securities Assistant)  
-**状态**: 🟢 全周期开发中  
-**创建时间**: 2026-03-31  
-**架构版本**: ANFSF V1.0  
-**授权**: 完全授权开发，用户负责结果审定
+### 1. 获取 DashScope API Key
 
----
+1. 访问 [阿里云 DashScope 控制台](https://dashscope.console.aliyun.com/)
+2. 创建或获取 API Key
+3. 确保 API Key 有以下权限：
+   - 音频转文字（ASR）服务
+   - Qwen 大模型服务
 
-## 📋 产品概述
+### 2. 配置环境变量
 
-面向证券从业者的智能内容分析助手，自动解析视频/音频 URLs，提取内容，生成摘要并识别投资风险提示标签。
+在启动 backend 服务前，设置环境变量：
 
-### 核心价值
-
-| 价值 | 描述 | 指标 |
-|------|------|------|
-| ⚡ 效率 | 自动解析 + ASR+ 摘要 | 审核时间减少 80% |
-| 🛡️ 合规 | 自动识别违规内容 | 准确率 ≥ 95% |
-| 💰 经济 | 按分钟计费，成功才扣费 | 成本可控 |
-
----
-
-## 🏗️ 技术架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Frontend (Next.js 15)                   │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
-│  │  提交页面   │ │  列表页面   │ │  详情页面   │           │
-│  └─────────────┘ └─────────────┘ └─────────────┘           │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            │ REST API
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Backend (FastAPI)                       │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
-│  │  Task API   │ │ Wallet API  │ │  User API   │           │
-│  └─────────────┘ └─────────────┘ └─────────────┘           │
-│                            │                                 │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │              BullMQ 任务队列                         │    │
-│  │  queue_parse → queue_asr → queue_summary → billing  │    │
-│  └─────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            │ Prisma ORM
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Database (MySQL 8.0)                      │
-│  users │ wallets │ tasks │ contents │ summaries │ pricing   │
-└─────────────────────────────────────────────────────────────┘
+```bash
+export DASHSCOPE_API_KEY="your-real-api-key-here"
 ```
 
-### 技术栈
+或者在 `.env` 文件中：
 
-| 层级 | 技术 | 版本 |
-|------|------|------|
-| 前端 | Next.js 15 + React 18 | Latest |
-| 后端 | FastAPI + Python 3.11 | Latest |
-| 数据库 | MySQL + Prisma | 8.0 |
-| 队列 | BullMQ + Redis | Latest |
-| ASR | 火山引擎/阿里云 | Latest |
-| 部署 | Docker + K8s | Latest |
-
----
-
-## 📁 项目结构
-
-```
-jieyue-securities/
-├── PROJECT-KICKOFF.md          # 项目启动书
-├── PRD.md                      # 产品需求文档
-├── README.md                   # 本文件
-├── DEVELOPMENT-LOG.md          # 开发日志
-├── architecture/               # 架构设计
-│   ├── knowledge-graph.json   # L4 知识图谱
-│   └── role-assignment.yaml   # 角色分配
-├── backend/                    # 后端代码
-│   ├── src/
-│   │   ├── api/               # API 路由
-│   │   ├── models/            # 数据模型
-│   │   ├── services/          # 业务逻辑
-│   │   ├── queues/            # 队列处理
-│   │   └── utils/             # 工具函数
-│   ├── tests/                 # 单元测试
-│   └── prisma/
-│       └── schema.prisma      # 数据库 Schema
-├── frontend/                   # 前端代码
-│   └── src/
-│       ├── app/               # Next.js 页面
-│       ├── components/        # React 组件
-│       ├── hooks/             # 自定义 Hooks
-│       └── lib/               # 工具库
-├── infrastructure/             # 基础设施
-│   ├── docker/                # Docker 配置
-│   ├── k8s/                   # Kubernetes 配置
-│   └── terraform/             # IaC 配置
-├── docs/                       # 项目文档
-└── scripts/                    # 脚本工具
+```env
+DASHSCOPE_API_KEY=your-real-api-key-here
 ```
 
----
+### 3. 启动服务
 
-## 📊 开发计划
-
-### 阶段 1: 基础架构 (Week 1: 2026-03-31 ~ 2026-04-06)
-
-| 任务 | 工期 | 状态 |
-|------|------|------|
-| 项目初始化 | 0.5 天 | ✅ 完成 |
-| 数据库 Schema | 0.5 天 | ✅ 完成 |
-| 用户 + 钱包 API | 1 天 | ⏳ 待启动 |
-| 任务 API | 1 天 | ⏳ 待启动 |
-| BullMQ 队列 | 1 天 | ⏳ 待启动 |
-| 基础测试 | 1 天 | ⏳ 待启动 |
-
-### 阶段 2: 核心功能 (Week 2: 2026-04-07 ~ 2026-04-13)
-
-| 任务 | 工期 | 状态 |
-|------|------|------|
-| TikHub URL 解析 | 1 天 | ⏳ 待启动 |
-| 火山引擎 ASR | 1 天 | ⏳ 待启动 |
-| LLM 内容摘要 | 1 天 | ⏳ 待启动 |
-| 风险标签识别 | 0.5 天 | ⏳ 待启动 |
-| 计费逻辑实现 | 0.5 天 | ⏳ 待启动 |
-| 集成测试 | 1 天 | ⏳ 待启动 |
-
-### 阶段 3: 前端开发 (Week 3: 2026-04-14 ~ 2026-04-20)
-
-| 任务 | 工期 | 状态 |
-|------|------|------|
-| Next.js 初始化 | 0.5 天 | ⏳ 待启动 |
-| 提交页面 | 1 天 | ⏳ 待启动 |
-| 列表页面 | 1 天 | ⏳ 待启动 |
-| 详情页面 | 1 天 | ⏳ 待启动 |
-| 用户中心 | 0.5 天 | ⏳ 待启动 |
-| 前端测试 | 1 天 | ⏳ 待启动 |
-
-### 阶段 4: 测试部署 (Week 4: 2026-04-21 ~ 2026-04-27)
-
-| 任务 | 工期 | 状态 |
-|------|------|------|
-| 全链路测试 | 1 天 | ⏳ 待启动 |
-| 性能测试 | 0.5 天 | ⏳ 待启动 |
-| 安全审计 | 0.5 天 | ⏳ 待启动 |
-| Docker 部署 | 1 天 | ⏳ 待启动 |
-| 生产验证 | 1 天 | ⏳ 待启动 |
-
----
-
-## 📈 项目进度
-
-```
-总进度：5% (项目启动)
-
-[███░░░░░░░░░░░░░░░░░░░░░░░░░░░] 5%
-
-阶段 1: 基础架构    [███░░░░░░] 10% (进行中)
-阶段 2: 核心功能    [░░░░░░░░░░] 0%  (待启动)
-阶段 3: 前端开发    [░░░░░░░░░░] 0%  (待启动)
-阶段 4: 测试部署    [░░░░░░░░░░] 0%  (待启动)
+```bash
+cd backend
+source venv/bin/activate
+uvicorn src.main:app --host 0.0.0.0 --port 8000
 ```
 
----
+### 4. 测试视频解析
 
-## 👥 项目团队
+使用抖音链接进行测试：
 
-### ANFSF Agent 团队
+```bash
+curl -X POST http://localhost:8000/api/task/create \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://v.douyin.com/qCkhMi8y3qs/", "user_id": 1}'
+```
 
-| 角色 | Agent | 职责 |
-|------|-------|------|
-| 项目统筹 | `architect-agent` | 架构设计、技术决策 |
-| 后端开发 | `builder-agent` | API、数据库、队列 |
-| 前端开发 | `builder-agent` | 页面、组件 |
-| 测试工程师 | `tester-agent` | 测试用例、质量保证 |
-| 交互设计师 | `interaction-agent` | UI/UX 设计 |
-| 需求分析师 | `prd-parser-agent` | PRD 解析、特征提取 |
+### 5. 监控
 
-### 用户职责
-- ✅ 结果审定
-- ✅ 关键决策确认
-- ✅ 验收测试
+查看日志以监控处理过程：
 
----
+```bash
+tail -f backend.log
+```
 
-## 📝 开发日志
+## 功能说明
 
-详见：[DEVELOPMENT-LOG.md](./DEVELOPMENT-LOG.md)
+- **短链接展开**: 自动展开抖音短链接
+- **URL 解析**: 调用 AnyVideo 智能解析服务
+- **ASR 语音识别**: 调用百炼 ASR 服务进行语音识别
+- **摘要生成**: 调用百炼大模型生成结构化摘要
+- **任务状态管理**: 自动更新任务状态和结果
 
-### 最新进展 (2026-03-31 17:20)
-- ✅ 项目启动完成
-- ✅ PRD 文档创建
-- ✅ 项目章程创建
-- ✅ 知识图谱创建
-- ✅ 数据库 Schema 设计
+## 故障排除
 
----
+### 常见问题
 
-## 🔗 相关文档
+1. **API Key 无效**: 检查 API Key 是否正确，是否有足够权限
+2. **网络连接问题**: 确保服务器可以访问 DashScope API
+3. **超时问题**: 调整 `timeout` 参数（默认 300 秒）
 
-| 文档 | 路径 |
-|------|------|
-| 项目启动书 | [PROJECT-KICKOFF.md](./PROJECT-KICKOFF.md) |
-| PRD | [PRD.md](./PRD.md) |
-| 开发日志 | [DEVELOPMENT-LOG.md](./DEVELOPMENT-LOG.md) |
-| 知识图谱 | [architecture/knowledge-graph.json](./architecture/knowledge-graph.json) |
-| 角色分配 | [architecture/role-assignment.yaml](./architecture/role-assignment.yaml) |
+### 日志级别
 
----
+默认日志级别为 INFO。如需更详细日志，可以在 `src/main.py` 中调整：
 
-**最后更新**: 2026-03-31 17:20  
-**维护者**: ANFSF V1.0 Agent Team  
-**审定人**: 用户
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```

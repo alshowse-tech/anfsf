@@ -12,17 +12,18 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, BigInteger, String, DateTime, JSON, UniqueConstraint, Index, ForeignKey
-from sqlalchemy.orm import Session, relationship
+from db.session import Session, relationship
 from sqlalchemy.sql import func
 
-from src.db.session import Base
+from db.session import Base
 
 
 # ==================== 数据模型 ====================
 
-class Contract(Base):
-    """契约模型"""
-    __tablename__ = "contracts"
+# API 契约模型（用于 API Contract Pack）
+class APIContract(Base):
+    """API 契约模型"""
+    __tablename__ = "api_contracts"
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     name = Column(String(256), nullable=False, index=True)
@@ -36,17 +37,17 @@ class Contract(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     __table_args__ = (
-        UniqueConstraint('name', 'version', name='uniq_contract_version'),
-        Index('idx_name_status', 'name', 'status'),
+        UniqueConstraint('name', 'version', name='uniq_api_contract_version'),
+        Index('idx_api_name_status', 'name', 'status'),
     )
 
 
-class ContractChange(Base):
-    """契约变更记录"""
-    __tablename__ = "contract_changes"
+class APIContractChange(Base):
+    """API 契约变更记录"""
+    __tablename__ = "api_contract_changes"
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    contract_id = Column(BigInteger, ForeignKey('contracts.id'), nullable=False)
+    contract_id = Column(BigInteger, ForeignKey('api_contracts.id'), nullable=False)
     change_type = Column(String(50), nullable=False)  # add, remove, modify
     path = Column(String(512), nullable=False)
     old_value = Column(JSON, nullable=True)
@@ -362,7 +363,7 @@ class ContractPack:
     管理 API 契约版本和兼容性
     """
     
-    def __init__(self, db_session: Session, storage=None):
+    def __init__(self, db_session=None, storage=None):
         """
         初始化契约包
         
@@ -370,7 +371,7 @@ class ContractPack:
             db_session: 数据库会话
             storage: 存储服务 (可选)
         """
-        self.db = db_session
+        self.db = db_session or Session()
         self.storage = storage
         self.validators: Dict[str, ContractValidator] = {
             "openapi": OpenAPIValidator(),
@@ -412,7 +413,7 @@ class ContractPack:
             )
         
         # 创建契约记录
-        db_contract = Contract(
+        db_contract = APIContract(
             name=contract.name,
             version=contract.version,
             type=contract.type,
@@ -553,36 +554,36 @@ class ContractPack:
         
         return DeprecateResult(success=True)
     
-    async def get_active_contracts(self) -> List[Contract]:
+    async def get_active_contracts(self) -> List[APIContract]:
         """获取活跃契约列表"""
-        return self.db.query(Contract).filter(
-            Contract.status == "active"
+        return self.db.query(APIContract).filter(
+            APIContract.status == "active"
         ).all()
     
-    async def get_contract_versions(self, name: str) -> List[Contract]:
+    async def get_contract_versions(self, name: str) -> List[APIContract]:
         """获取契约的所有版本"""
-        return self.db.query(Contract).filter(
-            Contract.name == name
-        ).order_by(Contract.created_at.desc()).all()
+        return self.db.query(APIContract).filter(
+            APIContract.name == name
+        ).order_by(APIContract.created_at.desc()).all()
     
     def _get_validator(self, contract_type: str) -> Optional[ContractValidator]:
         """获取验证器"""
         return self.validators.get(contract_type)
     
-    async def _get_contract(self, name_version: str) -> Optional[Contract]:
+    async def _get_contract(self, name_version: str) -> Optional[APIContract]:
         """获取契约"""
         if ":" in name_version:
             name, version = name_version.split(":", 1)
-            return self.db.query(Contract).filter(
-                Contract.name == name,
-                Contract.version == version
+            return self.db.query(APIContract).filter(
+                APIContract.name == name,
+                APIContract.version == version
             ).first()
         return None
     
-    async def _get_contract_by_id(self, contract_id: int) -> Optional[Contract]:
+    async def _get_contract_by_id(self, contract_id: int) -> Optional[APIContract]:
         """通过 ID 获取契约"""
-        return self.db.query(Contract).filter(
-            Contract.id == contract_id
+        return self.db.query(APIContract).filter(
+            APIContract.id == contract_id
         ).first()
     
     def _apply_changes(self, spec: Dict[str, Any], 

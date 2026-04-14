@@ -1,10 +1,31 @@
 # FastAPI 应用主入口 - ANFSF V1.5.0 集成版
+import asyncio
+import sys
+import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api import tasks, wallets, users
-from src.db.session import engine
-from src.db.models import Base
+# 添加 src 到路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+
+from api import tasks, wallets, users
+from db.session import engine
+from db.models import Base
+
+# ============== Layer 8.5 Governance Control Plane 初始化 ==============
+
+from governance import (
+    OwnershipLattice,
+    ContractPack,
+    MCPBus,
+    PreviewController,
+    ReadinessGate,
+)
+
+# ============== Layer 9 Agent OS 初始化 ==============
+
+from roles import URLParserAgent
 
 # ============== 创建数据库表 ==============
 
@@ -36,12 +57,34 @@ readiness_gate = ReadinessGate()
 # URL Parser Agent
 url_parser_agent = URLParserAgent()
 
+# ============== 任务后台处理器 ==============
+
+from tasks.processor import start_task_processor
+
 # ============== 创建 FastAPI 应用 ==============
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动任务处理后台线程
+    task_processor_task = asyncio.create_task(start_task_processor())
+    print("✓ 任务处理后台线程已启动")
+    
+    try:
+        yield
+    finally:
+        # 关闭任务处理线程
+        task_processor_task.cancel()
+        try:
+            await task_processor_task
+        except asyncio.CancelledError:
+            pass
 
 app = FastAPI(
     title="捷阅证券信息助手 API",
     description="证券内容智能分析与合规审核平台 - ANFSF V1.5.0",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 # CORS 配置
@@ -74,4 +117,5 @@ async def root():
 async def health_check():
     return {
         "status": "healthy",
+        "task_processor": "running",
     }

@@ -104,17 +104,7 @@ services:
       MYSQL_PASSWORD: jieyue2026
       MYSQL_DATABASE: jieyue_securities
     volumes:
-      - ./infrastructure/docker/init.sql:/init.sql
-    command: >
-      bash -c "
-      until mysql -h mysql -u root -piejieyue2026 -e 'SELECT 1' 2>/dev/null; do
-        echo 'Waiting for MySQL...'
-        sleep 2
-      done
-      && echo 'MySQL is ready'
-      && mysql -h mysql -u root -piejieyue2026 jieyue_securities < /init.sql
-      && echo 'Database initialized'
-      "
+      - ./infrastructure/docker/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - jieyue-network
 

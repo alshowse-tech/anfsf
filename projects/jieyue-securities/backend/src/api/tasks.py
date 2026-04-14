@@ -6,14 +6,16 @@ from typing import Optional, List
 from datetime import datetime
 import hashlib
 
-from src.db.session import get_db
-from src.db.models import Task, TaskStatus, ContentType
+from db.session import get_db
+from db.models import Task, TaskStatus, ContentType
 
 router = APIRouter()
 
 # 请求/响应模型
 class TaskCreate(BaseModel):
     url: str
+    user_id: Optional[int] = 1
+    task_type: Optional[str] = "parse"
 
 class TaskResponse(BaseModel):
     id: int
@@ -47,10 +49,10 @@ class TaskDetailResponse(BaseModel):
 @router.post("/create", response_model=TaskResponse)
 async def create_task(
     task_data: TaskCreate,
-    user_id: int,
     db: Session = Depends(get_db)
 ):
     """创建任务"""
+    user_id = task_data.user_id or 1
     # 生成 URL hash（用于幂等性）
     url_hash = hashlib.sha256(task_data.url.encode()).hexdigest()
     
@@ -101,7 +103,7 @@ async def create_task(
 # 注意：/list 路由必须在 /{task_id} 之前定义，避免 "list" 被解析为 task_id
 @router.get("/list", response_model=List[TaskResponse])
 async def list_tasks(
-    user_id: int,
+    user_id: int = 1,
     status: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,

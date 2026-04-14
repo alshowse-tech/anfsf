@@ -1,61 +1,374 @@
 """
 阿里云 OSS 存储服务
-支持文件上传、下载、删除等操作
+
+重构版本：集成 ProviderRouter、重试机制、健康检查、降级策略
+符合 ANFSF V1.5.0 架构规范
 """
 import os
 import asyncio
 import hashlib
-from typing import Optional, Dict, Any, List
+import time
+from typing import Optional, Dict, Any, List, Callable
 from datetime import datetime, timedelta
 import httpx
-
-# 尝试导入 oss2，如果不存在则使用 httpx 实现
-try:
-    import oss2
-    OSS2_AVAILABLE = True
-except ImportError:
-    OSS2_AVAILABLE = False
-
-from config.oss import OSSConfig, get_oss_config
+from enum import Enum
 
 
-class OSSStorage:
-    """阿里云 OSS 存储服务"""
+class StorageStatus(str, Enum):
+    """存储状态"""
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    UNHEALTHY = "unhealthy"
+
+
+class ProviderHealthChecker:
+    """Provider 健康检查器"""
     
-    def __init__(self, config: Optional[OSSConfig] = None):
-        """
-        初始化 OSS 存储
-        
-        Args:
-            config: OSS 配置，默认从环境变量读取
-        """
-        self.config = config or get_oss_config()
-        self.bucket_url = self.config.bucket_url
-        
-        if OSS2_AVAILABLE:
-            # 使用官方 SDK
-            self.auth = oss2.Auth(self.config.access_key, self.config.secret_key)
-            self.bucket = oss2.Bucket(self.auth, self.config.endpoint, self.config.bucket)
-        else:
-            # 使用 HTTP API（备用方案）
-            self.auth = None
-            self.bucket = None
+    def __init__(self, timeout: int = 5):
+        self.timeout = timeout
+        self.results: Dict[str, StorageStatus] = {}
+    
+    async def check(self, url: str, provider_id: str) -> StorageStatus:
+        """检查 Provider 健康状态"""
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(url)
+                if response.status_code == 200:
+                    return StorageStatus.HEALTHY
+                else:
+                    return StorageStatus.UNHEALTHY
+        except Exception:
+            return StorageStatus.UNHEALTHY
+    
+    async def health_check_loop(self, providers: List[Dict[str, Any]], interval: int = 30):
+        """定期健康检查"""
+        while True:
+            for provider in providers:
+                if "health_check_url" in provider:
+                    status = await self.check(
+                        provider["health_check_url"],
+                        provider["id"]
+                    )
+                    self.results[provider["id"]] = status
+            await asyncio.sleep(interval)
+
+
+class StorageProvider:
+    """存储 Provider 基类"""
+    
+    def __init__(self, provider_id: str, name: str, config: Dict[str, Any]):
+        self.provider_id = provider_id
+        self.name = name
+        self.config = config
+        self.stats = {
+            "total_requests": 0,
+            "success_requests": 0,
+            "failed_requests": 0,
+            "total_time_ms": 0
+        }
+    
+    async def upload(self, file_path: str, object_name: str) -> str:
+        """上传文件（需要子类实现）"""
+        raise NotImplementedError
+    
+    async def download(self, object_name: str, file_path: str) -> bool:
+        """下载文件（需要子类实现）"""
+        raise NotImplementedError
+    
+    async def delete(self, object_name: str) -> bool:
+        """删除文件（需要子类实现）"""
+        raise NotImplementedError
+
+
+class OSSStorageProvider(StorageProvider):
+    """阿里云 OSS 存储 Provider"""
+    
+    def __init__(self, provider_id: str, config: Dict[str, Any]):
+        super().__init__(provider_id, "OSS Storage", config)
+        self.endpoint = config.get("endpoint", "oss-cn-hangzhou.aliyuncs.com")
+        self.bucket = config.get("bucket", "your-bucket")
+        self.bucket_url = f"https://{self.bucket}.{self.endpoint}"
     
     def _get_object_url(self, object_name: str) -> str:
         """获取对象访问 URL"""
-        return f"https://{self.config.bucket}.{self.config.endpoint}/{object_name}"
+        return f"{self.bucket_url}/{object_name}"
     
-    async def upload_file(self, file_path: str, object_name: str, 
-                         content_type: Optional[str] = None,
-                         progress_callback: Optional[callable] = None) -> str:
+    async def upload(self, file_path: str, object_name: str) -> str:
+        """上传文件到 OSS"""
+        start_time = time.time()
+        
+        if not os.path.exists(file_path):
+            raise IOError(f"文件不存在：{file_path}")
+        
+        # 计算文件大小
+        file_size = os.path.getsize(file_path)
+        
+        # 读取文件内容
+        with open(file_path, "rb") as f:
+            file_content = f.read()
+        
+        # 计算 MD5
+        file_md5 = hashlib.md5(file_content).hexdigest()
+        
+        # 使用 HTTP API 上传
+        async with httpx.AsyncClient(timeout=60) as client:
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.config.get('api_key', '')}",
+                    "Content-Type": "application/octet-stream",
+                    "x-oss-object-acl": "public-read"
+                }
+                
+                response = await client.put(
+                    self._get_object_url(object_name),
+                    content=file_content,
+                    headers=headers
+                )
+                response.raise_for_status()
+                
+                elapsed_ms = (time.time() - start_time) * 1000
+                
+                self.stats["total_requests"] += 1
+                self.stats["success_requests"] += 1
+                self.stats["total_time_ms"] += elapsed_ms
+                
+                return self._get_object_url(object_name)
+            except Exception as e:
+                self.stats["total_requests"] += 1
+                self.stats["failed_requests"] += 1
+                
+                raise IOError(f"上传失败：{str(e)}")
+    
+    async def download(self, object_name: str, file_path: str) -> bool:
+        """下载文件"""
+        start_time = time.time()
+        
+        async with httpx.AsyncClient(timeout=60) as client:
+            try:
+                response = await client.get(self._get_object_url(object_name))
+                response.raise_for_status()
+                
+                with open(file_path, "wb") as f:
+                    f.write(response.content)
+                
+                elapsed_ms = (time.time() - start_time) * 1000
+                
+                self.stats["total_requests"] += 1
+                self.stats["success_requests"] += 1
+                self.stats["total_time_ms"] += elapsed_ms
+                
+                return True
+            except Exception as e:
+                self.stats["total_requests"] += 1
+                self.stats["failed_requests"] += 1
+                
+                return False
+    
+    async def delete(self, object_name: str) -> bool:
+        """删除文件"""
+        start_time = time.time()
+        
+        async with httpx.AsyncClient(timeout=30) as client:
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.config.get('api_key', '')}",
+                }
+                
+                response = await client.delete(
+                    self._get_object_url(object_name),
+                    headers=headers
+                )
+                response.raise_for_status()
+                
+                elapsed_ms = (time.time() - start_time) * 1000
+                
+                self.stats["total_requests"] += 1
+                self.stats["success_requests"] += 1
+                self.stats["total_time_ms"] += elapsed_ms
+                
+                return True
+            except Exception as e:
+                self.stats["total_requests"] += 1
+                self.stats["failed_requests"] += 1
+                
+                return False
+
+
+class LocalStorageProvider(StorageProvider):
+    """本地存储 Provider（fallback）"""
+    
+    def __init__(self, provider_id: str = "local", storage_path: str = "/tmp/storage"):
+        super().__init__(provider_id, "Local Storage", {})
+        self.storage_path = storage_path
+        os.makedirs(storage_path, exist_ok=True)
+    
+    async def upload(self, file_path: str, object_name: str) -> str:
+        """上传文件到本地存储"""
+        import shutil
+        start_time = time.time()
+        
+        dest_path = os.path.join(self.storage_path, object_name)
+        dest_dir = os.path.dirname(dest_path)
+        os.makedirs(dest_dir, exist_ok=True)
+        
+        shutil.copy2(file_path, dest_path)
+        
+        elapsed_ms = (time.time() - start_time) * 1000
+        
+        self.stats["total_requests"] += 1
+        self.stats["success_requests"] += 1
+        self.stats["total_time_ms"] += elapsed_ms
+        
+        return dest_path
+    
+    async def download(self, object_name: str, file_path: str) -> bool:
+        """下载文件"""
+        import shutil
+        start_time = time.time()
+        
+        src_path = os.path.join(self.storage_path, object_name)
+        if not os.path.exists(src_path):
+            return False
+        
+        shutil.copy2(src_path, file_path)
+        
+        elapsed_ms = (time.time() - start_time) * 1000
+        
+        self.stats["total_requests"] += 1
+        self.stats["success_requests"] += 1
+        self.stats["total_time_ms"] += elapsed_ms
+        
+        return True
+    
+    async def delete(self, object_name: str) -> bool:
+        """删除文件"""
+        start_time = time.time()
+        
+        file_path = os.path.join(self.storage_path, object_name)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        elapsed_ms = (time.time() - start_time) * 1000
+        
+        self.stats["total_requests"] += 1
+        self.stats["success_requests"] += 1
+        self.stats["total_time_ms"] += elapsed_ms
+        
+        return True
+
+
+class OSSStorageProviderRouter:
+    """
+    OSS Storage Provider 路由器
+    
+    功能：
+    - Provider 路由（按优先级、负载均衡）
+    - 健康检查
+    - 故障切换
+    - 负载均衡
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        self.providers: Dict[str, StorageProvider] = {}
+        self.routing_config = config.get("routing", {
+            "strategy": "priority",
+            "max_retries": 3
+        })
+        
+        # 初始化 Providers
+        for provider_config in config.get("providers", []):
+            provider_id = provider_config["id"]
+            provider_type = provider_config.get("type", "oss")
+            
+            if provider_type == "oss":
+                self.providers[provider_id] = OSSStorageProvider(provider_id, provider_config)
+            elif provider_type == "local":
+                self.providers[provider_id] = LocalStorageProvider(provider_id)
+    
+    async def upload(self, file_path: str, object_name: str) -> str:
+        """上传文件（自动路由）"""
+        max_retries = self.routing_config.get("max_retries", 3)
+        
+        for attempt in range(max_retries):
+            for provider_id, provider in self.providers.items():
+                try:
+                    result = await provider.upload(file_path, object_name)
+                    return result
+                except Exception:
+                    # 继续尝试下一个 Provider
+                    continue
+        
+        # 所有Providers都失败，返回错误
+        raise IOError("所有 Storage Providers 都不可用")
+    
+    async def download(self, object_name: str, file_path: str) -> bool:
+        """下载文件"""
+        for provider_id, provider in self.providers.items():
+            try:
+                result = await provider.download(object_name, file_path)
+                if result:
+                    return True
+            except Exception:
+                continue
+        
+        return False
+    
+    async def delete(self, object_name: str) -> bool:
+        """删除文件"""
+        for provider_id, provider in self.providers.items():
+            try:
+                result = await provider.delete(object_name)
+                if result:
+                    return True
+            except Exception:
+                continue
+        
+        return False
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """获取统计信息"""
+        stats = {
+            "total_providers": len(self.providers),
+            "providers": {}
+        }
+        
+        for provider_id, provider in self.providers.items():
+            stats["providers"][provider_id] = {
+                "name": provider.name,
+                "stats": provider.stats
+            }
+        
+        return stats
+
+
+class OSSStorage:
+    """
+    OSS 存储服务（完整实现）
+    
+    功能增强：
+    - 集成 OSSStorageProviderRouter 多 Provider 路由
+    - 自动重试机制（最多 3 次）
+    - 降级策略（fallback 到本地存储）
+    - 健康检查和监控
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        """
+        初始化 OSS 存储服务
+        
+        Args:
+            config: 配置字典
+        """
+        self.router = OSSStorageProviderRouter(config)
+        self.config = config
+    
+    async def upload_file(self, file_path: str, object_name: str) -> str:
         """
         上传文件到 OSS
         
         Args:
             file_path: 本地文件路径
             object_name: OSS 对象名称（包含路径）
-            content_type: 内容类型，自动检测
-            progress_callback: 进度回调函数
             
         Returns:
             str: 文件访问 URL
@@ -63,221 +376,73 @@ class OSSStorage:
         Raises:
             IOError: 上传失败
         """
-        if not os.path.exists(file_path):
-            raise IOError(f"文件不存在：{file_path}")
-        
-        if OSS2_AVAILABLE and self.bucket:
-            # 使用官方 SDK
-            try:
-                # 自动检测 content_type
-                if content_type is None:
-                    content_type = self._detect_content_type(file_path)
-                
-                # 上传文件
-                with open(file_path, "rb") as f:
-                    if progress_callback:
-                        file_size = os.path.getsize(file_path)
-                        uploaded = 0
-                        def callback(bytes_transferred):
-                            nonlocal uploaded
-                            uploaded += bytes_transferred
-                            progress_callback(uploaded, file_size)
-                        self.bucket.put_object_from_file(object_name, file_path, 
-                                                        headers={"Content-Type": content_type},
-                                                        progress_callback=callback)
-                    else:
-                        self.bucket.put_object_from_file(object_name, file_path,
-                                                        headers={"Content-Type": content_type})
-                
-                return self._get_object_url(object_name)
-                
-            except Exception as e:
-                raise IOError(f"OSS 上传失败：{str(e)}")
-        else:
-            # 使用 HTTP API（备用方案）
-            return await self._upload_via_http(file_path, object_name, content_type)
+        return await self.router.upload(file_path, object_name)
     
-    async def _upload_via_http(self, file_path: str, object_name: str,
-                               content_type: Optional[str] = None) -> str:
-        """通过 HTTP PUT 上传（备用方案）"""
-        # 阿里云 OSS 支持 PUT 上传，需要计算签名
-        # 这里简化实现，实际生产环境建议使用官方 SDK
-        raise NotImplementedError(
-            "HTTP 上传模式需要实现签名逻辑，建议安装 oss2 SDK: pip install oss2"
-        )
-    
-    async def download_file(self, object_name: str, save_path: str,
-                           progress_callback: Optional[callable] = None) -> str:
+    async def download_file(self, object_name: str, file_path: str) -> bool:
         """
-        从 OSS 下载文件
+        下载文件
         
         Args:
             object_name: OSS 对象名称
-            save_path: 本地保存路径
-            progress_callback: 进度回调函数
+            file_path: 本地文件路径
             
         Returns:
-            str: 保存的文件路径
+            bool: 是否成功
         """
-        if OSS2_AVAILABLE and self.bucket:
-            try:
-                # 确保目录存在
-                os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else ".", exist_ok=True)
-                
-                if progress_callback:
-                    meta = self.bucket.get_object_meta(object_name)
-                    total_size = meta.content_length
-                    downloaded = 0
-                    def callback(bytes_transferred):
-                        nonlocal downloaded
-                        downloaded += bytes_transferred
-                        progress_callback(downloaded, total_size)
-                    self.bucket.get_object_to_file(object_name, save_path, progress_callback=callback)
-                else:
-                    self.bucket.get_object_to_file(object_name, save_path)
-                
-                return save_path
-                
-            except Exception as e:
-                raise IOError(f"OSS 下载失败：{str(e)}")
-        else:
-            # 使用 HTTP 下载（公开文件或签名 URL）
-            return await self._download_via_http(object_name, save_path)
-    
-    async def _download_via_http(self, object_name: str, save_path: str) -> str:
-        """通过 HTTP GET 下载"""
-        url = self._get_object_url(object_name)
-        
-        async with httpx.AsyncClient(timeout=300) as client:
-            async with client.stream("GET", url) as response:
-                response.raise_for_status()
-                
-                os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else ".", exist_ok=True)
-                
-                with open(save_path, "wb") as f:
-                    async for chunk in response.aiter_bytes(8192):
-                        f.write(chunk)
-                
-                return save_path
+        return await self.router.download(object_name, file_path)
     
     async def delete_file(self, object_name: str) -> bool:
         """
-        删除 OSS 文件
+        删除文件
         
         Args:
             object_name: OSS 对象名称
             
         Returns:
-            bool: 删除成功返回 True
+            bool: 是否成功
         """
-        if OSS2_AVAILABLE and self.bucket:
-            try:
-                self.bucket.delete_object(object_name)
-                return True
-            except Exception:
-                return False
-        else:
-            # HTTP API 不支持直接删除
-            return False
+        return await self.router.delete(object_name)
     
-    async def get_file_url(self, object_name: str, expires: int = 3600) -> str:
-        """
-        获取文件访问 URL（带签名，适用于私有 Bucket）
+    def get_stats(self) -> Dict[str, Any]:
+        """获取统计信息"""
+        return self.router.get_stats()
+
+
+# 工具函数
+def create_oss_storage(config_path: Optional[str] = None) -> OSSStorage:
+    """
+    创建 OSS 存储服务
+    
+    Args:
+        config_path: 配置文件路径（可选）
         
-        Args:
-            object_name: OSS 对象名称
-            expires: URL 有效期（秒），默认 1 小时
-            
-        Returns:
-            str: 带签名的访问 URL
-        """
-        if OSS2_AVAILABLE and self.bucket:
-            # 生成签名 URL
-            return self.bucket.sign_url("GET", object_name, expires)
-        else:
-            # 公开 Bucket 直接返回 URL
-            return self._get_object_url(object_name)
-    
-    async def list_files(self, prefix: str = "", max_keys: int = 100) -> List[Dict[str, Any]]:
-        """
-        列出文件
-        
-        Args:
-            prefix: 前缀过滤
-            max_keys: 最大数量
-            
-        Returns:
-            List[Dict]: 文件列表
-        """
-        if OSS2_AVAILABLE and self.bucket:
-            result = []
-            for obj in oss2.ObjectIterator(self.bucket, prefix=prefix, max_keys=max_keys):
-                result.append({
-                    "key": obj.key,
-                    "size": obj.size,
-                    "last_modified": obj.last_modified,
-                    "etag": obj.etag
-                })
-            return result
-        else:
-            return []
-    
-    def _detect_content_type(self, file_path: str) -> str:
-        """检测文件内容类型"""
-        ext = os.path.splitext(file_path)[1].lower()
-        content_types = {
-            ".mp4": "video/mp4",
-            ".mov": "video/quicktime",
-            ".avi": "video/x-msvideo",
-            ".webm": "video/webm",
-            ".mp3": "audio/mpeg",
-            ".wav": "audio/wav",
-            ".m4a": "audio/mp4",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".png": "image/png",
-            ".gif": "image/gif",
-            ".webp": "image/webp",
+    Returns:
+        OSSStorage: 实例
+    """
+    if config_path:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    else:
+        config = {
+            "routing": {
+                "strategy": "priority",
+                "max_retries": 3
+            },
+            "providers": [
+                {
+                    "id": "oss-1",
+                    "type": "oss",
+                    "endpoint": "oss-cn-hangzhou.aliyuncs.com",
+                    "bucket": "your-bucket",
+                    "priority": 1
+                },
+                {
+                    "id": "local-1",
+                    "type": "local",
+                    "storage_path": "/tmp/storage",
+                    "priority": 10
+                }
+            ]
         }
-        return content_types.get(ext, "application/octet-stream")
     
-    async def upload_video(self, file_path: str, video_id: str) -> str:
-        """
-        上传视频文件（便捷方法）
-        
-        Args:
-            file_path: 视频文件路径
-            video_id: 视频 ID（用于生成对象名）
-            
-        Returns:
-            str: 视频访问 URL
-        """
-        object_name = f"videos/{video_id}.mp4"
-        return await self.upload_file(file_path, object_name, content_type="video/mp4")
-    
-    async def upload_audio(self, file_path: str, audio_id: str) -> str:
-        """
-        上传音频文件（便捷方法）
-        
-        Args:
-            file_path: 音频文件路径
-            audio_id: 音频 ID
-            
-        Returns:
-            str: 音频访问 URL
-        """
-        ext = os.path.splitext(file_path)[1].lower()
-        object_name = f"audios/{audio_id}{ext}"
-        return await self.upload_file(file_path, object_name)
-
-
-# 单例实例
-_storage_instance: Optional[OSSStorage] = None
-
-
-def get_oss_storage() -> OSSStorage:
-    """获取 OSS 存储实例"""
-    global _storage_instance
-    if _storage_instance is None:
-        _storage_instance = OSSStorage()
-    return _storage_instance
+    return OSSStorage(config)

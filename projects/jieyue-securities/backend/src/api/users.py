@@ -6,8 +6,8 @@ from typing import Optional
 from datetime import datetime
 import hashlib
 
-from src.db.session import get_db
-from src.db.models import User, Wallet
+from db.session import get_db
+from db.models import User, Wallet
 
 router = APIRouter()
 

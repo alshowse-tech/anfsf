@@ -13,8 +13,9 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any, Callable
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, BigInteger, String, DateTime, JSON, Index, Boolean
-from sqlalchemy.orm import Session
+from db.session import Session
 from sqlalchemy.sql import func
+from db.session import Base
 
 
 # ==================== 数据模型 ====================
@@ -28,7 +29,7 @@ class Service(Base):
     version = Column(String(50), nullable=False)
     endpoint = Column(String(512), nullable=False)
     status = Column(String(20), default="registering", index=True)  # registering, ready, not_ready, degraded
-    metadata = Column(JSON, nullable=True)
+    service_metadata = Column(JSON, nullable=True)  # renamed from 'metadata'
     probes = Column(JSON, nullable=True)
     registered_at = Column(DateTime, server_default=func.now())
     last_check_at = Column(DateTime, nullable=True)
@@ -266,7 +267,7 @@ class ReadinessGate:
     检查服务是否准备好接收流量
     """
     
-    def __init__(self, db_session: Session, cache=None):
+    def __init__(self, db_session=None, cache=None):
         """
         初始化就绪门禁
         
@@ -274,7 +275,7 @@ class ReadinessGate:
             db_session: 数据库会话
             cache: Redis 缓存 (可选)
         """
-        self.db = db_session
+        self.db = db_session or Session()
         self.cache = cache
         self.services: Dict[str, ServiceConfig] = {}
         self.probe_factories: Dict[str, type] = {

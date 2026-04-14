@@ -7,8 +7,8 @@ from decimal import Decimal
 from enum import Enum
 from typing import Optional
 
-from src.db.session import get_db
-from src.db.models import Wallet, Transaction, TransactionType, TransactionStatus
+from db.session import get_db
+from db.models import Wallet, Transaction, TransactionType, TransactionStatus
 
 router = APIRouter()
 

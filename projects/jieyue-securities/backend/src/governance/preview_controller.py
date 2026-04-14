@@ -13,10 +13,10 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, BigInteger, String, DateTime, JSON, Index
-from sqlalchemy.orm import Session
+from db.session import Session
 from sqlalchemy.sql import func
 
-from src.db.session import Base
+from db.session import Base
 
 
 # ==================== 数据模型 ====================
@@ -184,7 +184,7 @@ class PreviewController:
     管理变更预览和验证
     """
     
-    def __init__(self, db_session: Session, storage=None):
+    def __init__(self, db_session=None, storage=None):
         """
         初始化预览控制器
         
@@ -192,7 +192,7 @@ class PreviewController:
             db_session: 数据库会话
             storage: 存储服务 (可选)
         """
-        self.db = db_session
+        self.db = db_session or Session()
         self.storage = storage
         self.probes: List[Probe] = []
         

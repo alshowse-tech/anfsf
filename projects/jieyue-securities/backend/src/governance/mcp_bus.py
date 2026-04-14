@@ -14,10 +14,10 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any, Union, Callable, Set
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, BigInteger, String, DateTime, JSON, Index
-from sqlalchemy.orm import Session
+from db.session import Session
 from sqlalchemy.sql import func
 
-from src.db.session import Base
+from db.session import Base
 
 
 # ==================== 数据模型 ====================

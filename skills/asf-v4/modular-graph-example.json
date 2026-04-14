@@ -1,0 +1,120 @@
+{
+  "_comment": "固定资产投资计划管理全流程项目 - 拆分后的 5 个模块 Graph 示例",
+  "_version": "v2.1-minimal-patch (2026-04-12)",
+  "_description": "RequirementRefinerSkill.splitIntoModularGraph 执行后产生的结构化 Graph",
+  
+  "modules": [
+    {
+      "name": "项目台账与拆解",
+      "scope": "阶段 1",
+      "priority": 1,
+      "nodes": [
+        "项目立项管理",
+        "项目台账管理",
+        "拆解子项 (设计/勘察/监理/建安/设备)"
+      ],
+      "dependencies": [],
+      "memPalaceWing": "module-项目台账与拆解",
+      "estimatedLines": 150,
+      "estimatedTime": "2 周"
+    },
+    {
+      "name": "设计采购与报批",
+      "scope": "阶段 2",
+      "priority": 2,
+      "nodes": [
+        "设计管理",
+        "报批报建",
+        "开工条件检测",
+        "设备子项采购管理"
+      ],
+      "dependencies": ["项目台账与拆解"],
+      "memPalaceWing": "module-设计采购与报批",
+      "estimatedLines": 200,
+      "estimatedTime": "2 周"
+    },
+    {
+      "name": "合同管理",
+      "scope": "阶段 3",
+      "priority": 3,
+      "nodes": [
+        "起草合同",
+        "合同审批",
+        "合同台账管理",
+        "合同过程资料"
+      ],
+      "dependencies": ["设计采购与报批"],
+      "memPalaceWing": "module-合同管理",
+      "estimatedLines": 180,
+      "estimatedTime": "2 周"
+    },
+    {
+      "name": "工程实施与监理",
+      "scope": "阶段 4",
+      "priority": 4,
+      "nodes": [
+        "监理职责",
+        "工程实施管理",
+        "甲供材料管理",
+        "变更与签证管理",
+        "现场协调"
+      ],
+      "dependencies": ["合同管理"],
+      "memPalaceWing": "module-工程实施与监理",
+      "estimatedLines": 250,
+      "estimatedTime": "3 周"
+    },
+    {
+      "name": "结算审计资金决算与报表",
+      "scope": "阶段 5-9",
+      "priority": 5,
+      "nodes": [
+        "竣工验收",
+        "竣工结算",
+        "结算审计",
+        "资金拨付",
+        "项目竣工决算",
+        "投资报表"
+      ],
+      "dependencies": ["工程实施与监理"],
+      "memPalaceWing": "module-结算审计资金决算与报表",
+      "estimatedLines": 300,
+      "estimatedTime": "3 周"
+    }
+  ],
+  
+  "crossModuleProtocol": "transaction-sync",
+  "totalNodes": 28,
+  "crossModuleDependencies": 12,
+  "totalEstimatedLines": 1080,
+  "totalEstimatedTime": "12 周",
+  
+  "executionOrder": [
+    "项目台账与拆解",
+    "设计采购与报批",
+    "合同管理",
+    "工程实施与监理",
+    "结算审计资金决算与报表"
+  ],
+  
+  "syncPoints": [
+    "after-项目台账与拆解",
+    "after-设计采购与报批",
+    "after-合同管理",
+    "after-工程实施与监理",
+    "after-结算审计资金决算与报表"
+  ],
+  
+  "validationPoints": [
+    "after-设计采购与报批",
+    "after-工程实施与监理",
+    "after-结算审计资金决算与报表"
+  ],
+  
+  "rollbackStrategy": "module-level",
+  
+  "timeout": {
+    "perModule": 300,
+    "total": 1800
+  }
+}

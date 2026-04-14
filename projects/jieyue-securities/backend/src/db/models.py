@@ -1,8 +1,8 @@
 # 数据库模型
-from sqlalchemy import Column, BigInteger, String, DateTime, DECIMAL, Text, Enum, Integer, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, BigInteger, String, DateTime, DECIMAL, Text, Enum, Integer, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.sql import func
 from enum import Enum as PyEnum
-from src.db.session import Base
+from db.session import Base
 
 # 任务状态枚举
 class TaskStatus(str, PyEnum):
@@ -32,6 +32,21 @@ class TransactionStatus(str, PyEnum):
     INIT = "INIT"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+
+# 契约状态枚举 (ANFSF V1.5.0 Layer 8.5)
+class ContractStatus(str, PyEnum):
+    DRAFT = "DRAFT"
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    TERMINATED = "TERMINATED"
+    EXPIRED = "EXPIRED"
+
+# Agent 状态枚举 (ANFSF V1.5.0 Layer 9)
+class AgentStatus(str, PyEnum):
+    OFFLINE = "OFFLINE"
+    ONLINE = "ONLINE"
+    BUSY = "BUSY"
+    MAINTENANCE = "MAINTENANCE"
 
 # 用户表
 class User(Base):
@@ -78,6 +93,14 @@ class Task(Base):
     cost = Column(DECIMAL(10, 2), nullable=True)
     parse_provider = Column(String(20), nullable=True)
     asr_provider = Column(String(20), nullable=True)
+    # 任务表（核心）- ANFSF V1.5.0 Layer 8.5 增强
+    parse_contract_id = Column(String(64), nullable=True)  # 契约 ID (Layer 8.5)
+    parse_agent_id = Column(String(64), nullable=True)  # Agent ID (Layer 9)
+    parse_agent_status = Column(Enum(AgentStatus), nullable=True)  # Agent 状态
+    asr_contract_id = Column(String(64), nullable=True)  # ASR 契约 ID
+    asr_agent_id = Column(String(64), nullable=True)  # ASR Agent ID
+    summary_contract_id = Column(String(64), nullable=True)  # 摘要契约 ID
+    summary_agent_id = Column(String(64), nullable=True)  # 摘要 Agent ID
     error_msg = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -119,3 +142,64 @@ class PricingConfig(Base):
     end_time = Column(DateTime, nullable=True)
     status = Column(Integer, default=1)
     created_at = Column(DateTime, server_default=func.now())
+
+# 契约表 (ANFSF V1.5.0 Layer 8.5)
+class Contract(Base):
+    __tablename__ = "contracts"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    contract_id = Column(String(64), unique=True, nullable=False)
+    user_id = Column(BigInteger, nullable=False)
+    service_type = Column(String(50), nullable=False)  # parse, asr, summary
+    provider = Column(String(50), nullable=False)
+    status = Column(Enum(ContractStatus), default=ContractStatus.PENDING)
+    params = Column(Text, nullable=True)  # JSON 格式
+    signature = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    expires_at = Column(DateTime, nullable=True)
+    terminated_at = Column(DateTime, nullable=True)
+    
+    __table_args__ = (
+        Index('idx_user_service', 'user_id', 'service_type'),
+        Index('idx_contract_status', 'status'),
+    )
+
+# Agent 表 (ANFSF V1.5.0 Layer 9)
+class Agent(Base):
+    __tablename__ = "agents"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    agent_id = Column(String(64), unique=True, nullable=False)
+    agent_type = Column(String(50), nullable=False)  # url_parser, asr, summary
+    provider = Column(String(50), nullable=False)
+    status = Column(Enum(AgentStatus), default=AgentStatus.OFFLINE)
+    capacity = Column(Integer, default=10)  # 最大并发数
+    current_load = Column(Integer, default=0)  # 当前负载
+    model = Column(String(100), nullable=True)
+    health_check_url = Column(String(256), nullable=True)
+    last_heartbeat = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    __table_args__ = (
+        Index('idx_agent_type', 'agent_type'),
+        Index('idx_agent_status', 'status'),
+    )
+
+# Agent 任务关联表
+class AgentTask(Base):
+    __tablename__ = "agent_tasks"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    agent_id = Column(BigInteger, ForeignKey("agents.id"), nullable=False)
+    task_id = Column(BigInteger, ForeignKey("tasks.id"), nullable=False)
+    contract_id = Column(String(64), nullable=True)
+    status = Column(Enum(AgentStatus), default=AgentStatus.ONLINE)
+    started_at = Column(DateTime, server_default=func.now())
+    completed_at = Column(DateTime, nullable=True)
+    error_msg = Column(Text, nullable=True)
+    
+    __table_args__ = (
+        UniqueConstraint('task_id', name='uniq_task_agent'),
+        Index('idx_agent_status', 'agent_id', 'status'),
+    )
