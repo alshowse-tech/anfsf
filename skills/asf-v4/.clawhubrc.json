@@ -20,13 +20,15 @@
   "files": [
     "index.ts",
     "package.json",
+    "SKILL.md",
     "skill.yaml",
     "config/",
     "tools/",
     "integrations/",
     "benchmarks/",
     "scripts/",
-    "README.md"
+    "README.md",
+    "src/"
   ],
   "publish": {
     "repository": "clawhub",
