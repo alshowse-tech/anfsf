@@ -1,6 +1,6 @@
-# ANFSF V1.5.4 Skill - Enhanced Hybrid Adaptive Parser
+# ANFSF V1.5.6 Skill - Enhanced Hybrid Adaptive Parser
 
-AI Native Full-Stack Software Factory V1.5.4 - Enhanced Hybrid Adaptive Parser for complex requirement analysis
+AI Native Full-Stack Software Factory V1.5.6 - Enhanced Hybrid Adaptive Parser with 100% health status (187/187 tests)
 
 ## Overview
 
@@ -63,7 +63,7 @@ const result = await skill.refine(rawRequirement);
 ## Installation
 
 ```bash
-clawhub install @anfsf-v1/openclaw-skill@1.5.4
+clawhub install @anfsf-v1/openclaw-skill@1.5.6
 ```
 
 ## Requirements
