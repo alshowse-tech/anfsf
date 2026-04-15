@@ -2,8 +2,8 @@
 # ClawHub Skill Manifest - Layer 8.5 Governance Control Plane
 
 name: anfsf-v1
-version: 1.5.0
-description: AI Native Full-Stack Software Factory V1.5 - Layer 8.5 治理控制平面 + UI/UX 智能合成 + 治理门禁 + 成本模型 + 安全优化
+version: 1.5.6
+description: AI Native Full-Stack Software Factory V1.5.6 - Layer 8.5 治理控制平面 + 100% 健康状态 (187/187 测试通过)
 author: ANFSF V1.3 Team
 license: MIT
 homepage: https://github.com/openclaw/openclaw
