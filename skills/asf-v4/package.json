@@ -1,7 +1,7 @@
 {
   "name": "@anfsf-v1/openclaw-skill",
-  "version": "1.5.5",
-  "description": "AI Native Full-Stack Software Factory V1.5.5 - Enhanced Hybrid Adaptive Parser with complete test coverage (129/129 tests)",
+  "version": "1.5.6",
+  "description": "AI Native Full-Stack Software Factory V1.5.6 - Enhanced Hybrid Adaptive Parser with 100% health status (187/187 tests)",
   "main": "index.ts",
   "types": "index.ts",
   "scripts": {
@@ -39,7 +39,7 @@
   },
   "openclaw": {
     "skillName": "anfsf-v1",
-    "architectureName": "AI Native Full-Stack Software Factory V1.5.5 (Enhanced Hybrid Parser, Layer 8.5 Governance, MemPalace, 129/129 tests)",
+    "architectureName": "AI Native Full-Stack Software Factory V1.5.6 (Enhanced Hybrid Parser, Layer 8.5 Governance, MemPalace, 187/187 tests, 100% health)",
     "architectureVersion": "1.5.0",
     "minOpenClawVersion": "2026.3.24",
     "tools": [
