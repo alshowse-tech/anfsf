@@ -1,19 +1,10 @@
 {
   "name": "asf-v4",
-  "version": "1.0.0",
+  "version": "1.5.6",
   "description": "ASF V4.0 工业化增强模块 - 治理门禁 + 成本模型 + 安全优化",
   "author": "ASF V4.0 Team",
   "license": "MIT",
-  "tags": [
-    "governance",
-    "optimization",
-    "security",
-    "economics",
-    "veto",
-    "ownership",
-    "kpi",
-    "budget"
-  ],
+  "tags": ["governance", "optimization", "security", "economics", "health-check"],
   "category": "governance",
   "minOpenClawVersion": "2026.3.24",
   "main": "index.ts",
@@ -22,13 +13,14 @@
     "package.json",
     "SKILL.md",
     "skill.yaml",
+    "src/",
     "config/",
     "tools/",
     "integrations/",
     "benchmarks/",
     "scripts/",
     "README.md",
-    "src/"
+    "RELEASE-1.5.6.md"
   ],
   "publish": {
     "repository": "clawhub",

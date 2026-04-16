@@ -9,6 +9,9 @@
 
 import { Skill, SkillContext } from '../core/skill';
 import { RefinedGraph, RefinedModule } from '../core/types';
+import { createModuleLogger } from '../utils/logger';
+
+const logger = createModuleLogger('RequirementRefiner');
 
 // ============================================================================
 // 复杂度检测配置 - 加权评分系统
@@ -391,7 +394,7 @@ export class HybridParserRollback {
       }
       return false;
     } catch (error) {
-      console.error('回滚检查失败:', error);
+      logger.error('回滚检查失败:', error);
       return false;
     }
   }
@@ -417,27 +420,27 @@ export class HybridParserRollback {
   }
   
   private async backupCurrentVersion(): Promise<void> {
-    console.log('💾 备份当前版本...');
+    logger.info('💾 备份当前版本...');
     // 实际备份逻辑
   }
   
   private async gitRevertToV21(): Promise<void> {
-    console.log('↩️ 回滚到 v2.1 版本...');
+    logger.info('↩️ 回滚到 v2.1 版本...');
     // 实际 Git 回滚逻辑
   }
   
   private async deploy(): Promise<void> {
-    console.log('🚀 重新部署...');
+    logger.info('🚀 重新部署...');
     // 实际部署逻辑
   }
   
   private async recordChangeEvent(event: any): Promise<void> {
-    console.log('📝 记录变更事件:', event);
+    logger.info('📝 记录变更事件:', event);
     // 实际记录逻辑
   }
   
   private async notifyTeam(notification: any): Promise<void> {
-    console.log('📢 通知团队:', notification);
+    logger.info('📢 通知团队:', notification);
     // 实际通知逻辑
   }
 }

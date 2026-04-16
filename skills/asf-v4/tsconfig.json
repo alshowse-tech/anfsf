@@ -23,12 +23,12 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "baseUrl": ".",
     "paths": {
       "@openclaw/core": ["node_modules/openclaw"]
     }
   },
-  "include": ["**/*.ts"],
+  "include": ["src/**/*.ts", "*.ts", "test-utils/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

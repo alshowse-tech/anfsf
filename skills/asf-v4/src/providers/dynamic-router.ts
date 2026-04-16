@@ -7,8 +7,8 @@
  * @module asf-v4/providers/dynamic-router
  */
 
-import { RefinedGraph } from '../../core/types';
-import { Strategy } from '../../core/strategy';
+import { RefinedGraph } from '../core/types';
+import { Strategy } from '../core/strategy-config';
 
 // ============================================================================
 // 策略类型定义
@@ -49,7 +49,7 @@ export class DynamicRouter {
     crossModuleDependencies: number;
   } {
     return {
-      isModular: graph.modules && graph.modules.length > 1,
+      isModular: (graph.modules && graph.modules.length > 1) ? true : false,
       crossModuleDependencies: this.countCrossModuleDeps(graph)
     };
   }

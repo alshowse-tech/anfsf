@@ -41,7 +41,7 @@ import {
   // Conflict Resolver
   resolveOwnershipConflict,
   generateConflictReport,
-} from '../../src/core/synthesizer';
+} from './src/core/core-synthesizer';
 
 // ============================================================================
 // Imports from UI/UX modules
@@ -67,7 +67,7 @@ import {
   // Prototype Generator
   PrototypeGenerator,
   createPrototypeGenerator,
-} from '../../src/ui';
+} from './src/ui/ui-index';
 
 // ============================================================================
 // Skill Definition
