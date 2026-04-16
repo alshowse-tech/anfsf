@@ -82,6 +82,36 @@ export {
   type ButtonSize,
 } from './components/Button/Button';
 
+export {
+  Card,
+  type CardProps,
+  type CardVariant,
+  type CardSize,
+} from './components/Card/Card';
+
+export {
+  Input,
+  type InputProps,
+  type InputVariant,
+  type InputSize,
+  getInputPadding,
+} from './components/Input/Input';
+
+export {
+  ProgressBar,
+  type ProgressBarProps,
+  type ProgressBarVariant,
+  type ProgressBarSize,
+  type ProgressBarShape,
+} from './components/ProgressBar/ProgressBar';
+
+export {
+  Badge,
+  type BadgeProps,
+  type BadgeTier,
+  type BadgeSize,
+} from './components/Badge/Badge';
+
 // ============================================================================
 // Hooks (待实现)
 // ============================================================================
@@ -131,6 +161,10 @@ export default {
   
   // 组件
   Button,
+  Card,
+  Input,
+  ProgressBar,
+  Badge,
   
   // 辅助函数
   getStageColors,
