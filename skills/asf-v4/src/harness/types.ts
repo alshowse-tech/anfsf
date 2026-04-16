@@ -141,28 +141,76 @@ export interface TestCriteria {
   codeQuality: { threshold: number; weight: number };
 }
 
+export interface ScoringConfig {
+  dimensions: {
+    productDepth: { threshold: number; weight: number };
+    functionality: { threshold: number; weight: number };
+    visualDesign: { threshold: number; weight: number };
+    codeQuality: { threshold: number; weight: number };
+  };
+}
+
+export interface ScoringResult {
+  productDepth: number;
+  functionality: number;
+  visualDesign: number;
+  codeQuality: number;
+  overallScore: number;
+  issues: string[];
+  recommendations: string[];
+  passed: boolean;
+  timestamp: number;
+}
+
 export interface E2ETestConfig {
-  devServerUrl: string;
+  baseUrl: string;
+  devServerUrl?: string;
   browser: 'chromium' | 'firefox' | 'webkit';
-  screenshotDir: string;
+  viewport: {
+    width: number;
+    height: number;
+  };
+  screenshotDir?: string;
   timeout: number;
-  headless: boolean;
+  headless?: boolean;
+  screenshot: boolean;
+  video: boolean;
+  trace: boolean;
+}
+
+export interface TestStep {
+  name: string;
+  action: 'navigate' | 'fill' | 'click' | 'assert' | 'screenshot' | 'wait';
+  selector: string;
+  value?: string;
+  expected: string;
+  status?: 'pending' | 'passed' | 'failed';
+  actual?: string;
+  error?: string;
+  timestamp?: number;
+  screenshotPath?: string;
 }
 
 export interface E2ETestResult {
-  featureId: string;
+  name: string;
+  featureId?: string;
+  status: 'pending' | 'passed' | 'failed';
   passed: boolean;
-  scores: {
+  steps: TestStep[];
+  startTime: number;
+  endTime: number;
+  duration: number;
+  scores?: {
     productDepth: number;
     functionality: number;
     visualDesign: number;
     codeQuality: number;
   };
-  overallScore: number;
-  issues: string[];
+  overallScore?: number;
+  issues?: string[];
   screenshots: string[];
-  recommendations: string[];
-  duration: number;
+  recommendations?: string[];
+  error?: string;
 }
 
 // ============================================================================
@@ -208,4 +256,23 @@ export interface HarnessMetrics {
   avgIterationCount: number;
   totalTokenUsage: number;
   successRate: number;
+}
+
+// ============================================================================
+// E2E Test Report Type
+// ============================================================================
+
+export interface E2ETestReport {
+  generatedAt: number;
+  config: E2ETestConfig;
+  summary: {
+    total: number;
+    passed: number;
+    failed: number;
+    pending: number;
+    passRate: number;
+    avgDuration: number;
+  };
+  results: E2ETestResult[];
+  screenshots: string[];
 }
