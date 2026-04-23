@@ -1,11 +1,12 @@
 """
 股票操盘模拟系统 - FastAPI 主应用
 """
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import asyncio
 import json
+import time
 from datetime import datetime
 from typing import Dict, List, Optional
 import uvicorn
@@ -16,6 +17,8 @@ from models import User, Token
 from auth import create_access_token, verify_token, get_current_user
 from api import trading_router, screener_router, health_router, ai_analysis_router
 from websocket_manager import ConnectionManager
+from monitoring import MonitoringMiddleware, get_metrics, get_metrics_content_type
+from logging_config import setup_logging, intercept_standard_logging, log_request
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -26,6 +29,9 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# 添加监控中间件
+app.add_middleware(MonitoringMiddleware)
+
 # CORS 配置
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +40,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 性能监控中间件
+@app.middleware("http")
+async def performance_middleware(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    
+    # 记录请求日志
+    log_request(request, duration)
+    
+    return response
 
 # WebSocket 管理器
 ws_manager = ConnectionManager()
@@ -51,6 +69,10 @@ app.include_router(ai_analysis_router, prefix="/api/ai", tags=["AI 分析"], nam
 @app.on_event("startup")
 async def startup_event():
     """应用启动事件"""
+    # 初始化日志系统
+    setup_logging(settings.LOG_LEVEL, settings.LOG_FILE)
+    intercept_standard_logging()
+    
     # 初始化数据库
     await init_db()
     
@@ -58,10 +80,12 @@ async def startup_event():
     from scheduler import init_scheduler
     await init_scheduler()
     
-    print(f"✅ {settings.APP_NAME} V{settings.APP_VERSION} 启动成功")
-    print(f"📡 API 文档：http://{settings.HOST}:{settings.PORT}/docs")
-    print(f"🤖 AI 分析：DeepSeek 已集成")
-    print(f"⏰ 定时任务：午间 (11:30) / 日终 (15:00)")
+    logger.info(f"✅ {settings.APP_NAME} V{settings.APP_VERSION} 启动成功")
+    logger.info(f"📡 API 文档：http://{settings.HOST}:{settings.PORT}/docs")
+    logger.info(f"📊 Prometheus 指标：http://{settings.HOST}:{settings.PORT}/metrics")
+    logger.info(f"🤖 AI 分析：DeepSeek 已集成")
+    logger.info(f"⏰ 定时任务：午间 (11:30) / 日终 (15:00)")
+    logger.info(f"📝 日志文件：{settings.LOG_FILE}")
 
 
 @app.on_event("shutdown")
@@ -89,6 +113,15 @@ async def health_check():
         "version": settings.APP_VERSION
     }
 
+
+# Prometheus 指标
+@app.get("/metrics")
+async def get_prometheus_metrics():
+    """Prometheus 监控指标"""
+    return Response(
+        content=get_metrics(),
+        media_type=get_metrics_content_type()
+    )
 
 # WebSocket 连接
 @app.websocket("/ws")
