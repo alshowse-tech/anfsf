@@ -14,7 +14,7 @@ from config import settings
 from database import get_db, init_db
 from models import User, Token
 from auth import create_access_token, verify_token, get_current_user
-from api import trading_router, screener_router, health_router
+from api import trading_router, screener_router, health_router, ai_analysis_router
 from websocket_manager import ConnectionManager
 
 # 创建 FastAPI 应用
@@ -45,6 +45,7 @@ security = HTTPBearer()
 app.include_router(health_router, prefix="/api", tags=["健康检查"])
 app.include_router(trading_router, prefix="/api/trading", tags=["操盘区"])
 app.include_router(screener_router, prefix="/api/screener", tags=["智能选股"])
+app.include_router(ai_analysis_router, prefix="/api/ai", tags=["AI 分析"], name="ai_analysis_router")
 
 
 @app.on_event("startup")
