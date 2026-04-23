@@ -205,6 +205,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { useDashboardStore } from '@/stores/dashboard'
+import { getStockName } from '@/services/stockService'
 
 const store = useDashboardStore()
 
@@ -313,12 +314,34 @@ const refreshData = async () => {
   await store.refreshAll()
 }
 
+// 股票名称缓存
+const stockNameMap = ref<Record<string, string>>({})
+
+// 加载股票名称
+async function loadStockNames() {
+  const symbols = store.positions.map(p => p.symbol)
+  for (const symbol of symbols) {
+    if (!stockNameMap.value[symbol]) {
+      const name = await getStockName(symbol)
+      if (name) {
+        stockNameMap.value[symbol] = name
+        // 更新持仓数据
+        const position = store.positions.find(p => p.symbol === symbol)
+        if (position && !position.name) {
+          position.name = name
+        }
+      }
+    }
+  }
+}
+
 // Lifecycle
 let timer: number
 onMounted(() => {
   updateCurrentTime()
   timer = window.setInterval(updateCurrentTime, 1000)
   refreshData()
+  loadStockNames()
 })
 
 onUnmounted(() => {

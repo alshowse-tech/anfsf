@@ -15,7 +15,7 @@ from config import settings
 from database import get_db, init_db
 from models import User, Token
 from auth import create_access_token, verify_token, get_current_user
-from api import trading_router, screener_router, health_router, ai_analysis_router
+from api import trading_router, screener_router, health_router, ai_analysis_router, stocks_router
 from websocket_manager import ConnectionManager
 from monitoring import MonitoringMiddleware, get_metrics, get_metrics_content_type
 from logging_config import setup_logging, intercept_standard_logging, log_request
@@ -63,7 +63,8 @@ security = HTTPBearer()
 app.include_router(health_router, prefix="/api", tags=["健康检查"])
 app.include_router(trading_router, prefix="/api/trading", tags=["操盘区"])
 app.include_router(screener_router, prefix="/api/screener", tags=["智能选股"])
-app.include_router(ai_analysis_router, prefix="/api/ai", tags=["AI 分析"], name="ai_analysis_router")
+app.include_router(ai_analysis_router, prefix="/api/ai", tags=["AI 分析"])
+app.include_router(stocks_router, prefix="/api/stocks", tags=["股票信息"])
 
 
 @app.on_event("startup")

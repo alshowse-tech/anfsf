@@ -66,7 +66,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { getStockName } from '@/services/stockService'
 
 const selectedDate = ref(new Date())
 const ruleTypeFilter = ref('all')
@@ -113,6 +114,20 @@ ruleHits.value = [
   }
 ]
 
+// 加载股票名称
+async function loadStockNames() {
+  const symbols = [...new Set(ruleHits.value.map(hit => hit.symbol))]
+  for (const symbol of symbols) {
+    const name = await getStockName(symbol)
+    if (name) {
+      const hit = ruleHits.value.find(h => h.symbol === symbol)
+      if (hit && !hit.stock_name) {
+        hit.stock_name = name
+      }
+    }
+  }
+}
+
 const filteredRuleHits = computed(() => {
   let filtered = ruleHits.value
   
@@ -131,6 +146,10 @@ const filteredRuleHits = computed(() => {
   }
   
   return filtered
+})
+
+onMounted(() => {
+  loadStockNames()
 })
 
 const getRuleTypeColor = (ruleId: string) => {

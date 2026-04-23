@@ -197,6 +197,7 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
+import { getStockName } from '@/services/stockService'
 
 // Stats
 const stats = ref({
@@ -292,6 +293,24 @@ const logs = ref([
 const detailsVisible = ref(false)
 const selectedLog = ref<any>(null)
 const logChartRef = ref<HTMLElement>()
+
+// 加载股票名称
+async function loadStockNames() {
+  const symbols = [...new Set(logs.value.map(log => log.symbol).filter(Boolean))]
+  for (const symbol of symbols) {
+    const name = await getStockName(symbol)
+    if (name) {
+      const log = logs.value.find(l => l.symbol === symbol)
+      if (log && !log.stock_name) {
+        log.stock_name = name
+      }
+    }
+  }
+}
+
+onMounted(() => {
+  loadStockNames()
+})
 
 // Methods
 const getLevelType = (level: string) => {
