@@ -1,0 +1,10 @@
+# Ignore generated/bundled files
+dist/**
+build/**
+node_modules/**
+test-results/**
+coverage/**
+*.min.js
+
+# Ignore large test assets
+test-design-system-loader.js

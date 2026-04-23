@@ -24,7 +24,7 @@ global.testHelpers = {
   /**
    * 创建模拟上下文
    */
-  createMockContext: (overrides = {}) => ({
+  createMockContext: (overrides: Record<string, unknown> = {}) => ({
     requestId: 'test-request-id',
     userId: 'test-user',
     sessionId: 'test-session',
@@ -50,8 +50,8 @@ global.testHelpers = {
 // 类型声明
 declare global {
   var testHelpers: {
-    createMockContext: (overrides?: any) => any
-    createMockKPIs: () => any[]
+    createMockContext: (overrides?: Record<string, unknown>) => Record<string, unknown>
+    createMockKPIs: () => Array<{ name: string; value: number; unit: string }>
     waitFor: (ms: number) => Promise<void>
   }
 }

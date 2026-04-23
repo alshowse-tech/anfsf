@@ -5,16 +5,23 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { RequirementRefinerSkill } from '../src/skills/requirement-refiner-skill'
 import { SkillContext } from '../src/core/skill'
 
+interface MockSkillContext extends SkillContext {
+  mcpClient: unknown
+  mcpTools: unknown[]
+  mcpResources: unknown[]
+  mempalace: unknown
+}
+
 describe('RequirementRefinerSkill', () => {
   let skill: RequirementRefinerSkill
 
   beforeEach(() => {
-    const mockContext: SkillContext = {
-      mcpClient: {} as any,
+    const mockContext: MockSkillContext = {
+      mcpClient: {},
       mcpTools: [],
       mcpResources: [],
       logger: console,
-      mempalace: {} as any
+      mempalace: {}
     }
     skill = new RequirementRefinerSkill(mockContext)
   })

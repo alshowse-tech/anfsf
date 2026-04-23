@@ -5,7 +5,7 @@
  * Provides 5 diagnostic commands for style loading issues.
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 // ============================================================================
@@ -16,7 +16,7 @@ export interface DiagnosticResult {
   command: string;
   status: 'pass' | 'fail' | 'warning';
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
   timestamp: number;
 }
 
@@ -423,9 +423,10 @@ export async function runStyleDiagnostic(
     case 'contract':
       return cmdStyleContract();
     
-    case 'report':
+    case 'report': {
       const outputFile = args.find(arg => arg.startsWith('--output='))?.split('=')[1];
       return cmdStyleReport(outputFile);
+    }
     
     default:
       return {

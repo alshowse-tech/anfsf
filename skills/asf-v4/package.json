@@ -10,7 +10,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:coverage:open": "vitest --coverage && open ./coverage/html/index.html",
-    "lint": "eslint .",
+    "lint": "eslint . --ignore-pattern 'dist/**' --ignore-pattern 'test-results/**' --ignore-pattern 'test-design-system-loader.js'",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [

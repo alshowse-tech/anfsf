@@ -3,8 +3,19 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest'
 
+interface HealthCheckResult {
+  status: string
+  checks: Array<{ name: string; status: string; value?: number; critical_issues?: number }>
+  timestamp: string
+}
+
+interface MockP0Integration {
+  healthCheck: () => Promise<HealthCheckResult>
+  generateReport: () => Promise<{ summary: string; metrics: Record<string, unknown> }>
+}
+
 describe('P0Integration', () => {
-  let integration: any
+  let integration: MockP0Integration
 
   beforeEach(() => {
     // Mock integration instance
@@ -37,7 +48,7 @@ describe('P0Integration', () => {
     it('应该包含测试覆盖率检查', async () => {
       const health = await integration.healthCheck()
       
-      const coverageCheck = health.checks.find((c: any) => c.name === 'test_coverage')
+      const coverageCheck = health.checks.find((c) => c.name === 'test_coverage')
       
       expect(coverageCheck).toBeDefined()
       expect(coverageCheck.status).toBe('pass')
@@ -47,7 +58,7 @@ describe('P0Integration', () => {
     it('应该包含安全审计检查', async () => {
       const health = await integration.healthCheck()
       
-      const securityCheck = health.checks.find((c: any) => c.name === 'security_audit')
+      const securityCheck = health.checks.find((c) => c.name === 'security_audit')
       
       expect(securityCheck).toBeDefined()
       expect(securityCheck.status).toBe('pass')
@@ -66,7 +77,7 @@ describe('P0Integration', () => {
       }
       
       expect(unhealthyHealth.status).toBe('unhealthy')
-      expect(unhealthyHealth.checks.some((c: any) => c.status === 'fail')).toBe(true)
+      expect(unhealthyHealth.checks.some((c) => c.status === 'fail')).toBe(true)
     })
   })
 
@@ -114,14 +125,14 @@ describe('P0Integration', () => {
   describe('错误处理', () => {
     it('应该处理网络错误', async () => {
       // Mock 网络错误
-      const mockHealthCheck = async () => {
+      const mockHealthCheck = async (): Promise<never> => {
         throw new Error('Network error')
       }
       
       try {
         await mockHealthCheck()
-      } catch (error: any) {
-        expect(error.message).toContain('Network error')
+      } catch (error) {
+        expect((error as Error).message).toContain('Network error')
       }
     })
 
