@@ -11,7 +11,7 @@
 export interface UIComponentConfig {
   name: string;
   type: string;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
   children?: UIComponent[];
 }
 
@@ -68,8 +68,8 @@ export function createLayoutGenerator(): LayoutGenerator {
 
 export interface DesignSystem {
   name: string;
-  tokens: Record<string, any>;
-  components: Record<string, any>;
+  tokens: Record<string, unknown>;
+  components: Record<string, unknown>;
 }
 
 export class DesignSystemMapper {
@@ -101,6 +101,9 @@ export function createDesignSystemMapper(): DesignSystemMapper {
   return new DesignSystemMapper();
 }
 
+// Placeholder to avoid unused variable warning
+void 0;
+
 // ============================================================================
 // Interaction Flow Engine
 // ============================================================================
@@ -109,7 +112,7 @@ export interface InteractionStep {
   id: string;
   action: string;
   target: string;
-  conditions?: Record<string, any>;
+  conditions?: Record<string, unknown>;
 }
 
 export class InteractionFlowEngine {

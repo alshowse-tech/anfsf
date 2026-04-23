@@ -138,8 +138,8 @@ export class PRDFeedbackLoop {
 
       // 5. 保存报告
       await this.saveReport(report);
-    } catch (error: any) {
-      logger.error('知识库优化失败:', error);
+    } catch (error) {
+      logger.error('知识库优化失败:', error as Error);
     }
   }
 
@@ -164,8 +164,8 @@ export class PRDFeedbackLoop {
   /**
    * 提取新模式
    */
-  private async extractNewPatterns(): Promise<any[]> {
-    const newPatterns: any[] = [];
+  private async extractNewPatterns(): Promise<Array<Record<string, unknown>>> {
+    const newPatterns: Array<Record<string, unknown>> = [];
     const modifications = this.feedbackStore.filter(r => r.action === 'modify' && r.modifiedValue);
 
     for (const mod of modifications) {
@@ -268,7 +268,7 @@ export class PRDFeedbackLoop {
   /**
    * 获取反馈统计
    */
-  getStats(): Record<string, any> {
+  getStats(): Record<string, unknown> {
     const byType: Record<string, { total: number; accept: number; reject: number; modify: number }> = {};
     
     for (const record of this.feedbackStore) {

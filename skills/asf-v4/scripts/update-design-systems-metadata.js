@@ -26,7 +26,7 @@ function parseYaml(yaml) {
     }
     
     if (inDesignSystems) {
-      const systemMatch = line.match(/^  (\w+):$/);
+      const systemMatch = line.match(/^ {2}(\w+):$/);
       if (systemMatch) {
         currentSystem = systemMatch[1];
         designSystems[currentSystem] = {};

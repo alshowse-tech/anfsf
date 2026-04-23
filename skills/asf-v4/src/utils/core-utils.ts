@@ -15,7 +15,13 @@
  * @param role 角色对象
  * @returns 成本数值
  */
-export function computeRoleCost(role: any): number {
+interface Role {
+  complexity?: number
+  teamSize?: number
+  duration?: number
+}
+
+export function computeRoleCost(role: Role): number {
   const baseCost = role.complexity || 1;
   const teamSize = role.teamSize || 1;
   const duration = role.duration || 1;
@@ -29,7 +35,7 @@ export function computeRoleCost(role: any): number {
  * @param totalBudget 总预算
  * @returns 经济学评分 (0-1)
  */
-export function computeEconomicsScore(roles: any[], totalBudget: number): number {
+export function computeEconomicsScore(roles: Role[], totalBudget: number): number {
   const totalCost = roles.reduce((sum, role) => sum + computeRoleCost(role), 0);
   return Math.max(0, 1 - totalCost / totalBudget);
 }
@@ -39,7 +45,11 @@ export function computeEconomicsScore(roles: any[], totalBudget: number): number
  * @param interfaces 接口数组
  * @returns 接口总成本
  */
-export function computeInterfaceCost(interfaces: any[]): number {
+interface Interface {
+  complexity?: number
+}
+
+export function computeInterfaceCost(interfaces: Interface[]): number {
   return interfaces.reduce((sum, iface) => sum + (iface.complexity || 1), 0);
 }
 
@@ -52,7 +62,14 @@ export function computeInterfaceCost(interfaces: any[]): number {
  * @param task 任务对象
  * @returns 返工风险 (0-1)
  */
-export function predictReworkRisk(task: any): number {
+interface Task {
+  requirements?: string[]
+  complexity?: number
+  teamSize?: number
+  history?: { reworkRate?: number }
+}
+
+export function predictReworkRisk(task: Task): number {
   let risk = 0;
   
   // 需求不明确增加风险
@@ -83,7 +100,7 @@ export function predictReworkRisk(task: any): number {
  * @param tasks 任务数组
  * @returns 平均返工风险
  */
-export function computeTotalReworkRisk(tasks: any[]): number {
+export function computeTotalReworkRisk(tasks: Task[]): number {
   if (tasks.length === 0) return 0;
   
   const risks = tasks.map(predictReworkRisk);
@@ -111,7 +128,11 @@ export function determineOptimalRoleCount(complexity: number): number {
  * @param roles 角色数组
  * @returns 耦合度 (0-1)
  */
-export function computeContractCouplingBound(roles: any[]): number {
+interface ContractRole {
+  dependencies?: Array<{ name?: string }>
+}
+
+export function computeContractCouplingBound(roles: ContractRole[]): number {
   const dependencies = roles.reduce((sum, role) => 
     sum + (role.dependencies?.length || 0), 0);
   return Math.min(1, dependencies / (roles.length || 1));
@@ -126,7 +147,11 @@ export function computeContractCouplingBound(roles: any[]): number {
  * @param resource 资源对象
  * @returns 证明字符串
  */
-export function generateOwnershipProof(resource: any): string {
+interface Resource {
+  [key: string]: unknown
+}
+
+export function generateOwnershipProof(resource: Resource): string {
   const timestamp = Date.now();
   const hash = JSON.stringify(resource) + timestamp;
   return `proof-${hash.substring(0, 16)}`;
@@ -137,7 +162,7 @@ export function generateOwnershipProof(resource: any): string {
  * @param proofs 证明数组
  * @returns 验证结果
  */
-export function validateProofs(proofs: any[]): boolean {
+export function validateProofs(proofs: Array<string | null>): boolean {
   return proofs.every(proof => 
     proof && typeof proof === 'string' && proof.startsWith('proof-')
   );
@@ -148,7 +173,7 @@ export function validateProofs(proofs: any[]): boolean {
  * @param resource 资源对象
  * @returns 规范化后的资源
  */
-export function canonicalizeResource(resource: any): any {
+export function canonicalizeResource(resource: Resource): Resource {
   const sorted = { ...resource };
   if (sorted.keywords) {
     sorted.keywords = [...sorted.keywords].sort();
@@ -165,7 +190,19 @@ export function canonicalizeResource(resource: any): any {
  * @param conflict 冲突对象
  * @returns 解决方案
  */
-export function resolveOwnershipConflict(conflict: any): { resolved: boolean; solution: any } {
+interface Conflict {
+  type: string
+  primary?: string
+  dependencies?: string[]
+}
+
+interface ConflictSolution {
+  action: string
+  target?: string
+  order?: string[]
+}
+
+export function resolveOwnershipConflict(conflict: Conflict): { resolved: boolean; solution: ConflictSolution | null } {
   // 简单冲突解决逻辑
   if (conflict.type === 'duplicate') {
     return {

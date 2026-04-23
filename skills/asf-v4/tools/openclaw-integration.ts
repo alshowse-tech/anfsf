@@ -134,6 +134,7 @@ export async function addVetoCheck(): Promise<void> {
     severity: 'error',
     description: 'Check hard veto rules are satisfied',
     check: async (_context: Record<string, unknown>) => {
+      void _context;
       // This would call VetoEnforcer.enforce
       return { passed: true, errors: [] };
     },
@@ -189,18 +190,22 @@ interface AsfTools {
  * Register ASF tools with OpenClaw.
  */
 export function registerAsfTools(_tools: AsfTools): void {
+  void _tools;
   const asfTools: AsfTools = {
-    'asf-veto-check': async (_params: Record<string, unknown>) => {
+    'asf-veto-check': async (params: Record<string, unknown>) => {
+      void params;
       // Placeholder - would integrate with VetoEnforcer
       return { passed: true };
     },
     
-    'asf-ownership-proof': async (_params: Record<string, unknown>) => {
+    'asf-ownership-proof': async (params: Record<string, unknown>) => {
+      void params;
       // Placeholder - would integrate with ownership proof generation
       return { valid: true };
     },
     
-    'asf-economics-score': async (_params: Record<string, unknown>) => {
+    'asf-economics-score': async (params: Record<string, unknown>) => {
+      void params;
       // Placeholder - would integrate with economics score computation
       return { score: 0 };
     },

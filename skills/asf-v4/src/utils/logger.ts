@@ -24,25 +24,25 @@ export class Logger {
     };
   }
 
-  debug(message: string, ...args: any[]): void {
+  debug(message: string, ...args: Array<unknown>): void {
     if (this.shouldLog('debug')) {
       this.log('DEBUG', message, args);
     }
   }
 
-  info(message: string, ...args: any[]): void {
+  info(message: string, ...args: Array<unknown>): void {
     if (this.shouldLog('info')) {
       this.log('INFO', message, args);
     }
   }
 
-  warn(message: string, ...args: any[]): void {
+  warn(message: string, ...args: Array<unknown>): void {
     if (this.shouldLog('warn')) {
       this.log('WARN', message, args);
     }
   }
 
-  error(message: string, ...args: any[]): void {
+  error(message: string, ...args: Array<unknown>): void {
     if (this.shouldLog('error')) {
       this.log('ERROR', message, args);
     }
@@ -55,7 +55,7 @@ export class Logger {
     return requestedLevelIndex >= currentLevelIndex;
   }
 
-  private log(level: string, message: string, args: any[]): void {
+  private log(level: string, message: string, args: Array<unknown>): void {
     let output = '';
     
     if (this.config.timestamp) {

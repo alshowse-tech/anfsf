@@ -269,7 +269,7 @@ export class CostOptimizer {
     request: any,
     strategy: CostOptimizationStrategy
   ): { optimized: any; savings: number } {
-    let optimized = { ...request };
+    const optimized = { ...request };
     let savings = 0;
 
     if (strategy === 'cost_priority') {

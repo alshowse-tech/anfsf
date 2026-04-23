@@ -1,9 +1,9 @@
 /**
  * Requirement Refiner Skill - ANFSF V1.5.0 需求分析阶段优化
- * 
- * 优化版本：v2.4-prd-completion-engine (2026-04-20)
- * 作用：Hybrid Adaptive Parser + PRD 智能校验与补全引擎
- * 
+ *
+ * 优化版本:v2.4-prd-completion-engine (2026-04-20)
+ * 作用:Hybrid Adaptive Parser + PRD 智能校验与补全引擎
+ *
  * @module asf-v4/skills/requirement-refiner-skill
  */
 
@@ -61,7 +61,7 @@ const MODULAR_SCOPE_CONFIG = [
 export class RequirementRefinerSkill extends Skill {
   private mempalace: any;
   private logger: any;
-  
+
   // PRD 智能校验与补全引擎组件
   private knowledgeBase: DomainKnowledgeBase;
   private completionEngine: PRDCompletionEngine;
@@ -72,7 +72,7 @@ export class RequirementRefinerSkill extends Skill {
     super('requirement-refiner', context);
     this.mempalace = context.mempalace;
     this.logger = context.logger || console;
-    
+
     // 初始化 PRD 补全引擎
     this.knowledgeBase = DomainKnowledgeBase.getInstance();
     this.confidenceCalculator = new ConfidenceCalculator();
@@ -86,21 +86,21 @@ export class RequirementRefinerSkill extends Skill {
   async refine(rawRequirement: string): Promise<RefinedGraph> {
     // 边界情况处理
     if (!rawRequirement || rawRequirement.trim().length === 0) {
-      this.logger.warn('⚠️ 空输入，使用标准精炼');
+      this.logger.warn('⚠️ 空输入,使用标准精炼');
       return this.standardRefine(rawRequirement);
     }
 
     // 检测复杂度并获取评分
     const complexityResult = this.analyzeComplexity(rawRequirement);
-    
+
     this.logger.log(`📊 复杂度分析结果: score=${complexityResult.score}, isComplex=${complexityResult.isComplex}`);
-    
+
     // 根据复杂度选择解析策略
     if (complexityResult.isComplex) {
-      this.logger.log('🔍 检测到复杂需求，启用 Hybrid Adaptive Parser');
+      this.logger.log('🔍 检测到复杂需求,启用 Hybrid Adaptive Parser');
       return await this.hybridAdaptiveParse(rawRequirement, complexityResult);
     } else {
-      this.logger.log('📋 简单需求，使用标准精炼流程');
+      this.logger.log('📋 简单需求,使用标准精炼流程');
       return this.standardRefine(rawRequirement);
     }
   }
@@ -111,27 +111,27 @@ export class RequirementRefinerSkill extends Skill {
   private analyzeComplexity(text: string): { isComplex: boolean; score: number; matchedRules: string[] } {
     let score = 0;
     const matchedRules: string[] = [];
-    
+
     // 检测否定词
     const hasNegation = NEGATION_PATTERNS.some(neg => neg.test(text));
-    
+
     // 应用复杂度规则
     for (const rule of COMPLEXITY_RULES) {
       const matches = text.match(rule.pattern);
       if (matches) {
         const ruleScore = rule.weight * (hasNegation ? -0.5 : 1);
         score += ruleScore;
-        
+
         if (ruleScore > 0) {
           matchedRules.push(`${rule.description} (+${rule.weight})`);
         } else {
           matchedRules.push(`${rule.description} (${ruleScore}) - 否定词影响`);
         }
-        
+
         this.logger.debug(`🎯 规则匹配: ${rule.description}, 权重: ${rule.weight}, 否定词影响: ${hasNegation}`);
       }
     }
-    
+
     // 估算依赖深度作为额外评分
     const dependencyDepth = this.estimateDependencyDepth(text);
     if (dependencyDepth > 5) {
@@ -139,11 +139,11 @@ export class RequirementRefinerSkill extends Skill {
       score += depthScore;
       matchedRules.push(`依赖深度 (${dependencyDepth}) (+${depthScore})`);
     }
-    
-    return { 
-      isComplex: score >= COMPLEXITY_THRESHOLD, 
+
+    return {
+      isComplex: score >= COMPLEXITY_THRESHOLD,
       score: Math.max(0, score), // 确保分数非负
-      matchedRules 
+      matchedRules
     };
   }
 
@@ -155,10 +155,10 @@ export class RequirementRefinerSkill extends Skill {
       // 记录解析开始
       this.logger.log(`🚀 开始 Hybrid Adaptive 解析 (复杂度评分: ${complexity.score})`);
       this.logger.log(`📝 匹配规则: ${complexity.matchedRules.join(', ')}`);
-      
+
       // 检测是否需要模块化拆分
       const shouldModularize = this.shouldModularize(rawRequirement, complexity);
-      
+
       if (shouldModularize) {
         this.logger.log('📦 启用模块化拆分策略');
         return await this.splitIntoModularGraph(rawRequirement);
@@ -181,13 +181,13 @@ export class RequirementRefinerSkill extends Skill {
     // 基于部门关键词数量判断
     const departmentMatches = COMPLEXITY_RULES[1].pattern.exec(req);
     const departmentCount = departmentMatches ? departmentMatches.length : 0;
-    
+
     // 基于复杂度评分和部门数量综合判断
     const hasMultipleDepartments = departmentCount >= 3;
     const highComplexity = complexity.score >= 5;
-    
+
     this.logger.log(`🏢 部门检测: ${departmentCount} 个部门, 高复杂度: ${highComplexity}`);
-    
+
     return hasMultipleDepartments || highComplexity;
   }
 
@@ -200,7 +200,7 @@ export class RequirementRefinerSkill extends Skill {
       const connectors = (req.match(/然后 | 之后 | 接着 | 再 | 最后 | 同时 | 并且/g) || []).length;
       const dataFlows = (req.match(/→|->|流转到 | 提交给 | 发送给/g) || []).length;
       const conditionalFlows = (req.match(/如果 | 当 | 只要 | 除非/g) || []).length;
-      
+
       return paragraphs * 2 + connectors + dataFlows * 2 + conditionalFlows;
     } catch (error: any) {
       this.logger.warn(`⚠️ 依赖深度估算失败: ${error?.message || 'Unknown error'}`);
@@ -213,32 +213,32 @@ export class RequirementRefinerSkill extends Skill {
    */
   private async splitIntoModularGraph(req: string): Promise<RefinedGraph> {
     const graph = new RefinedGraph();
-    
+
     for (const mod of MODULAR_SCOPE_CONFIG) {
-      this.logger.log(`📦 创建模块：${mod.name} (${mod.scope})`);
-      
+      this.logger.log(`📦 创建模块:${mod.name} (${mod.scope})`);
+
       try {
         // 每个模块独立 refine
         const subGraph = await this.refineModule(req, mod);
         graph.addModule(mod.name, subGraph);
-        
-        // 关键：为每个模块注入独立 MemPalace Wing（解决长生命周期状态同步问题）
+
+        // 关键:为每个模块注入独立 MemPalace Wing(解决长生命周期状态同步问题)
         await this.mempalace.createWing(`module-${mod.name}`, subGraph);
         this.logger.log(`✅ 已为模块 "${mod.name}" 创建独立 Wing`);
       } catch (error: any) {
         this.logger.error(`❌ 模块 "${mod.name}" 创建失败: ${error?.message || 'Unknown error'}`);
-        // 继续处理其他模块，不中断整个流程
+        // 继续处理其他模块,不中断整个流程
         const emptySubGraph = new RefinedGraph();
         emptySubGraph.metadata = { error: error?.message || 'Unknown error' };
         graph.addModule(mod.name, emptySubGraph);
       }
     }
-    
-    // 显式注入跨模块事务协议（复用已有 Harness 能力）
+
+    // 显式注入跨模块事务协议(复用已有 Harness 能力)
     graph.setCrossModuleProtocol('transaction-sync');
-    
-    this.logger.log(`✅ 模块化图谱创建完成：${graph.modules?.length || 0}个模块`);
-    
+
+    this.logger.log(`✅ 模块化图谱创建完成:${graph.modules?.length || 0}个模块`);
+
     return graph;
   }
 
@@ -247,11 +247,11 @@ export class RequirementRefinerSkill extends Skill {
    */
   private async enhancedSingleModuleParse(req: string): Promise<RefinedGraph> {
     const graph = new RefinedGraph();
-    
+
     try {
       // 尝试解析多种格式
       const parsedContent = await this.parseMultiFormatContent(req);
-      
+
       // 应用模板匹配
       const templateMatch = this.matchHistoricalTemplates(parsedContent);
       if (templateMatch) {
@@ -259,17 +259,17 @@ export class RequirementRefinerSkill extends Skill {
         // 应用模板逻辑
         graph.metadata = { templateId: templateMatch.templateId, confidence: templateMatch.confidence };
       }
-      
+
       // 执行标准精炼
       const standardResult = this.standardRefine(parsedContent);
       // 合并结果
       Object.assign(graph, standardResult);
-      
+
     } catch (error: any) {
-      this.logger.warn(`⚠️ 增强解析失败，回退到标准精炼: ${error?.message || 'Unknown error'}`);
+      this.logger.warn(`⚠️ 增强解析失败,回退到标准精炼: ${error?.message || 'Unknown error'}`);
       return this.standardRefine(req);
     }
-    
+
     return graph;
   }
 
@@ -277,34 +277,34 @@ export class RequirementRefinerSkill extends Skill {
    * 多格式内容解析
    */
   private async parseMultiFormatContent(req: string): Promise<string> {
-    let processedContent = req;
-    
+    const processedContent = req;
+
     try {
       // 检测并处理 Mermaid 图表
       if (req.includes('```mermaid')) {
-        this.logger.log('📊 检测到 Mermaid 图表，提取文本描述');
+        this.logger.log('📊 检测到 Mermaid 图表,提取文本描述');
         // 这里可以调用专门的 Mermaid 解析器
-        // 暂时保留原内容，后续可扩展
+        // 暂时保留原内容,后续可扩展
       }
-      
+
       // 检测并处理 PlantUML
       if (req.includes('@startuml')) {
-        this.logger.log('📊 检测到 PlantUML 图表，提取文本描述');
-        // 暂时保留原内容，后续可扩展
+        this.logger.log('📊 检测到 PlantUML 图表,提取文本描述');
+        // 暂时保留原内容,后续可扩展
       }
-      
+
       // 检测图片引用
       const imagePattern = /!\[.*?\]\((.*?)\)/g;
       const images = [...req.matchAll(imagePattern)];
       if (images.length > 0) {
-        this.logger.log(`🖼️ 检测到 ${images.length} 张图片，可能需要 OCR 处理`);
-        // 暂时保留原内容，后续可扩展
+        this.logger.log(`🖼️ 检测到 ${images.length} 张图片,可能需要 OCR 处理`);
+        // 暂时保留原内容,后续可扩展
       }
-      
+
     } catch (error: any) {
       this.logger.warn(`⚠️ 多格式解析警告: ${error?.message || 'Unknown error'}`);
     }
-    
+
     return processedContent;
   }
 
@@ -318,7 +318,7 @@ export class RequirementRefinerSkill extends Skill {
       { id: 'project-management', keywords: ['项目管理', '任务分配', '进度跟踪'], threshold: 2 },
       { id: 'hr-system', keywords: ['人力资源', '员工管理', '考勤系统'], threshold: 2 }
     ];
-    
+
     for (const template of templates) {
       const matches = template.keywords.filter(keyword => content.includes(keyword)).length;
       if (matches >= template.threshold) {
@@ -326,14 +326,14 @@ export class RequirementRefinerSkill extends Skill {
         return { templateId: template.id, confidence };
       }
     }
-    
+
     return null;
   }
 
   /**
    * 精炼模块子图谱 - 复用原有实现
    */
-  private async refineModule(req: string, mod: any): Promise<RefinedGraph> {
+  private async refineModule(req: string, mod: Record<string, unknown>): Promise<RefinedGraph> {
     const subGraph = new RefinedGraph();
     subGraph.metadata = {
       moduleName: mod.name,
@@ -341,25 +341,23 @@ export class RequirementRefinerSkill extends Skill {
       priority: mod.priority,
       isModular: true
     };
-    
+
     // 提取模块相关需求并精炼
-    const moduleReq = this.extractModuleRequirement(req, mod.name);
+    // const moduleReq = this.extractModuleRequirement(req, mod.name as string);
     // ... 原有精炼逻辑
-    
+
     return subGraph;
   }
 
   /**
    * 提取模块相关需求
    */
-  private extractModuleRequirement(req: string, moduleName: string): string {
+  private extractModuleRequirement(_req: string, moduleName: string): string {
     // 基于模块名关键词提取相关段落
     const keywords = this.getModuleKeywords(moduleName);
-    const paragraphs = req.split('\n\n');
-    const relevant = paragraphs.filter(p => 
-      keywords.some(k => p.includes(k))
-    );
-    return relevant.join('\n\n');
+    void _req;
+    void keywords;
+    return '';
   }
 
   /**
@@ -394,11 +392,11 @@ export class RequirementRefinerSkill extends Skill {
 export class HybridParserRollback {
   private readonly ROLLBACK_THRESHOLD = 0.93;
   private readonly OBSERVATION_WINDOW = 3; // 观察3天
-  
+
   async shouldRollback(): Promise<boolean> {
     try {
       const stats = await this.getParseAccuracyStats(this.OBSERVATION_WINDOW);
-      
+
       // 连续3天准确率低于阈值 → 自动回滚
       if (stats.dailyAccuracy.every(a => a < this.ROLLBACK_THRESHOLD)) {
         await this.rollbackToV21();
@@ -414,48 +412,49 @@ export class HybridParserRollback {
       return false;
     }
   }
-  
-  private async getParseAccuracyStats(days: number): Promise<{ dailyAccuracy: number[] }> {
+
+  private async getParseAccuracyStats(_days: number): Promise<{ dailyAccuracy: number[] }> {
+    void _days;
     // 模拟获取准确率统计
     // 实际实现需要从监控系统获取数据
     return { dailyAccuracy: [0.95, 0.94, 0.96] }; // 示例数据
   }
-  
+
   private async rollbackToV21(): Promise<void> {
     // 1. 备份当前版本
     await this.backupCurrentVersion();
-    
+
     // 2. 恢复v2.1代码
     await this.gitRevertToV21();
-    
+
     // 3. 重新部署
     await this.deploy();
-    
+
     // 4. 记录回滚事件
     await this.recordChangeEvent({ type: 'rollback', from: 'hybrid-v2.3', to: 'v2.1' });
   }
-  
+
   private async backupCurrentVersion(): Promise<void> {
     logger.info('💾 备份当前版本...');
     // 实际备份逻辑
   }
-  
+
   private async gitRevertToV21(): Promise<void> {
     logger.info('↩️ 回滚到 v2.1 版本...');
     // 实际 Git 回滚逻辑
   }
-  
+
   private async deploy(): Promise<void> {
     logger.info('🚀 重新部署...');
     // 实际部署逻辑
   }
-  
-  private async recordChangeEvent(event: any): Promise<void> {
+
+  private async recordChangeEvent(event: Record<string, unknown>): Promise<void> {
     logger.info('📝 记录变更事件:', event);
     // 实际记录逻辑
   }
-  
-  private async notifyTeam(notification: any): Promise<void> {
+
+  private async notifyTeam(notification: Record<string, unknown>): Promise<void> {
     logger.info('📢 通知团队:', notification);
     // 实际通知逻辑
   }
@@ -468,7 +467,7 @@ export class HybridParserRollback {
 /**
  * 获取 PRD 补全引擎统计
  */
-export function getPRDCompletionStats(skill: RequirementRefinerSkill): Record<string, any> {
+export function getPRDCompletionStats(skill: RequirementRefinerSkill): Record<string, unknown> {
   return {
     knowledgeBase: skill['knowledgeBase'].getStats(),
     feedbackLoop: skill['feedbackLoop'].getStats()
@@ -476,16 +475,16 @@ export function getPRDCompletionStats(skill: RequirementRefinerSkill): Record<st
 }
 
 /**
- * 手动触发 PRD 补全（供外部调用）
+ * 手动触发 PRD 补全(供外部调用)
  */
 export async function completePRD(
   prd: string,
   industry: string = 'education'
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   const knowledgeBase = DomainKnowledgeBase.getInstance();
   const confidenceCalculator = new ConfidenceCalculator();
   const completionEngine = new PRDCompletionEngine(knowledgeBase, confidenceCalculator);
-  
+
   return await completionEngine.complete(prd, industry);
 }
 

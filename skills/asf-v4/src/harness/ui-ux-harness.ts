@@ -511,7 +511,7 @@ export class UIUXHarness {
    * 生成 HTML 原型
    */
   private generateHTMLPrototype(mapping: DesignMapping, includeStyles: boolean): string {
-    let html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -533,7 +533,7 @@ export class UIUXHarness {
    * 生成 React 原型
    */
   private generateReactPrototype(mapping: DesignMapping): string {
-    let code = `import React from 'react';
+    const code = `import React from 'react';
 
 export default function Prototype() {
   return (
@@ -550,7 +550,7 @@ export default function Prototype() {
    * 生成 Vue 原型
    */
   private generateVuePrototype(mapping: DesignMapping): string {
-    let code = `<template>
+    const code = `<template>
   <div class="container">
     ${mapping.components.map(c => this.generateVueComponent(c)).join('\n    ')}
   </div>
