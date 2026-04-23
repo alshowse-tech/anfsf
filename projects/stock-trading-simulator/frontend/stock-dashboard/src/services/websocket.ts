@@ -154,7 +154,7 @@ class WebSocketService {
 // Export singleton instance
 export const wsService = new WebSocketService()
 
-// Auto-connect on import
-if (typeof window !== 'undefined') {
+// Auto-connect on import (disabled in test environment)
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
   wsService.connect()
 }
