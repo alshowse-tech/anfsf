@@ -5,7 +5,11 @@
  * Version: v0.9.0
  */
 
-import type { RoleKPISnapshot } from '../../../src/core/role/kpi-types';
+// 外部引用已删除 - 遗留文件
+// import type { RoleKPISnapshot } from '../../../src/core/role/kpi-types';
+
+// 使用本地类型定义
+type RoleKPISnapshot = any;
 
 /**
  * ASF V4.0 Agent Status Extension.

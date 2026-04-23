@@ -5,7 +5,11 @@
  * Version: v0.9.0
  */
 
-import type { ChangeEvent } from '../../../src/core/graph/types';
+// 外部引用已删除 - 遗留文件
+// import type { ChangeEvent } from '../../../src/core/graph/types';
+
+// 使用本地类型定义
+type ChangeEvent = any;
 
 /**
  * ASF ChangeEvent Memory Schema.

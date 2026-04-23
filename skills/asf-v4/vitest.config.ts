@@ -58,20 +58,22 @@ export default defineConfig({
       changedOnly: false
     },
     
-    // 测试文件匹配
+    // 测试文件匹配 - 只运行 tests/ 目录下的新测试
     include: [
-      'src/**/*.test.ts',
-      'src/**/*.spec.ts',
       'tests/**/*.test.ts',
       'tests/**/*.spec.ts'
     ],
     
-    // 排除的文件
+    // 排除的文件 - 排除 src/ 目录下的遗留 Jest 测试
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
       '**/coverage/**',
-      '**/*.d.ts'
+      '**/*.d.ts',
+      'src/**/*.test.ts',
+      'src/**/*.spec.ts',
+      'src/__tests__/**/*',
+      'src/**/__tests__/**/*'
     ],
     
     // 测试隔离

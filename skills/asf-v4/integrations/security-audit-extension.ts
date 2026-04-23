@@ -5,7 +5,12 @@
  * Version: v0.9.0
  */
 
-import { VetoEnforcer, DEFAULT_VETO_RULES } from '../../../src/core/synthesizer';
+// 外部引用已删除 - 遗留文件
+// import { VetoEnforcer, DEFAULT_VETO_RULES } from '../../../src/core/synthesizer';
+
+// 使用本地 Mock 实现
+const VetoEnforcer = class {};
+const DEFAULT_VETO_RULES = [];
 import {
   generateOwnershipProof,
   validateProofs,

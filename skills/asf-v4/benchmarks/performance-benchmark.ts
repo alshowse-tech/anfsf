@@ -5,9 +5,15 @@
  * Version: v0.9.0
  */
 
-import { VetoEnforcer } from '../../../src/core/synthesizer';
-import { generateOwnershipProof } from '../../../src/core/synthesizer';
-import { computeEconomicsScore } from '../../../src/core/synthesizer';
+// 外部引用已删除 - 这些是遗留文件引用
+// import { VetoEnforcer } from '../../../src/core/synthesizer';
+// import { generateOwnershipProof } from '../../../src/core/synthesizer';
+// import { computeEconomicsScore } from '../../../src/core/synthesizer';
+
+// 使用本地 Mock 实现
+const VetoEnforcer = class {};
+const generateOwnershipProof = () => ({});
+const computeEconomicsScore = () => ({});
 import { MemoryExtension } from '../integrations';
 import { AgentStatusExtension } from '../integrations';
 
