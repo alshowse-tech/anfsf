@@ -22,12 +22,14 @@
         <el-descriptions title="基本信息" :column="3" border>
           <el-descriptions-item label="股票代码">{{ diagnostics.symbol }}</el-descriptions-item>
           <el-descriptions-item label="股票名称">{{ diagnostics.name }}</el-descriptions-item>
-          <el-descriptions-item label="股票">
-            <span style="font-weight: bold; font-size: 16px">
-              {{ diagnostics.symbol }} - {{ diagnostics.name }}
+          <el-descriptions-item label="当前价格">¥{{ diagnostics.current_price?.toFixed(2) || 'N/A' }}</el-descriptions-item>
+          <el-descriptions-item label="涨跌幅">
+            <span :class="diagnostics.price_change_pct >= 0 ? 'text-profit' : 'text-loss'">
+              {{ diagnostics.price_change_pct >= 0 ? '+' : '' }}{{ diagnostics.price_change_pct.toFixed(2) }}%
             </span>
           </el-descriptions-item>
-          <el-descriptions-item label="所属行业">{{ diagnostics.sector }} - {{ diagnostics.industry }}</el-descriptions-item>
+          <el-descriptions-item label="所属行业">{{ diagnostics.sector }}</el-descriptions-item>
+          <el-descriptions-item label="行业">{{ diagnostics.industry }}</el-descriptions-item>
         </el-descriptions>
 
         <!-- RPS Stats -->

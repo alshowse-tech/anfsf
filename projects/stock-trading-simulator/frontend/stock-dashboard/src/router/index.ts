@@ -5,6 +5,7 @@ import BacktestCompare from '@/views/BacktestCompare.vue'
 import StockDiagnostics from '@/views/StockDiagnostics.vue'
 import AuditLog from '@/views/AuditLog.vue'
 import AlertCenter from '@/views/AlertCenter.vue'
+import TradingRecommendations from '@/views/TradingRecommendations.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -44,6 +45,12 @@ const router = createRouter({
       name: 'alerts',
       component: AlertCenter,
       meta: { title: '告警中心' }
+    },
+    {
+      path: '/recommendations',
+      name: 'recommendations',
+      component: TradingRecommendations,
+      meta: { title: '操盘建议' }
     }
   ]
 })

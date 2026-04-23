@@ -37,6 +37,10 @@
             <el-icon><Bell /></el-icon>
             <span>告警中心</span>
           </el-menu-item>
+          <el-menu-item index="/recommendations">
+            <el-icon><DataAnalysis /></el-icon>
+            <span>操盘建议</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -60,7 +64,8 @@ import {
   TrendCharts,
   Search,
   Notebook,
-  Bell
+  Bell,
+  DataAnalysis
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
