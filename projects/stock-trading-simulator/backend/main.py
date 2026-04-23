@@ -53,8 +53,15 @@ async def startup_event():
     """应用启动事件"""
     # 初始化数据库
     await init_db()
+    
+    # 初始化调度器
+    from scheduler import init_scheduler
+    await init_scheduler()
+    
     print(f"✅ {settings.APP_NAME} V{settings.APP_VERSION} 启动成功")
     print(f"📡 API 文档：http://{settings.HOST}:{settings.PORT}/docs")
+    print(f"🤖 AI 分析：DeepSeek 已集成")
+    print(f"⏰ 定时任务：午间 (11:30) / 日终 (15:00)")
 
 
 @app.on_event("shutdown")

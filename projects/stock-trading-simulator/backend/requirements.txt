@@ -9,6 +9,7 @@ pydantic-settings==2.1.0
 psycopg2-binary==2.9.9
 sqlalchemy==2.0.25
 alembic==1.13.1
+asyncpg==0.29.0
 
 # Redis
 redis==5.0.1
@@ -35,6 +36,9 @@ passlib[bcrypt]==1.7.4
 # 调度
 APScheduler==3.10.4
 
+# AI
+httpx==0.26.0
+
 # 日志
 loguru==0.7.2
 
@@ -42,7 +46,6 @@ loguru==0.7.2
 pytest==7.4.4
 pytest-asyncio==0.23.3
 pytest-cov==4.1.0
-httpx==0.26.0
 
 # 工具
 python-dotenv==1.0.0
