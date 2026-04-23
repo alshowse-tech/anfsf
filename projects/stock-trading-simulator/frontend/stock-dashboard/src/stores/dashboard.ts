@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { tradingApi, type WatchListData, type StockCandidate } from '@/api'
+import { wsService, type WebSocketMessage } from '@/services/websocket'
 
 export interface Position {
   symbol: string
@@ -131,6 +132,41 @@ export const useDashboardStore = defineStore('dashboard', () => {
     ])
   }
 
+  // Initialize WebSocket listeners
+  function initWebSocket() {
+    wsService.onMessage((message: WebSocketMessage) => {
+      switch (message.type) {
+        case 'signal':
+          // Add new signal to list
+          signals.value.unshift({
+            signal_id: message.data.signal_id,
+            symbol: message.data.symbol,
+            signal_type: message.data.signal_type,
+            signal_reason: message.data.signal_reason,
+            signal_strength: message.data.signal_strength,
+            signal_time: message.data.signal_time,
+            status: message.data.status
+          })
+          break
+        case 'price_update':
+          // Update position prices
+          const position = positions.value.find(p => p.symbol === message.data.symbol)
+          if (position) {
+            position.current_price = message.data.price
+            position.market_value = position.quantity * message.data.price
+            position.profit_loss = (message.data.price - position.cost_price) * position.quantity
+            position.profit_rate = ((message.data.price - position.cost_price) / position.cost_price) * 100
+          }
+          break
+        case 'alert':
+          // Could add alert store integration
+          console.log('Alert received:', message.data)
+          break
+      }
+      lastUpdateTime.value = new Date()
+    })
+  }
+
   function clearData() {
     account.value = null
     positions.value = []
@@ -160,6 +196,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     fetchWatchlist,
     fetchSignals,
     refreshAll,
-    clearData
+    clearData,
+    initWebSocket
   }
 })

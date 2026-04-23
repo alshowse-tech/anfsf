@@ -51,8 +51,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useDashboardStore } from '@/stores/dashboard'
 import {
   Monitor,
   Document,
@@ -63,7 +64,13 @@ import {
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
+const store = useDashboardStore()
 const activeMenu = computed(() => route.path)
+
+// Initialize WebSocket on app mount
+onMounted(() => {
+  store.initWebSocket()
+})
 </script>
 
 <style>
