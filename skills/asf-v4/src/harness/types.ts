@@ -147,6 +147,9 @@ export interface ScoringConfig {
     functionality: { threshold: number; weight: number };
     visualDesign: { threshold: number; weight: number };
     codeQuality: { threshold: number; weight: number };
+    userJourney?: { threshold: number; weight: number };  // V2.1 新增
+    uiConsistency?: { threshold: number; weight: number }; // V2.1 新增
+    realData?: { threshold: number; weight: number };       // V2.1 新增
   };
 }
 
@@ -275,4 +278,87 @@ export interface E2ETestReport {
   };
   results: E2ETestResult[];
   screenshots: string[];
+}
+
+// ============================================================================
+// V2.1 - Enhanced Scoring Types
+// ============================================================================
+
+export interface V21ScoringMetrics {
+  productDepth: number;
+  functionality: number;
+  visualDesign: number;
+  codeQuality: number;
+  userJourney: number;      // V2.1 新增：完整用户旅程
+  uiConsistency: number;    // V2.1 新增：UI 一致性
+  realData: number;         // V2.1 新增：真实数据验证
+}
+
+export interface V21ScoringResult extends ScoringResult {
+  userJourney: number;
+  uiConsistency: number;
+  realData: number;
+  demoReady: boolean;       // 是否达到演示级标准
+  selfCheckAccuracy: number; // 自检准确率
+}
+
+// ============================================================================
+// Karpathy Principles - Layer A (Inline Guard) Types
+// ============================================================================
+
+export interface KarpathyInlineMetrics {
+  simplicityScore: number;      // 实际行数/最小行数 (目标<3x)
+  surgicalScore: number;        // 修改文件数/总文件数 (目标<30%)
+  goalDrivenScore: number;      // E2E 测试覆盖率 (目标>80%)
+}
+
+export interface KarpathyInlineResult {
+  passed: boolean;
+  metrics: KarpathyInlineMetrics;
+  issues: string[];
+  recommendations: string[];
+  timestamp: number;
+}
+
+// ============================================================================
+// Karpathy Principles - Layer B (External Review) Types
+// ============================================================================
+
+export interface KarpathyExternalAudit {
+  thinkBeforePassed: boolean;   // 是否有假设确认记录
+  goalDrivenPassed: boolean;    // 用户旅程完整性
+  overallScore: number;         // 4 原则加权分
+  vetoTriggered: boolean;       // 是否阻断部署
+}
+
+export interface KarpathyAuditReport {
+  projectId: string;
+  auditId: string;
+  inlineResult: KarpathyInlineResult;
+  externalAudit: KarpathyExternalAudit;
+  overallPassed: boolean;
+  kpiData: {
+    thinkBeforeScore: number;
+    simplicityScore: number;
+    surgicalScore: number;
+    goalDrivenScore: number;
+  };
+  timestamp: number;
+}
+
+export interface KarpathyConfig {
+  inlineThresholds: {
+    simplicityMaxRatio: number;     // 默认 3.0
+    surgicalMaxRatio: number;       // 默认 0.3
+    goalDrivenMinCoverage: number;  // 默认 0.8
+  };
+  externalTriggers: {
+    projectSizeMinLines: number;    // 默认 5000
+    complexityMinFeatures: number;  // 默认 7
+    productionOnly: boolean;        // 默认 true
+  };
+  vetoThresholds: {
+    overallScoreMin: number;        // 默认 0.4
+    thinkBeforeRequired: boolean;   // 默认 true
+  };
 }

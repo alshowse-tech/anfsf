@@ -1,8 +1,8 @@
 /**
  * Requirement Refiner Skill - ANFSF V1.5.0 需求分析阶段优化
  * 
- * 优化版本：v2.3-hybrid-adaptive-parser (2026-04-14)
- * 作用：Hybrid Adaptive Parser - 智能检测复杂需求，自动选择解析策略
+ * 优化版本：v2.4-prd-completion-engine (2026-04-20)
+ * 作用：Hybrid Adaptive Parser + PRD 智能校验与补全引擎
  * 
  * @module asf-v4/skills/requirement-refiner-skill
  */
@@ -10,6 +10,10 @@
 import { Skill, SkillContext } from '../core/skill';
 import { RefinedGraph, RefinedModule } from '../core/types';
 import { createModuleLogger } from '../utils/logger';
+import { DomainKnowledgeBase } from '../knowledge/domain-knowledge-base';
+import { PRDCompletionEngine } from './prd/prd-completion-engine';
+import { ConfidenceCalculator } from './prd/confidence-calculator';
+import { PRDFeedbackLoop } from './prd/prd-feedback-loop';
 
 const logger = createModuleLogger('RequirementRefiner');
 
@@ -57,11 +61,23 @@ const MODULAR_SCOPE_CONFIG = [
 export class RequirementRefinerSkill extends Skill {
   private mempalace: any;
   private logger: any;
+  
+  // PRD 智能校验与补全引擎组件
+  private knowledgeBase: DomainKnowledgeBase;
+  private completionEngine: PRDCompletionEngine;
+  private confidenceCalculator: ConfidenceCalculator;
+  private feedbackLoop: PRDFeedbackLoop;
 
   constructor(context: SkillContext) {
     super('requirement-refiner', context);
     this.mempalace = context.mempalace;
     this.logger = context.logger || console;
+    
+    // 初始化 PRD 补全引擎
+    this.knowledgeBase = DomainKnowledgeBase.getInstance();
+    this.confidenceCalculator = new ConfidenceCalculator();
+    this.completionEngine = new PRDCompletionEngine(this.knowledgeBase, this.confidenceCalculator);
+    this.feedbackLoop = new PRDFeedbackLoop(this.knowledgeBase, this.confidenceCalculator);
   }
 
   /**
@@ -443,6 +459,34 @@ export class HybridParserRollback {
     logger.info('📢 通知团队:', notification);
     // 实际通知逻辑
   }
+}
+
+// ============================================================================
+// PRD 补全引擎扩展方法
+// ============================================================================
+
+/**
+ * 获取 PRD 补全引擎统计
+ */
+export function getPRDCompletionStats(skill: RequirementRefinerSkill): Record<string, any> {
+  return {
+    knowledgeBase: skill['knowledgeBase'].getStats(),
+    feedbackLoop: skill['feedbackLoop'].getStats()
+  };
+}
+
+/**
+ * 手动触发 PRD 补全（供外部调用）
+ */
+export async function completePRD(
+  prd: string,
+  industry: string = 'education'
+): Promise<any> {
+  const knowledgeBase = DomainKnowledgeBase.getInstance();
+  const confidenceCalculator = new ConfidenceCalculator();
+  const completionEngine = new PRDCompletionEngine(knowledgeBase, confidenceCalculator);
+  
+  return await completionEngine.complete(prd, industry);
 }
 
 // ============================================================================
