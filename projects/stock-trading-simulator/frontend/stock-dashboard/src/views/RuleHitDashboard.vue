@@ -15,6 +15,13 @@
 
       <!-- Rule Filter -->
       <div class="filter-section">
+        <el-input
+          v-model="searchQuery"
+          placeholder="搜索股票代码或名称"
+          clearable
+          style="width: 250px; margin-right: 12px"
+          @keyup.enter="filterRules"
+        />
         <el-radio-group v-model="ruleTypeFilter" @change="filterRules">
           <el-radio-button label="all">全部</el-radio-button>
           <el-radio-button label="B">买入规则</el-radio-button>
@@ -37,6 +44,7 @@
         </el-table-column>
         <el-table-column prop="rule_name" label="规则名称" width="150" />
         <el-table-column prop="symbol" label="股票代码" width="100" />
+        <el-table-column prop="stock_name" label="股票名称" width="120" />
         <el-table-column prop="trigger_reason" label="触发原因" show-overflow-tooltip />
         <el-table-column prop="supporting_data" label="支撑数据" width="200">
           <template #default="{ row }">
@@ -62,6 +70,7 @@ import { ref, computed } from 'vue'
 
 const selectedDate = ref(new Date())
 const ruleTypeFilter = ref('all')
+const searchQuery = ref('')
 const ruleHits = ref<any[]>([])
 
 // Mock data for demo
@@ -71,6 +80,7 @@ ruleHits.value = [
     rule_name: '超级主线过滤',
     rule_type: 'filter',
     symbol: '300308.SZ',
+    stock_name: '中际旭创',
     trade_date: '2026-04-23',
     trigger_time: '2026-04-23T11:30:00+08:00',
     trigger_reason: 'RPS(10/20/50) > 90',
@@ -82,6 +92,7 @@ ruleHits.value = [
     rule_name: '放量突破',
     rule_type: 'pattern',
     symbol: '300502.SZ',
+    stock_name: '新易盛',
     trade_date: '2026-04-23',
     trigger_time: '2026-04-23T11:30:00+08:00',
     trigger_reason: '突破 3-5 天窄幅横盘，量能 2.5x',
@@ -93,6 +104,7 @@ ruleHits.value = [
     rule_name: '仓位管理',
     rule_type: 'position',
     symbol: '300308.SZ',
+    stock_name: '中际旭创',
     trade_date: '2026-04-23',
     trigger_time: '2026-04-23T11:30:00+08:00',
     trigger_reason: '单票仓位≤40%',
@@ -102,10 +114,23 @@ ruleHits.value = [
 ]
 
 const filteredRuleHits = computed(() => {
-  if (ruleTypeFilter.value === 'all') {
-    return ruleHits.value
+  let filtered = ruleHits.value
+  
+  // 规则类型筛选
+  if (ruleTypeFilter.value !== 'all') {
+    filtered = filtered.filter(hit => hit.rule_id.startsWith(ruleTypeFilter.value))
   }
-  return ruleHits.value.filter(hit => hit.rule_id.startsWith(ruleTypeFilter.value))
+  
+  // 股票搜索 (代码或名称)
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(hit => 
+      hit.symbol.toLowerCase().includes(query) ||
+      (hit.stock_name && hit.stock_name.toLowerCase().includes(query))
+    )
+  }
+  
+  return filtered
 })
 
 const getRuleTypeColor = (ruleId: string) => {

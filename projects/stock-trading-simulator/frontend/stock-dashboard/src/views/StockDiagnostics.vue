@@ -7,8 +7,9 @@
           <div class="header-actions">
             <el-input
               v-model="symbolInput"
-              placeholder="输入股票代码 (如：300308.SZ)"
-              style="width: 200px; margin-right: 12px"
+              placeholder="输入股票代码或名称"
+              clearable
+              style="width: 250px; margin-right: 12px"
               @keyup.enter="loadDiagnostics"
             />
             <el-button type="primary" @click="loadDiagnostics">诊断</el-button>
@@ -21,6 +22,11 @@
         <el-descriptions title="基本信息" :column="3" border>
           <el-descriptions-item label="股票代码">{{ diagnostics.symbol }}</el-descriptions-item>
           <el-descriptions-item label="股票名称">{{ diagnostics.name }}</el-descriptions-item>
+          <el-descriptions-item label="股票">
+            <span style="font-weight: bold; font-size: 16px">
+              {{ diagnostics.symbol }} - {{ diagnostics.name }}
+            </span>
+          </el-descriptions-item>
           <el-descriptions-item label="所属行业">{{ diagnostics.sector }} - {{ diagnostics.industry }}</el-descriptions-item>
         </el-descriptions>
 

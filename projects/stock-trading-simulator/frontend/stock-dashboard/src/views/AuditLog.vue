@@ -90,6 +90,13 @@
           <el-option label="风控系统" value="risk" />
         </el-select>
         <el-input
+          v-model="searchStock"
+          placeholder="搜索股票代码/名称"
+          style="margin-left: 16px; width: 200px"
+          clearable
+          @keyup.enter="loadLogs"
+        />
+        <el-input
           v-model="searchKeyword"
           placeholder="搜索日志内容"
           style="margin-left: 16px; width: 200px"
@@ -125,6 +132,8 @@
           </template>
         </el-table-column>
         <el-table-column prop="module" label="模块" width="120" />
+        <el-table-column prop="symbol" label="股票代码" width="100" />
+        <el-table-column prop="stock_name" label="股票名称" width="120" />
         <el-table-column prop="message" label="消息" show-overflow-tooltip />
         <el-table-column prop="user" label="用户" width="100" />
         <el-table-column prop="trace_id" label="Trace ID" width="150" show-overflow-tooltip />
@@ -169,6 +178,9 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="模块">{{ selectedLog.module }}</el-descriptions-item>
+        <el-descriptions-item label="股票">
+          {{ selectedLog.symbol || '-' }} {{ selectedLog.stock_name ? `- ${selectedLog.stock_name}` : '' }}
+        </el-descriptions-item>
         <el-descriptions-item label="消息">{{ selectedLog.message }}</el-descriptions-item>
         <el-descriptions-item label="用户">{{ selectedLog.user || '-' }}</el-descriptions-item>
         <el-descriptions-item label="IP">{{ selectedLog.ip || '-' }}</el-descriptions-item>
@@ -200,6 +212,7 @@ const stats = ref({
 const dateRange = ref<[Date, Date]>()
 const filterLevel = ref('')
 const filterModule = ref('')
+const searchStock = ref('')
 const searchKeyword = ref('')
 
 // Table data
@@ -215,10 +228,12 @@ const logs = ref([
     level: 'ERROR',
     module: 'trading',
     message: '模拟委托失败：资金不足',
+    symbol: '300308.SZ',
+    stock_name: '中际旭创',
     user: 'system',
     ip: '127.0.0.1',
     trace_id: 'trace-001',
-    details: { symbol: '300308.SZ', required: 125000, available: 100000 }
+    details: { symbol: '300308.SZ', stock_name: '中际旭创', required: 125000, available: 100000 }
   },
   {
     id: '2',
@@ -226,6 +241,8 @@ const logs = ref([
     level: 'WARN',
     module: 'rule',
     message: '规则计算超时，降级处理',
+    symbol: '',
+    stock_name: '',
     user: 'system',
     ip: '127.0.0.1',
     trace_id: 'trace-002',
@@ -237,6 +254,8 @@ const logs = ref([
     level: 'INFO',
     module: 'data',
     message: '分钟线数据拉取完成',
+    symbol: '',
+    stock_name: '',
     user: 'system',
     ip: '127.0.0.1',
     trace_id: 'trace-003',
@@ -248,6 +267,8 @@ const logs = ref([
     level: 'DEBUG',
     module: 'indicator',
     message: 'RPS 因子计算完成',
+    symbol: '300750.SZ',
+    stock_name: '宁德时代',
     user: 'system',
     ip: '127.0.0.1',
     trace_id: 'trace-004',
@@ -259,10 +280,12 @@ const logs = ref([
     level: 'ERROR',
     module: 'risk',
     message: '仓位超限告警',
+    symbol: '300502.SZ',
+    stock_name: '新易盛',
     user: 'admin',
     ip: '192.168.1.100',
     trace_id: 'trace-005',
-    details: { symbol: '300502.SZ', current_pct: 45, limit_pct: 40 }
+    details: { symbol: '300502.SZ', stock_name: '新易盛', current_pct: 45, limit_pct: 40 }
   }
 ])
 

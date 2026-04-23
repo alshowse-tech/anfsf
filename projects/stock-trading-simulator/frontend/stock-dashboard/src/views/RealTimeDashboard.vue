@@ -68,6 +68,11 @@
           <el-table :data="positions" style="width: 100%" stripe>
             <el-table-column prop="symbol" label="代码" width="100" />
             <el-table-column prop="name" label="名称" width="120" />
+            <el-table-column label="股票" width="230">
+              <template #default="{ row }">
+                <span style="font-weight: bold">{{ row.symbol }} - {{ row.name || '加载中...' }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="quantity" label="数量" width="100" align="right" />
             <el-table-column prop="cost_price" label="成本价" width="100" align="right">
               <template #default="{ row }">
