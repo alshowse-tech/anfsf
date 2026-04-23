@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "logs/app.log"
     
+    # DeepSeek AI 配置
+    DEEPSEEK_API_KEY: str = "sk-ce67c8965f8d4be882e6fa7809048c8a"
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+    
     @property
     def database_url(self) -> str:
         """数据库连接 URL"""
