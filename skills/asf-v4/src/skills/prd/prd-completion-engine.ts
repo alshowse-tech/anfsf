@@ -7,7 +7,7 @@
  * @version 1.0.0
  */
 
-import { DomainKnowledgeBase, OrgStructure, RolePermission, FlowPattern, FieldStandard, QueryTemplate, HistoricalTemplate } from '../../knowledge/domain-knowledge-base';
+import { DomainKnowledgeBase, OrgStructure, FlowPattern } from '../../knowledge/domain-knowledge-base';
 import { ConfidenceCalculator } from './confidence-calculator';
 
 /**
@@ -27,7 +27,7 @@ export interface CompletionResult {
 export interface Completion {
   id: string;
   type: 'org_structure' | 'permission' | 'flow' | 'field' | 'query' | 'template';
-  content: any;
+  content: Record<string, unknown>;
   confidence: number;
   displayType: 'tree' | 'table' | 'flow' | 'text';
   suggestion: string;
@@ -330,7 +330,8 @@ export class PRDCompletionEngine {
   /**
    * 检测 PRD 中是否有查询条件
    */
-  private hasQueryConditions(prd: string, scene: any): boolean {
+  private hasQueryConditions(prd: string, _scene: Record<string, unknown>): boolean {
+    void _scene;
     const queryKeywords = ['查询', '筛选', '搜索', '条件'];
     return queryKeywords.some(keyword => prd.includes(keyword));
   }
@@ -426,7 +427,8 @@ export class PRDCompletionEngine {
   /**
    * 提取 PRD 中的字段
    */
-  private async extractFields(prd: string, entityName: string): Promise<string[]> {
+  private async extractFields(prd: string, _entityName: string): Promise<string[]> {
+    void _entityName;
     const fieldPatterns = [
       /(\w+) 字段/g,
       /(\w+) 属性/g,
@@ -496,7 +498,7 @@ export class PRDCompletionEngine {
   /**
    * 插入权限模型到 PRD
    */
-  private insertPermissions(prd: string, content: any[]): string {
+  private insertPermissions(prd: string, content: Array<Record<string, unknown>>): string {
     const permSection = `\n\n## 角色权限\n\n建议补充以下角色：\n\n${content.map(r => `- **${r.name}**: ${r.description} (权限：${r.permissions.join(', ')})`).join('\n')}\n`;
     return prd + permSection;
   }
@@ -512,7 +514,7 @@ export class PRDCompletionEngine {
   /**
    * 插入字段到 PRD
    */
-  private insertFields(prd: string, content: any[]): string {
+  private insertFields(prd: string, content: Array<Record<string, unknown>>): string {
     const fieldSection = `\n\n## 数据字段\n\n建议补充以下字段：\n\n${content.map(f => `- **${f.name}** (${f.type}): ${f.description || ''}`).join('\n')}\n`;
     return prd + fieldSection;
   }
@@ -520,7 +522,7 @@ export class PRDCompletionEngine {
   /**
    * 插入查询条件到 PRD
    */
-  private insertQueryConditions(prd: string, content: any[]): string {
+  private insertQueryConditions(prd: string, content: Array<Record<string, unknown>>): string {
     const querySection = `\n\n## 查询条件\n\n建议补充以下查询条件：\n\n${content.map(c => `- **${c.label}** (${c.type})`).join('\n')}\n`;
     return prd + querySection;
   }

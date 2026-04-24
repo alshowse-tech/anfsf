@@ -380,6 +380,7 @@ export class RequirementRefinerSkill extends Skill {
   private standardRefine(_req: string): RefinedGraph {
     // 原有标准精炼逻辑
     const graph = new RefinedGraph();
+    void _req;
     // ... 原有实现
     return graph;
   }

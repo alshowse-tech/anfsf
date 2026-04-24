@@ -135,7 +135,7 @@ export class ConfidenceCalculator {
     
     if (completion.type === 'permission') {
       const roles = Array.isArray(completion.content) 
-        ? completion.content.map((r: any) => r.name) 
+        ? completion.content.map((r: Record<string, unknown>) => r.name as string) 
         : [];
       
       for (const role of roles) {
@@ -150,7 +150,7 @@ export class ConfidenceCalculator {
 
     if (completion.type === 'org_structure') {
       const departments = Array.isArray(completion.content)
-        ? completion.content.map((d: any) => d.name)
+        ? completion.content.map((d: Record<string, unknown>) => d.name as string)
         : [];
       
       for (const dept of departments) {
