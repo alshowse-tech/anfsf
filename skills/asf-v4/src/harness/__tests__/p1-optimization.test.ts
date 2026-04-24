@@ -40,7 +40,7 @@ describe('P1 Optimization', () => {
         ],
         summary: 'All passed'
       };
-      const analysis = executor.analyzeCrossBrowser(mockReport as any);
+      const analysis = executor.analyzeCrossBrowser(mockReport as Record<string, unknown>);
 
       expect(analysis.consistent).toBeDefined();
       expect(analysis.differences).toBeDefined();

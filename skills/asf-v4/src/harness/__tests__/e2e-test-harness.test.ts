@@ -168,10 +168,10 @@ describe('E2E Test Harness', () => {
 
   describe('getResults()', () => {
     it('应该返回所有测试结果', async () => {
-      const result1 = await harness.runTest('测试 1', [
+      await harness.runTest('测试 1', [
         { name: '步骤', action: 'navigate', selector: '/test', expected: '成功' }
       ]);
-      const result2 = await harness.runTest('测试 2', [
+      await harness.runTest('测试 2', [
         { name: '步骤', action: 'navigate', selector: '/test', expected: '成功' }
       ]);
 
