@@ -172,7 +172,8 @@ export class RequirementExpander {
   /**
    * 生成功能清单
    */
-  private async generateFeatureList(prompt: string, spec: ProductSpec): Promise<FeatureListItem[]> {
+  private async generateFeatureList(prompt: string, _spec: ProductSpec): Promise<FeatureListItem[]> {
+    void _spec;
     const features: FeatureListItem[] = [];
     let featureIndex = 0;
 
@@ -208,7 +209,8 @@ export class RequirementExpander {
   /**
    * 生成技术设计
    */
-  private async generateTechnicalDesign(spec: ProductSpec): Promise<TechnicalDesign> {
+  private async generateTechnicalDesign(_spec: ProductSpec): Promise<TechnicalDesign> {
+    void _spec;
     // 基于产品规格推断技术栈
     return {
       frontend: {
@@ -230,7 +232,8 @@ export class RequirementExpander {
   /**
    * 识别 AI 功能机会
    */
-  private async identifyAIFeatures(prompt: string, spec: ProductSpec): Promise<string[]> {
+  private async identifyAIFeatures(prompt: string, _spec: ProductSpec): Promise<string[]> {
+    void _spec;
     const aiFeatures: string[] = [];
 
     // 基于产品类型推荐 AI 功能
@@ -319,11 +322,13 @@ export class RequirementExpander {
     return ['普通用户', '管理员'];
   }
 
-  private defineCoreValue(prompt: string): string {
+  private defineCoreValue(_prompt: string): string {
+    void _prompt;
     return '提供高效、易用的解决方案，满足用户核心需求';
   }
 
-  private defineSuccessCriteria(prompt: string): string[] {
+  private defineSuccessCriteria(_prompt: string): string[] {
+    void _prompt;
     return [
       '核心功能 100% 实现',
       '用户体验流畅',
@@ -332,7 +337,8 @@ export class RequirementExpander {
     ];
   }
 
-  private identifyConstraints(prompt: string): string[] {
+  private identifyConstraints(_prompt: string): string[] {
+    void _prompt;
     return [
       '开发周期限制',
       '技术栈约束',
@@ -340,7 +346,8 @@ export class RequirementExpander {
     ];
   }
 
-  private generateGenericFeature(index: number, currentCount: number): FeatureListItem {
+  private generateGenericFeature(index: number, _currentCount: number): FeatureListItem {
+    void _currentCount;
     const categories: FeatureCategory[] = ['functional', 'ui', 'integration', 'security', 'performance'];
     const category = categories[index % categories.length];
     const priorities: FeaturePriority[] = ['P0', 'P1', 'P2'];
