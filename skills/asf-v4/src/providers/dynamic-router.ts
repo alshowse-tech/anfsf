@@ -59,7 +59,8 @@ export class DynamicRouter {
    */
   private countCrossModuleDeps(graph: RefinedGraph): number {
     // 复用 GraphRAG 已有方法，统计跨模块依赖深度
-    return (graph as any).crossModuleEdges?.length || 
+    const graphWithEdges = graph as Record<string, unknown>;
+    return (graphWithEdges.crossModuleEdges as Array<unknown>)?.length || 
            graph.dependencies?.length || 
            0;
   }
@@ -132,7 +133,8 @@ export class DynamicRouter {
       const module = graph.modules?.find(m => m.name === moduleName);
       if (module?.dependencies) {
         for (const dep of module.dependencies) {
-          visit((dep as any).target || dep);
+          const depRecord = dep as Record<string, unknown>;
+          visit(depRecord.target as string || dep);
         }
       }
       

@@ -138,7 +138,8 @@ function generatePromptHash(prompt: string, modelId: string): string {
   const data = `${modelId}:${prompt}`;
   let hash = 0;
   for (let i = 0; i < data.length; i++) {
-    hash = ((hash << 5) - hash) + data.charCodeAt(i);
+    const char = data.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
   return `cache_${Math.abs(hash).toString(36)}`;
