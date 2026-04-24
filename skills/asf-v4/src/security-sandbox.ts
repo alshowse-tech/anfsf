@@ -97,9 +97,9 @@ export class SecuritySandbox {
   /**
    * 执行代码在沙箱中
    */
-  async executeCode(code: string, context?: Record<string, any>): Promise<{
+  async executeCode(code: string, context?: Record<string, unknown>): Promise<{
     success: boolean;
-    result?: any;
+    result?: unknown;
     error?: string;
     violations?: string[];
   }> {
@@ -117,10 +117,10 @@ export class SecuritySandbox {
         result,
         violations: this.context.violations.length > 0 ? this.context.violations : undefined,
       };
-    } catch (error: any) {
+    } catch (error) {
       return {
         success: false,
-        error: error.message,
+        error: (error as Error).message,
         violations: this.context.violations.length > 0 ? this.context.violations : undefined,
       };
     }
@@ -226,7 +226,8 @@ export class SecuritySandbox {
   /**
    * 模拟代码执行（实际实现会更复杂）
    */
-  private async simulateCodeExecution(code: string, context?: Record<string, any>): Promise<any> {
+  private async simulateCodeExecution(code: string, _context?: Record<string, unknown>): Promise<unknown> {
+    void _context;
     // 在真实实现中，这里会使用真正的沙箱技术如：
     // - Firecracker microVM
     // - gVisor
