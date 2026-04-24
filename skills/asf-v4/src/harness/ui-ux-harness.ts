@@ -45,7 +45,7 @@ export interface ComponentProp {
   name: string;
   type: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'function';
   required: boolean;
-  defaultValue?: any;
+  defaultValue?: unknown;
   description?: string;
 }
 
@@ -177,7 +177,7 @@ export class UIUXHarness {
   /**
    * 设计一致性检查
    */
-  async checkDesignConsistency(prototype: string, designSystem: string): Promise<Record<string, any>> {
+  async checkDesignConsistency(prototype: string, designSystem: string): Promise<Record<string, unknown>> {
     logger.info(`🔍 检查设计一致性：${designSystem}`);
 
     const ds = this.designSystems.get(designSystem);
@@ -185,7 +185,7 @@ export class UIUXHarness {
       throw new Error(`设计系统不存在：${designSystem}`);
     }
 
-    const issues: any[] = [];
+    const issues: Array<Record<string, unknown>> = [];
 
     // 检查颜色使用
     const colorUsage = this.checkColorUsage(prototype, ds.tokens);
@@ -248,7 +248,7 @@ export class UIUXHarness {
   /**
    * 获取统计
    */
-  getStats(): Record<string, any> {
+  getStats(): Record<string, unknown> {
     return {
       designSystems: this.designSystems.size,
       components: this.componentLibrary.size,
@@ -431,7 +431,8 @@ export class UIUXHarness {
   /**
    * 匹配设计 Token
    */
-  private async matchDesignTokens(components: UIComponent[]): Promise<DesignToken[]> {
+  private async matchDesignTokens(_components: UIComponent[]): Promise<DesignToken[]> {
+    void _components;
     const ds = this.designSystems.get('default');
     if (!ds) return [];
 
@@ -736,7 +737,7 @@ export default {
   /**
    * 从问题计算一致性分数
    */
-  private calculateConsistencyFromIssues(issues: any[]): number {
+  private calculateConsistencyFromIssues(issues: Array<Record<string, unknown>>): number {
     const baseScore = 1.0;
     const deductions = issues.reduce((sum, issue) => {
       switch (issue.severity) {
@@ -753,7 +754,7 @@ export default {
   /**
    * 生成一致性摘要
    */
-  private generateConsistencySummary(score: number, issues: any[]): string {
+  private generateConsistencySummary(score: number, issues: Array<Record<string, unknown>>): string {
     if (score >= 0.9) {
       return '✅ 设计一致性优秀';
     } else if (score >= 0.8) {

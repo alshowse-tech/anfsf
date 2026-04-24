@@ -4,8 +4,7 @@
 
 import {
   createV21ScoringEngine,
-  V21_DEFAULT_CONFIG,
-  DEMO_READY_THRESHOLDS
+  V21_DEFAULT_CONFIG
 } from '../v21-scoring';
 
 describe('V2.1 Scoring Engine', () => {
@@ -144,14 +143,14 @@ describe('V2.1 Scoring Engine', () => {
 
   describe('getCalibrationFactor()', () => {
     it('应该为仅一级页面返回 0.6 因子', () => {
-      const metrics = { userJourney: 0.4 };
-      const factor = engine.getCalibrationFactor(metrics as any);
+      const metrics = { userJourney: 0.4 } as Record<string, unknown>;
+      const factor = engine.getCalibrationFactor(metrics);
       expect(factor).toBe(0.6);
     });
 
     it('应该为列表 + 详情返回 0.75 因子', () => {
-      const metrics = { userJourney: 0.6 };
-      const factor = engine.getCalibrationFactor(metrics as any);
+      const metrics = { userJourney: 0.6 } as Record<string, unknown>;
+      const factor = engine.getCalibrationFactor(metrics);
       expect(factor).toBe(0.75);
     });
 

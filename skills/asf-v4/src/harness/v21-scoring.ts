@@ -137,7 +137,8 @@ export class V21ScoringEngine {
    * 计算自检准确率
    * 用于检测自评虚高问题（SparkPath 项目自评 100%→实际 60%）
    */
-  private calculateSelfCheckAccuracy(metrics: V21ScoringMetrics, overallScore: number): number {
+  private calculateSelfCheckAccuracy(metrics: V21ScoringMetrics, _overallScore: number): number {
+    void _overallScore;
     // 基于各维度一致性计算自检准确率
     const variance = Math.abs(metrics.userJourney - metrics.codeQuality);
     // 方差越大，自检准确率越低（功能不完整但代码质量高 = 自检虚高）
