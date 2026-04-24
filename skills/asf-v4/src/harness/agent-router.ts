@@ -469,7 +469,7 @@ export class AgentRouter {
   /**
    * 获取共享上下文
    */
-  getSharedContext(taskId: string): Map<string, any> {
+  getSharedContext(taskId: string): Map<string, unknown> {
     const memory = this.memory.get(taskId);
     return memory?.sharedContext || new Map();
   }
@@ -477,7 +477,7 @@ export class AgentRouter {
   /**
    * 更新共享上下文
    */
-  updateSharedContext(taskId: string, key: string, value: any): void {
+  updateSharedContext(taskId: string, key: string, value: unknown): void {
     const memory = this.memory.get(taskId);
     if (memory) {
       memory.sharedContext.set(key, value);

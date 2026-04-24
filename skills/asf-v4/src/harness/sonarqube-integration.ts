@@ -312,7 +312,7 @@ export class SonarQubeIntegration {
   /**
    * 扫描代码问题
    */
-  private async scanIssues(code: string, config: any): Promise<Issue[]> {
+  private async scanIssues(code: string, config: Record<string, unknown>): Promise<Issue[]> {
     const issues: Issue[] = [];
 
     // 1. Bug 检测
@@ -338,9 +338,11 @@ export class SonarQubeIntegration {
 
     // 检查未使用的变量
     const unusedVars = code.match(/(?:let|const|var)\s+\w+\s*;/g) || [];
-    for (const match of unusedVars) {
+    for (const _match of unusedVars) {
+      void _match;
+      issueCount++;
       issues.push({
-        key: `bug_${++issueCount}`,
+        key: `bug_${issueCount}`,
         type: 'bug',
         severity: 'MINOR',
         message: '未使用的变量',
