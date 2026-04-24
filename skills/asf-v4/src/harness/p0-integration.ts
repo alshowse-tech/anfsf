@@ -249,7 +249,7 @@ export class P0Integration {
 
     // 获取任务相关输出
     const memory = this.agentRouter.getSharedContext(taskId);
-    const outputs = new Map<string, any>();
+    const outputs = new Map<string, unknown>();
     
     // 模拟从记忆中获取输出
     for (const [key, value] of memory.entries()) {
@@ -333,7 +333,7 @@ export class P0Integration {
             logger.info(`💡 发现 ${bottlenecks.bottlenecks.length} 个瓶颈`);
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         logger.error('健康检查失败:', error);
       }
     }, 60000); // 每分钟检查一次
@@ -359,7 +359,7 @@ export class P0Integration {
   /**
    * 获取统计
    */
-  getStats(): Record<string, any> {
+  getStats(): Record<string, unknown> {
     return {
       agentRouter: this.agentRouter.getStats(),
       evolutionLoop: this.evolutionLoop.getStats(),
