@@ -20,20 +20,20 @@ export interface SkillConfig {
   name: string;
   version: string;
   type: string;
-  options?: Record<string, any>;
+  options?: Record<string, unknown>;
 }
 
 export interface SkillContext {
   workspace: string;
-  options?: Record<string, any>;
+  options?: Record<string, unknown>;
   courseOfAction?: string;
 }
 
-export interface SkillResult<T = any> {
+export interface SkillResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -55,7 +55,9 @@ export class BaseSkill implements SkillExecutor {
     this.description = config.description;
   }
   
-  async execute(context: SkillContext, config: SkillConfig): Promise<SkillResult> {
+  async execute(_context: SkillContext, _config: SkillConfig): Promise<SkillResult> {
+    void _context;
+    void _config;
     return {
       success: true,
       data: null,
