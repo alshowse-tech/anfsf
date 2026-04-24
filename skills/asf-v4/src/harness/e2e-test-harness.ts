@@ -45,8 +45,9 @@ export class E2ETestHarness {
   async runTest(
     name: string,
     steps: TestStep[],
-    context?: any
+    _context?: Record<string, unknown>
   ): Promise<E2ETestResult> {
+    void _context;
     logger.info(`运行测试：${name}`);
 
     const result: E2ETestResult = {

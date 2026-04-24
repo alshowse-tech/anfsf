@@ -58,7 +58,7 @@ export class KarpathyIntegration {
     sessionLog: SessionProgress[],
     completedFeatures: number,
     totalFeatures: number,
-    e2eTestResults: any[]
+    e2eTestResults: Array<Record<string, unknown>>
   ): Promise<KarpathyAuditReport> {
     logger.info(`开始完整审核流程：project=${projectId}`);
 
@@ -149,7 +149,7 @@ export class KarpathyIntegration {
     sessionLog: SessionProgress[],
     completedFeatures: number,
     totalFeatures: number,
-    e2eTestResults: any[]
+    e2eTestResults: Array<Record<string, unknown>>
   ): Promise<KarpathyAuditReport> {
     return this.externalReview.performAudit(
       projectId,
