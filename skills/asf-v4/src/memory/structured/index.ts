@@ -129,7 +129,7 @@ export class KnowledgeGraph {
   /**
    * 查询实体（时间感知）
    */
-  async queryEntity(entity: string, as_of?: string): Promise<any[]> {
+  async queryEntity(entity: string, as_of?: string): Promise<Array<Record<string, unknown>>> {
     const query = `
       SELECT subject, predicate, object, valid_from, valid_to
       FROM temporal_triples
@@ -163,7 +163,7 @@ export class KnowledgeGraph {
   /**
    * 生成时间线
    */
-  async timeline(entity: string): Promise<any[]> {
+  async timeline(entity: string): Promise<Array<Record<string, unknown>>> {
     const triples = await this.queryEntity(entity);
     return triples.sort((a, b) => a.valid_from.localeCompare(b.valid_from));
   }
@@ -212,7 +212,8 @@ export class MemoryStructureManager {
   private structure: MemoryStructure;
   private kg: KnowledgeGraph;
 
-  constructor(structurePath: string = './memory/structure.json') {
+  constructor(_structurePath: string = './memory/structure.json') {
+    void _structurePath;
     this.structure = INITIAL_STRUCTURE;
     this.kg = new KnowledgeGraph();
   }
@@ -264,7 +265,7 @@ export class MemoryStructureManager {
   /**
    * 查询当前facts
    */
-  async getCurrentFacts(entity: string): Promise<any[]> {
+  async getCurrentFacts(entity: string): Promise<Array<Record<string, unknown>>> {
     return this.kg.queryEntity(entity);
   }
 
@@ -373,7 +374,7 @@ export class MemoryNavigator {
   /**
    * 查找跨 wing 的 tunnels
    */
-  async findTunnels(room: string, fromWing: string): Promise<any[]> {
+  async findTunnels(room: string, fromWing: string): Promise<Array<Record<string, unknown>>> {
     const tunnels = [];
 
     for (const [tunnelId, tunnel] of Object.entries(this.structure.tunnels)) {
@@ -391,7 +392,7 @@ export class MemoryNavigator {
   /**
    * 全路径导航
    */
-  async navigate(query: string): Promise<any[]> {
+  async navigate(query: string): Promise<Array<Record<string, unknown>>> {
     const wings = await this.findRelevantWings(query);
     const results = [];
 
