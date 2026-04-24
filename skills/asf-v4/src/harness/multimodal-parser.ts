@@ -322,10 +322,10 @@ export class MultimodalParser {
   /**
    * 场景生成 - 从需求推导使用场景
    */
-  async generateScenarios(requirement: string): Promise<any[]> {
+  async generateScenarios(requirement: string): Promise<Array<Record<string, unknown>>> {
     logger.info('🎬 生成使用场景...');
 
-    const scenarios: any[] = [];
+    const scenarios: Array<Record<string, unknown>> = [];
 
     // 提取功能点
     const features = this.extractFeatures(requirement);
@@ -456,7 +456,7 @@ export class MultimodalParser {
   /**
    * 提取结构化数据
    */
-  private extractStructuredData(elements: ImageElement[], text?: string): any {
+  private extractStructuredData(elements: ImageElement[], text?: string): Record<string, unknown> {
     return {
       elementCount: elements.length,
       hasText: !!text,

@@ -175,7 +175,7 @@ export class P0Integration {
       logger.info(`✅ 任务完成：${task.id} (${result.success ? '成功' : '失败'})`);
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const result: TaskExecutionResult = {
         taskId: task.id,
         assignment: {
