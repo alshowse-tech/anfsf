@@ -151,7 +151,7 @@ export interface Field {
   required: boolean;
   description?: string;
   constraints?: FieldConstraint[];
-  defaultValue?: any;
+  defaultValue?: unknown;
 }
 
 /**
@@ -159,7 +159,7 @@ export interface Field {
  */
 export interface FieldConstraint {
   type: 'min' | 'max' | 'pattern' | 'enum' | 'unique';
-  value: any;
+  value: unknown;
 }
 
 /**
@@ -188,7 +188,7 @@ export interface Condition {
   name: string;
   type: 'text' | 'number' | 'date' | 'enum' | 'range';
   label: string;
-  default?: any;
+  default?: unknown;
   required?: boolean;
 }
 
@@ -199,7 +199,7 @@ export interface Filter {
   name: string;
   field: string;
   operator: 'eq' | 'ne' | 'gt' | 'lt' | 'gte' | 'lte' | 'like' | 'in';
-  value?: any;
+  value?: unknown;
 }
 
 /**
@@ -796,7 +796,7 @@ export class DomainKnowledgeBase {
   /**
    * 添加新的知识条目
    */
-  addPattern(pattern: any): void {
+  addPattern(pattern: Record<string, unknown>): void {
     // 根据类型添加到相应的知识库
     if (pattern.type === 'org_structure') {
       this.data.orgStructures.push(pattern.content);
