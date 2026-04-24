@@ -8,7 +8,7 @@
  */
 
 import { Skill, SkillContext } from '../core/skill';
-import { RefinedGraph, RefinedModule } from '../core/types';
+import { RefinedGraph } from '../core/types';
 import { createModuleLogger } from '../utils/logger';
 import { DomainKnowledgeBase } from '../knowledge/domain-knowledge-base';
 import { PRDCompletionEngine } from './prd/prd-completion-engine';
@@ -59,8 +59,8 @@ const MODULAR_SCOPE_CONFIG = [
 // ============================================================================
 
 export class RequirementRefinerSkill extends Skill {
-  private mempalace: any;
-  private logger: any;
+  private mempalace: Record<string, unknown>;
+  private logger: Record<string, unknown>;
 
   // PRD 智能校验与补全引擎组件
   private knowledgeBase: DomainKnowledgeBase;
@@ -377,7 +377,7 @@ export class RequirementRefinerSkill extends Skill {
   /**
    * 标准精炼流程 - 原有实现保持不变
    */
-  private standardRefine(req: string): RefinedGraph {
+  private standardRefine(_req: string): RefinedGraph {
     // 原有标准精炼逻辑
     const graph = new RefinedGraph();
     // ... 原有实现

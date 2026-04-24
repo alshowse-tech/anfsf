@@ -9,7 +9,6 @@
 
 import { DomainKnowledgeBase } from '../../knowledge/domain-knowledge-base';
 import { ConfidenceCalculator } from './confidence-calculator';
-import { Completion } from './prd-completion-engine';
 import { Logger, createModuleLogger } from '../../utils/logger';
 
 const logger: Logger = createModuleLogger('PRDFeedbackLoop');
@@ -20,7 +19,7 @@ const logger: Logger = createModuleLogger('PRDFeedbackLoop');
 export interface FeedbackRecord {
   completionId: string;
   type: string;
-  content: any;
+  content: Record<string, unknown>;
   confidence: number;
   action: 'accept' | 'reject' | 'modify';
   modifiedValue?: string;
