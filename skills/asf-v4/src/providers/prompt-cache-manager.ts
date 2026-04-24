@@ -18,7 +18,7 @@ export interface CacheEntry {
   /** 原始 prompt */
   prompt: string;
   /** 缓存响应 */
-  response: any;
+  response: unknown;
   /** 创建时间 */
   createdAt: number;
   /** 过期时间 */
@@ -219,7 +219,7 @@ export class PromptCacheManager {
   /**
    * 写入缓存
    */
-  set(prompt: string, modelId: string, response: any, tokenCount: number): void {
+  set(prompt: string, modelId: string, response: unknown, tokenCount: number): void {
     if (!this.config.enabled) {
       return;
     }
