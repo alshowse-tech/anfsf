@@ -22,8 +22,8 @@ export interface TestCase {
   id: string;
   name: string;
   description: string;
-  input: any;
-  expectedOutput: any;
+  input: unknown;
+  expectedOutput: unknown;
   assertions: string[];
 }
 
