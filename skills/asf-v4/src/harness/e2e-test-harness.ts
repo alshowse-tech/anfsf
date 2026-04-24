@@ -94,7 +94,8 @@ export class E2ETestHarness {
   /**
    * 执行单个测试步骤
    */
-  private async executeStep(step: TestStep, context?: any): Promise<TestStep> {
+  private async executeStep(step: TestStep, _context?: Record<string, unknown>): Promise<TestStep> {
+    void _context;
     const result: TestStep = {
       ...step,
       status: 'pending',

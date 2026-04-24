@@ -145,7 +145,7 @@ export class KarpathyIntegration {
    */
   async performExternalOnly(
     projectId: string,
-    inlineResult: any,
+    inlineResult: Record<string, unknown>,
     sessionLog: SessionProgress[],
     completedFeatures: number,
     totalFeatures: number,
