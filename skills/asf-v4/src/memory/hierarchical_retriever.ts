@@ -5,7 +5,7 @@
 
 import { TemporalKnowledgeGraph } from './temporal_kg';
 import { SimpleVectorDB } from './local_embedder';
-import { INITIAL_STRUCTURE, MemoryStructureManager } from './structured';
+import { MemoryStructureManager } from './structured';
 import { LocalEmbedder } from './local_embedder';
 import { OpenAIEmbeddingAdapter } from './embedding_options';
 
@@ -74,9 +74,11 @@ export class HierarchicalMemoryRetriever {
   async store(
     content: string,
     wing: string,
-    room: string,
-    metadata?: Record<string, any>
+    _room: string,
+    _metadata?: Record<string, unknown>
   ): Promise<void> {
+    void _room;
+    void _metadata;
     // 1. 嵌入内容
     let embedding: number[];
     let dimension: number;

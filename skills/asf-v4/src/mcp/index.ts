@@ -27,8 +27,8 @@ export interface MCPCapabilities {
 export interface MCPTool {
   name: string;
   description: string;
-  parameters: Record<string, any>;
-  execute: (params: Record<string, any>) => Promise<any>;
+  parameters: Record<string, unknown>;
+  execute: (params: Record<string, unknown>) => Promise<unknown>;
 }
 
 // ============================================================================
@@ -50,20 +50,25 @@ export class LocalFileSystem implements FileSystemAPI {
     this.workspace = workspace;
   }
 
-  async readFile(path: string): Promise<string> {
+  async readFile(_path: string): Promise<string> {
+    void _path;
     // 模拟文件读取
-    return JSON.stringify({ path, content: 'mock content' });
+    return JSON.stringify({ content: 'mock content' });
   }
 
-  async writeFile(path: string, content: string): Promise<void> {
+  async writeFile(_path: string, _content: string): Promise<void> {
+    void _path;
+    void _content;
     // 模拟文件写入
   }
 
-  async listDir(path: string): Promise<string[]> {
+  async listDir(_path: string): Promise<string[]> {
+    void _path;
     return ['file1.ts', 'file2.ts'];
   }
 
-  async exists(path: string): Promise<boolean> {
+  async exists(_path: string): Promise<boolean> {
+    void _path;
     return true;
   }
 
@@ -118,7 +123,8 @@ export class CodeExecutionEnvironment {
     };
   }
 
-  async execute(code: string, context?: Record<string, any>): Promise<any> {
+  async execute(code: string, _context?: Record<string, unknown>): Promise<unknown> {
+    void _context;
     // 在沙箱环境中执行代码
     return {
       success: true,

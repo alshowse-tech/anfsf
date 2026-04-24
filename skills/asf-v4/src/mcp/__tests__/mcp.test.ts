@@ -4,11 +4,9 @@
  * @module asf-v4/mcp/__tests__
  */
 
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeEach } from '@jest/globals';
 import {
   MCPServer,
-  MCPCapabilities,
-  MCPTool,
   FileSystemAPI,
   LocalFileSystem,
   StandardizedSkill,
