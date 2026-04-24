@@ -340,7 +340,7 @@ export class AgentRouter {
         const [agent2, output2] = outputArray[j];
 
         // 检测输出不一致
-        if (this.hasOutputMismatch(output1 as Record<string, unknown>, output2 as Record<string, unknown)) {
+        if (this.hasOutputMismatch(output1 as Record<string, unknown>, output2 as Record<string, unknown>)) {
           conflicts.push({
             type: 'output_mismatch',
             agents: [agent1, agent2],
@@ -394,7 +394,7 @@ export class AgentRouter {
   /**
    * 检测状态不一致
    */
-  private hasStateInconsistency(output1: any, output2: any): boolean {
+  private hasStateInconsistency(output1: Record<string, unknown>, output2: Record<string, unknown>): boolean {
     // 检查是否有状态字段冲突
     const state1 = output1?.state || output1?.status;
     const state2 = output2?.state || output2?.status;
@@ -458,7 +458,7 @@ export class AgentRouter {
   /**
    * 添加 Agent 输出到记忆
    */
-  addAgentOutput(taskId: string, agentId: string, output: any): void {
+  addAgentOutput(taskId: string, agentId: string, output: unknown): void {
     const memory = this.memory.get(taskId);
     if (memory) {
       memory.agentOutputs.set(agentId, output);
@@ -491,7 +491,7 @@ export class AgentRouter {
   /**
    * 获取路由统计
    */
-  getStats(): Record<string, any> {
+  getStats(): Record<string, unknown> {
     const assignments = Array.from(this.taskHistory.values());
     
     return {
