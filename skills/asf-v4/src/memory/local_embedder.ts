@@ -10,10 +10,11 @@ import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
  * 本地向量嵌入器
  */
 export class LocalEmbedder {
-  private embedder: any | null = null;
+  private embedder: Record<string, unknown> | null = null;
   private textSplitter: RecursiveCharacterTextSplitter;
 
-  constructor(modelName: string = 'Xenova/all-MiniLM-L6-v2') {
+  constructor(_modelName: string = 'Xenova/all-MiniLM-L6-v2') {
+    void _modelName;
     // 设置本地模型路径
     env.allowLocalModels = true;
     env.useBrowserCache = false;

@@ -22,7 +22,7 @@ export interface WingConfig {
 
 export interface WingState {
   config: WingConfig;
-  entries: Map<string, any>;
+  entries: Map<string, unknown>;
   createdAt: number;
   lastAccessed: number;
   accessCount: number;
@@ -184,7 +184,8 @@ export class MemPalaceWingManager {
     const now = Date.now();
     let totalEntries = 0;
     
-    const wings = Array.from(this.wings.entries()).map(([name, state]) => {
+    const wings = Array.from(this.wings.entries()).map(([_name, state]) => {
+      void _name;
       totalEntries += state.entries.size;
       return {
         name: state.config.name,
