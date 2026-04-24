@@ -8,7 +8,6 @@ import { describe, test, expect, beforeEach } from '@jest/globals';
 import {
   SecuritySandbox,
   createSecuritySandbox,
-  DEFAULT_SANDBOX_CONFIG,
   SandboxConfig,
   globalSandboxMonitor,
 } from '../../security-sandbox';

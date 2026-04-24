@@ -365,8 +365,9 @@ export class ProviderRouter {
    */
   private selectByCost(
     providers: ProviderConfig[],
-    modelPreference?: string
+    _modelPreference?: string
   ): ProviderConfig {
+    void _modelPreference;
     // 简化实现：优先选择免费/低成本 Provider
     const costOrder = ['modelstudio', 'bailian', 'anthropic', 'openai'];
 
