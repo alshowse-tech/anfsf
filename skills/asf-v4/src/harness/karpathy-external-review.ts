@@ -220,7 +220,8 @@ export class KarpathyExternalReview {
   /**
    * 连接 TimescaleDB
    */
-  async connectTimescale(connectionString?: string): Promise<void> {
+  async connectTimescale(_connectionString?: string): Promise<void> {
+    void _connectionString;
     // TODO: 实现 TimescaleDB 连接
     // 默认端口 5433（与 External Review Agent 共享）
     logger.info('TimescaleDB 连接初始化（模拟）');

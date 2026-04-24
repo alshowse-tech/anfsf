@@ -3,7 +3,6 @@
  */
 
 import { createRequirementExpander } from '../requirement-expander';
-import { PlannerConfig } from '../types';
 
 describe('Requirement Expander', () => {
   let expander: ReturnType<typeof createRequirementExpander>;
@@ -45,7 +44,6 @@ describe('Requirement Expander', () => {
 
       const p0Count = result.featureList.filter(f => f.priority === 'P0').length;
       const p1Count = result.featureList.filter(f => f.priority === 'P1').length;
-      const p2Count = result.featureList.filter(f => f.priority === 'P2').length;
 
       expect(p0Count).toBeGreaterThan(0);
       expect(p1Count).toBeGreaterThan(0);
