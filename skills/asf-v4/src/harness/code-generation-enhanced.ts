@@ -54,8 +54,8 @@ export interface APIEndpoint {
   path: string;
   description: string;
   parameters?: APIParameter[];
-  requestBody?: any;
-  responseBody?: any;
+  requestBody?: unknown;
+  responseBody?: unknown;
   responses: APIResponse[];
 }
 
@@ -76,7 +76,7 @@ export interface APIParameter {
 export interface APIResponse {
   statusCode: number;
   description: string;
-  schema?: any;
+  schema?: unknown;
 }
 
 /**
@@ -684,7 +684,8 @@ describe('{{describeName}}', () => {
   /**
    * 提取文件名
    */
-  private extractFilename(code: string): string {
+  private extractFilename(_code: string): string {
+    void _code;
     return 'generated';
   }
 
