@@ -63,7 +63,8 @@ export class ANFSFMCPUserver implements MCPServer {
           },
         },
       },
-      execute: async (params: any) => {
+      execute: async (_params: Record<string, unknown>) => {
+        void _params;
         // 简化实现
         return { success: true, result: 'Veto check passed' };
       },
@@ -88,7 +89,8 @@ export class ANFSFMCPUserver implements MCPServer {
           },
         },
       },
-      execute: async (params: any) => {
+      execute: async (_params: Record<string, unknown>) => {
+        void _params;
         // 简化实现
         return { success: true, result: 'Ownership proof generated' };
       },
@@ -113,7 +115,8 @@ export class ANFSFMCPUserver implements MCPServer {
           },
         },
       },
-      execute: async (params: any) => {
+      execute: async (_params: Record<string, unknown>) => {
+        void _params;
         // 简化实现
         return { success: true, result: { risk: 0.15 } };
       },

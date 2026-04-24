@@ -81,17 +81,14 @@ export class HierarchicalMemoryRetriever {
     void _metadata;
     // 1. 嵌入内容
     let embedding: number[];
-    let dimension: number;
     
     if (this.useLocalEmbedder) {
       const embedder = this.embedder as LocalEmbedder;
       const result = await embedder.embedWithDimension(content);
       embedding = result.embedding;
-      dimension = result.dimension;
     } else {
       const embedder = this.embedder as OpenAIEmbeddingAdapter;
       embedding = await embedder.embed(content);
-      dimension = embedding.length;
     }
 
     // 2. 存储到向量数据库
@@ -136,9 +133,9 @@ export class HierarchicalMemoryRetriever {
       if (result.score < minScore) continue;
 
       // 获取 temporal 信息
-      const matchedTriples = includeTemporal 
-        ? await this.temporalKG.queryEntity('has_memory', result.id) 
-        : [];
+      if (includeTemporal) {
+        await this.temporalKG.queryEntity('has_memory', result.id);
+      }
 
       // 提取 wing/room 信息
       const wing = 'wing_general'; // TODO: 从 triple 提取
@@ -189,8 +186,9 @@ export class HierarchicalMemoryRetriever {
    */
   async temporalSearch(
     query: string,
-    as_of: string
+    _as_of: string
   ): Promise<SearchResult[]> {
+    void _as_of;
     const results = await this.search(query, {
       topK: 10,
       minScore: 0.6,

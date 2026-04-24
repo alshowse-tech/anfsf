@@ -28,9 +28,9 @@ export const PRINCIPLE_MINIMAL_INTERVENTION = {
   description: 'AI 只在关键节点介入，不干扰用户正常操作流',
   priority: 1,
   checks: {
-    '自动执行简单任务': (context: any) => context.complexity < 3,
-    '复杂任务提供选项': (context: any) => context.complexity >= 3 && context.complexity < 7,
-    '极高复杂度需确认': (context: any) => context.complexity >= 7,
+    '自动执行简单任务': (context: Record<string, unknown>) => (context as Record<string, number>).complexity < 3,
+    '复杂任务提供选项': (context: Record<string, unknown>) => (context as Record<string, number>).complexity >= 3 && (context as Record<string, number>).complexity < 7,
+    '极高复杂度需确认': (context: Record<string, unknown>) => (context as Record<string, number>).complexity >= 7,
   },
   antiPattern: '过度询问 - 每个步骤都要求用户确认',
 };
