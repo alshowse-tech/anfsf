@@ -412,7 +412,8 @@ export class MultimodalParser {
   /**
    * 检测图片类型
    */
-  private detectImageType(imageBuffer: Buffer): ImageType {
+  private detectImageType(_imageBuffer: Buffer): ImageType {
+    void _imageBuffer;
     // 简化实现：随机返回类型
     const types: ImageType[] = ['flowchart', 'wireframe', 'mockup', 'diagram'];
     return types[Math.floor(Math.random() * types.length)];
@@ -421,7 +422,9 @@ export class MultimodalParser {
   /**
    * 提取元素
    */
-  private async extractElements(imageBuffer: Buffer, type: ImageType): Promise<ImageElement[]> {
+  private async extractElements(_imageBuffer: Buffer, _type: ImageType): Promise<ImageElement[]> {
+    void _imageBuffer;
+    void _type;
     // 简化实现：返回模拟元素
     const elements: ImageElement[] = [];
 
@@ -448,7 +451,8 @@ export class MultimodalParser {
   /**
    * 执行 OCR
    */
-  private async performOCR(imageBuffer: Buffer): Promise<string> {
+  private async performOCR(_imageBuffer: Buffer): Promise<string> {
+    void _imageBuffer;
     // 简化实现：返回模拟文本
     return '模拟 OCR 识别的文本内容';
   }
