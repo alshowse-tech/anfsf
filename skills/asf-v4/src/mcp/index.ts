@@ -72,7 +72,8 @@ export class LocalFileSystem implements FileSystemAPI {
     return true;
   }
 
-  async deleteFile(path: string): Promise<void> {
+  async deleteFile(_path: string): Promise<void> {
+    void _path;
     // 模拟文件删除
   }
 }

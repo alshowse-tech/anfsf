@@ -366,8 +366,9 @@ export class SonarQubeIntegration {
 
     // 检查 eval 使用
     if (code.includes('eval(')) {
+      issueCount++;
       issues.push({
-        key: `bug_${++issueCount}`,
+        key: `bug_${issueCount}`,
         type: 'bug',
         severity: 'CRITICAL',
         message: '避免使用 eval()',
@@ -419,8 +420,9 @@ export class SonarQubeIntegration {
 
     // 检查硬编码密钥
     if (/password\s*[:=]\s*['"]/.test(code) || /api[_-]?key\s*[:=]\s*['"]/.test(code)) {
+      issueCount++;
       issues.push({
-        key: `vuln_${++issueCount}`,
+        key: `vuln_${issueCount}`,
         type: 'vulnerability',
         severity: 'CRITICAL',
         message: '硬编码的敏感信息',
@@ -474,8 +476,9 @@ export class SonarQubeIntegration {
     // 检查魔法数字
     const magicNumbers = code.match(/\b\d{3,}\b/g) || [];
     if (magicNumbers.length > 3) {
+      issueCount++;
       issues.push({
-        key: `smell_${++issueCount}`,
+        key: `smell_${issueCount}`,
         type: 'code_smell',
         severity: 'MINOR',
         message: '存在魔法数字，建议定义为常量',
@@ -491,7 +494,7 @@ export class SonarQubeIntegration {
   /**
    * 计算质量指标
    */
-  private async calculateMetrics(code: string, issues: Issue[], config: any): Promise<QualityMetrics> {
+  private async calculateMetrics(code: string, issues: Issue[], config: Record<string, unknown>): Promise<QualityMetrics> {
     const lines = code.split('\n').length;
 
     // 计算各类问题数量
