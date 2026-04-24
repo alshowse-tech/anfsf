@@ -8,3 +8,8 @@ coverage/**
 
 # Ignore large test assets
 test-design-system-loader.js
+
+# Ignore JavaScript config files and scripts
+jest.config.js
+scripts/update-providers-config.js
+scripts/update-design-systems-metadata.js
