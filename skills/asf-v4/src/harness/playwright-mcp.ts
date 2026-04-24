@@ -100,7 +100,7 @@ export interface TestStep {
   value?: string;
   assertion?: {
     type: 'visible' | 'hidden' | 'enabled' | 'disabled' | 'text' | 'count' | 'url';
-    expected?: any;
+    expected?: unknown;
   };
 }
 
@@ -153,7 +153,7 @@ export class PlaywrightExecutor {
         } else {
           report.failed++;
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         logger.error(`❌ ${browserType} 测试失败:`, error?.message);
         
         report.results.push({
@@ -249,7 +249,8 @@ export class PlaywrightExecutor {
   /**
    * 运行单个测试用例
    */
-  private async runTestCase(testCase: TestCase, browserType: string): Promise<{ passed: boolean; errors: TestError[] }> {
+  private async runTestCase(testCase: TestCase, _browserType: string): Promise<{ passed: boolean; errors: TestError[] }> {
+    void _browserType;
     const errors: TestError[] = [];
 
     for (const step of testCase.steps) {
@@ -359,8 +360,8 @@ export class PlaywrightExecutor {
   /**
    * 跨浏览器对比分析
    */
-  analyzeCrossBrowser(report: TestReport): Record<string, any> {
-    const analysis: Record<string, any> = {
+  analyzeCrossBrowser(report: TestReport): Record<string, unknown> {
+    const analysis: Record<string, unknown> = {
       consistent: true,
       differences: []
     };
@@ -415,7 +416,7 @@ export class PlaywrightExecutor {
   /**
    * 获取统计
    */
-  getStats(): Record<string, any> {
+  getStats(): Record<string, unknown> {
     const reports = this.getAllReports();
     const totalTests = reports.reduce((sum, r) => sum + r.totalTests, 0);
     const totalPassed = reports.reduce((sum, r) => sum + r.passed, 0);
