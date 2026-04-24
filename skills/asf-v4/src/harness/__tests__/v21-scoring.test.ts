@@ -155,14 +155,14 @@ describe('V2.1 Scoring Engine', () => {
     });
 
     it('应该为完整 CRUD 返回 0.9 因子', () => {
-      const metrics = { userJourney: 0.8 };
-      const factor = engine.getCalibrationFactor(metrics as any);
+      const metrics = { userJourney: 0.8 } as Record<string, unknown>;
+      const factor = engine.getCalibrationFactor(metrics);
       expect(factor).toBe(0.9);
     });
 
     it('应该为完整 CRUD+ 真实数据返回 1.0 因子', () => {
-      const metrics = { userJourney: 0.9 };
-      const factor = engine.getCalibrationFactor(metrics as any);
+      const metrics = { userJourney: 0.9 } as Record<string, unknown>;
+      const factor = engine.getCalibrationFactor(metrics);
       expect(factor).toBe(1.0);
     });
   });
