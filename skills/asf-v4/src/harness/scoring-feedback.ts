@@ -211,8 +211,9 @@ export class FeedbackLoopEngine {
   private generateRationale(
     action: string,
     scoreResult: ScoringResult,
-    iterationNum: number
+    _iterationNum: number
   ): string {
+    void _iterationNum;
     switch (action) {
       case 'complete':
         if (scoreResult.overallScore >= 0.85) {
