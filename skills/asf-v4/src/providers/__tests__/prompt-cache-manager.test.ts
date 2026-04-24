@@ -140,7 +140,8 @@ describe('PromptCacheManager', () => {
       }
 
       // Force adjustment
-      (adaptiveManager as any).lastAdjustmentTime = 0;
+      const managerRecord = adaptiveManager as Record<string, unknown>;
+      managerRecord.lastAdjustmentTime = 0;
       adaptiveManager.adjustStrategy();
 
       // minPromptLength should be lowered
