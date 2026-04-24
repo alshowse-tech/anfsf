@@ -46,7 +46,7 @@ const DEFAULT_EXTERNAL_CONFIG: KarpathyConfig = {
 
 export class KarpathyExternalReview {
   private config: KarpathyConfig;
-  private timescaleDbConnection?: any;  // TimescaleDB 连接
+  private timescaleDbConnection?: Record<string, unknown>;  // TimescaleDB 连接
 
   constructor(config?: Partial<KarpathyConfig>) {
     this.config = { ...DEFAULT_EXTERNAL_CONFIG, ...config };
@@ -95,7 +95,7 @@ export class KarpathyExternalReview {
   async auditGoalDriven(
     completedFeatures: number,
     totalFeatures: number,
-    e2eTestResults: any[]
+    e2eTestResults: Array<Record<string, unknown>>
   ): Promise<{ passed: boolean; score: number }> {
     logger.info('开始 Goal-Driven 审核...');
 
@@ -158,7 +158,7 @@ export class KarpathyExternalReview {
     sessionLog: SessionProgress[],
     completedFeatures: number,
     totalFeatures: number,
-    e2eTestResults: any[]
+    e2eTestResults: Array<Record<string, unknown>>
   ): Promise<KarpathyAuditReport> {
     logger.info(`开始 External 审核：project=${projectId}`);
 
