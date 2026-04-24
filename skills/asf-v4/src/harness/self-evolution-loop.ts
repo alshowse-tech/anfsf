@@ -452,6 +452,7 @@ export class SelfEvolutionLoop {
    * 运行实验
    */
   private async runExperiment(config: ABTestConfig): Promise<KPIReport> {
+    void config;
     // 模拟实现：实验组指标
     // 实际实现应该分流流量并收集实验组数据
     return {
@@ -470,8 +471,8 @@ export class SelfEvolutionLoop {
    * 计算提升幅度
    */
   private calculateImprovement(baseline: KPIReport, experiment: KPIReport, metric: string): number {
-    const baselineValue = (baseline as any)[metric];
-    const experimentValue = (experiment as any)[metric];
+    const baselineValue = (baseline as Record<string, unknown>)[metric] as number;
+    const experimentValue = (experiment as Record<string, unknown>)[metric] as number;
 
     if (baselineValue === 0) return 0;
 
@@ -559,7 +560,8 @@ export class SelfEvolutionLoop {
   /**
    * 计算 p 值（使用 t 分布近似）
    */
-  private calculatePValue(tStat: number, df: number): number {
+  private calculatePValue(tStat: number, _df: number): number {
+    void _df;
     const absT = Math.abs(tStat);
     const pValue = 2 * (1 - this.standardNormalCDF(absT));
     return pValue;
@@ -668,7 +670,7 @@ export class SelfEvolutionLoop {
   /**
    * 获取统计
    */
-  getStats(): Record<string, any> {
+  getStats(): Record<string, unknown> {
     return {
       kpiHistorySize: this.kpiHistory.length,
       activeBottlenecks: this.bottlenecks.length,
