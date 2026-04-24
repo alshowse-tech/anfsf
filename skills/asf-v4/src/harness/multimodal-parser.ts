@@ -28,7 +28,7 @@ export interface ImageParseResult {
   confidence: number;
   elements: ImageElement[];
   text?: string;
-  structuredData?: any;
+  structuredData?: Record<string, unknown>;
 }
 
 /**
@@ -89,8 +89,8 @@ export interface Risk {
 // ============================================================================
 
 export class MultimodalParser {
-  private intentModels: Map<string, any> = new Map();
-  private riskModels: Map<string, any> = new Map();
+  private intentModels: Map<string, Record<string, unknown>> = new Map();
+  private riskModels: Map<string, Record<string, unknown>> = new Map();
 
   constructor() {
     this.initializeModels();
