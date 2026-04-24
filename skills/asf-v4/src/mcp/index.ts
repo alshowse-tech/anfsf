@@ -132,7 +132,8 @@ export class CodeExecutionEnvironment {
     };
   }
 
-  async executeFile(filePath: string, context?: Record<string, any>): Promise<any> {
+  async executeFile(filePath: string, _context?: Record<string, unknown>): Promise<Record<string, unknown>> {
+    void _context;
     // 执行文件中的代码
     return {
       success: true,
@@ -148,7 +149,7 @@ export class CodeExecutionEnvironment {
 export interface MCPClient {
   connect(server: MCPServer): Promise<void>;
   disconnect(server: MCPServer): Promise<void>;
-  callTool(server: MCPServer, toolName: string, params: Record<string, any>): Promise<any>;
+  callTool(server: MCPServer, toolName: string, params: Record<string, unknown>): Promise<unknown>;
 }
 
 export class SimpleMCPClient implements MCPClient {
@@ -162,7 +163,7 @@ export class SimpleMCPClient implements MCPClient {
     this.connectedServers = this.connectedServers.filter(name => name !== server.name);
   }
 
-  async callTool(server: MCPServer, toolName: string, params: Record<string, any>): Promise<any> {
+  async callTool(server: MCPServer, toolName: string, params: Record<string, unknown>): Promise<unknown> {
     const tool = server.tools[toolName];
     if (!tool) {
       throw new Error(`Tool not found: ${toolName}`);
