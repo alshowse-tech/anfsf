@@ -329,7 +329,7 @@ export class AgentRouter {
   /**
    * 检测多 Agent 输出冲突
    */
-  async detectConflicts(outputs: Map<string, any>): Promise<ConflictReport> {
+  async detectConflicts(outputs: Map<string, unknown>): Promise<ConflictReport> {
     const conflicts: Conflict[] = [];
 
     const outputArray = Array.from(outputs.entries());
@@ -340,7 +340,7 @@ export class AgentRouter {
         const [agent2, output2] = outputArray[j];
 
         // 检测输出不一致
-        if (this.hasOutputMismatch(output1, output2)) {
+        if (this.hasOutputMismatch(output1 as Record<string, unknown>, output2 as Record<string, unknown)) {
           conflicts.push({
             type: 'output_mismatch',
             agents: [agent1, agent2],
@@ -374,7 +374,7 @@ export class AgentRouter {
   /**
    * 检测输出不匹配
    */
-  private hasOutputMismatch(output1: any, output2: any): boolean {
+  private hasOutputMismatch(output1: Record<string, unknown>, output2: Record<string, unknown>): boolean {
     // 简化实现：比较关键属性
     if (typeof output1 === 'object' && typeof output2 === 'object') {
       const keys1 = Object.keys(output1);
