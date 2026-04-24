@@ -23,7 +23,7 @@ export interface GraphNode {
   label: string;
   type: 'requirement' | 'feature' | 'module' | 'entity' | 'flow';
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -223,7 +223,7 @@ export class GraphRAGVisualizer {
   /**
    * 图谱相似度对比
    */
-  async compareGraphs(graph1: RequirementGraph, graph2: RequirementGraph): Promise<Record<string, any>> {
+  async compareGraphs(graph1: RequirementGraph, graph2: RequirementGraph): Promise<Record<string, unknown>> {
     const nodes1 = new Set(graph1.nodes.map(n => n.id));
     const nodes2 = new Set(graph2.nodes.map(n => n.id));
 
@@ -277,7 +277,7 @@ export class GraphRAGVisualizer {
   /**
    * 获取统计
    */
-  getStats(): Record<string, any> {
+  getStats(): Record<string, unknown> {
     const graphs = Array.from(this.graphs.values());
     
     return {
