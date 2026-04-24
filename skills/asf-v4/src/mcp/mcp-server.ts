@@ -141,7 +141,8 @@ export class ANFSFMCPUserver implements MCPServer {
           },
         },
       },
-      execute: async (params: any) => {
+      execute: async (_params: Record<string, unknown>) => {
+        void _params;
         // 简化实现
         return { success: true, result: 'UI synthesized' };
       },
@@ -160,7 +161,8 @@ export class ANFSFMCPUserver implements MCPServer {
           config: { type: 'object' },
         },
       },
-      execute: async (params: any) => {
+      execute: async (_params: Record<string, unknown>) => {
+        void _params;
         // 简化实现
         return { success: true, result: 'Layout generated' };
       },
@@ -175,11 +177,13 @@ export class ANFSFMCPUserver implements MCPServer {
     logger.info('MCP Server disconnected');
   }
 
-  async getResource(uri: string): Promise<any> {
-    return { success: true, data: `Resource: ${uri}` };
+  async getResource(_uri: string): Promise<Record<string, unknown>> {
+    void _uri;
+    return { success: true, data: 'Resource' };
   }
 
-  async getPrompt(name: string, args?: Record<string, any>): Promise<any> {
+  async getPrompt(name: string, _args?: Record<string, unknown>): Promise<Record<string, unknown>> {
+    void _args;
     return { success: true, data: `Prompt: ${name}` };
   }
 }

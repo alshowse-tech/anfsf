@@ -79,8 +79,8 @@ export interface Conflict {
  */
 export interface CollaborativeMemory {
   taskId: string;
-  sharedContext: Map<string, any>;
-  agentOutputs: Map<string, any>;
+  sharedContext: Map<string, unknown>;
+  agentOutputs: Map<string, unknown>;
   conflicts: Conflict[];
   resolutions: string[];
 }
@@ -285,7 +285,8 @@ export class AgentRouter {
   /**
    * 计算 Token 预算
    */
-  private calculateTokenBudget(agent: AgentCapability, task: Task): number {
+  private calculateTokenBudget(agent: AgentCapability, _task: Task): number {
+    void _task;
     // 分配剩余预算的 80% 给任务
     return Math.floor(agent.tokenBudget * 0.8);
   }
