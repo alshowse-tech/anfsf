@@ -510,7 +510,8 @@ export class GraphRAGVisualizer {
   /**
    * 生成样式定义
    */
-  private generateStyles(graph: RequirementGraph): string {
+  private generateStyles(_graph: RequirementGraph): string {
+    void _graph;
     const styles = [
       'classDef requirement fill:#e3f2fd,stroke:#1976d2,stroke-width:2px',
       'classDef feature fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px',
