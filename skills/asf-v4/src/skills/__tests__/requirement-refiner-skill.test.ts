@@ -23,7 +23,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
 
   test('简单需求应使用标准精炼流程', async () => {
     const simpleReq = '创建一个用户登录页面，包含用户名和密码输入框';
-    const result = await skill.refine(simpleReq);
+    await skill.refine(simpleReq);
     
     expect(result).toBeDefined();
     // 验证未触发复杂度检测
@@ -32,7 +32,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
 
   test('空输入应优雅降级到标准精炼', async () => {
     const emptyReq = '';
-    const result = await skill.refine(emptyReq);
+    await skill.refine(emptyReq);
     
     expect(result).toBeDefined();
     // 应该成功处理空输入
@@ -44,7 +44,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
 
   test('否定词测试 - 不应误判为复杂', async () => {
     const negationReq = '这是一个简单项目，不需要多级审批，也不需要跨部门协作';
-    const result = await skill.refine(negationReq);
+    await skill.refine(negationReq);
     
     // 由于否定词影响，复杂度评分应该较低
     // expect(result.metadata?.isComplex).toBe(false);
@@ -64,7 +64,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
       5. 资金决算报表（计划部）
     `;
     
-    const result = await skill.refine(multiDeptReq);
+    await skill.refine(multiDeptReq);
     
     // 应该触发模块化拆分
     // expect(result.modules?.length).toBe(5);
@@ -78,7 +78,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
       功能：简单的项目管理
     `;
     
-    const result = await skill.refine(boundaryReq);
+    await skill.refine(boundaryReq);
     
     // 2个部门不应触发模块化拆分
     // expect(result.modules).toBeUndefined();
@@ -105,7 +105,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
       需要支持多语言和第三方登录。
     `;
     
-    const result = await skill.refine(mixedReq);
+    await skill.refine(mixedReq);
     
     expect(result).toBeDefined();
     // 应该正确处理混合格式
@@ -114,7 +114,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
   test('异常输入 - 纯图片引用', async () => {
     const imageReq = '![流程图](diagram.png)\n![界面设计](ui-design.png)';
     
-    const result = await skill.refine(imageReq);
+    await skill.refine(imageReq);
     
     expect(result).toBeDefined();
     // 应该优雅降级处理
@@ -134,7 +134,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
       - 多级审批
     `;
     
-    const result = await skill.refine(templateReq);
+    await skill.refine(templateReq);
     
     // 应该匹配固定资产投资模板
     // expect(result.metadata?.templateId).toBe('fixed-asset-investment');
@@ -147,7 +147,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
   test('异常输入 - 乱码应优雅降级', async () => {
     const garbageReq = 'asdf!@#$%^&*()_+{}|:"<>?';
     
-    const result = await skill.refine(garbageReq);
+    await skill.refine(garbageReq);
     
     expect(result).toBeDefined();
     // 应该不会抛出异常
@@ -167,7 +167,7 @@ describe('RequirementRefinerSkill - Hybrid Adaptive Parser', () => {
     const largeReq = '需求文档\n'.repeat(1000); // 1000行需求文档
     
     const startTime = Date.now();
-    const result = await skill.refine(largeReq);
+    await skill.refine(largeReq);
     const endTime = Date.now();
     
     expect(result).toBeDefined();

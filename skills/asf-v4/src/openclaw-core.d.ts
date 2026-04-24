@@ -18,5 +18,5 @@ declare module '@openclaw/core' {
     audio?: boolean;
     watermark?: boolean;
     filename?: string;
-  }): Promise<any>;
+  }): Promise<unknown>;
 }

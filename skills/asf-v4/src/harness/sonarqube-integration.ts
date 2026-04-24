@@ -390,8 +390,9 @@ export class SonarQubeIntegration {
 
     // 检查 SQL 注入风险
     if (/SELECT.*FROM.*\+/.test(code) || /INSERT.*INTO.*\+/.test(code)) {
+      issueCount++;
       issues.push({
-        key: `vuln_${++issueCount}`,
+        key: `vuln_${issueCount}`,
         type: 'vulnerability',
         severity: 'CRITICAL',
         message: '可能的 SQL 注入风险',

@@ -78,9 +78,9 @@ describe('PromptCacheManager', () => {
       const prompt = 'This is a test prompt that should be cached properly for testing purposes';
 
       cacheManager.set(prompt, 'model-1', { content: 'Test' }, 100);
-      const hit1 = cacheManager.check(prompt, 'model-1'); // Hit
-      const hit2 = cacheManager.check(prompt, 'model-1'); // Hit
-      const miss = cacheManager.check('Another prompt for testing cache miss scenario', 'model-1'); // Miss
+      cacheManager.check(prompt, 'model-1'); // Hit
+      cacheManager.check(prompt, 'model-1'); // Hit
+      cacheManager.check('Another prompt for testing cache miss scenario', 'model-1'); // Miss
 
       const stats = cacheManager.getStats();
 
