@@ -166,7 +166,7 @@ export class RequirementRefinerSkill extends Skill {
         this.logger.log('🔄 使用增强型单模块解析');
         return await this.enhancedSingleModuleParse(rawRequirement);
       }
-    } catch (error: any) {
+    } catch (error) {
       // 错误处理 - 回退到标准精炼
       this.logger.error(`❌ Hybrid Adaptive Parser 失败: ${error?.message || 'Unknown error'}`, error);
       this.logger.warn('🔄 回退到标准精炼流程');
@@ -202,7 +202,7 @@ export class RequirementRefinerSkill extends Skill {
       const conditionalFlows = (req.match(/如果 | 当 | 只要 | 除非/g) || []).length;
 
       return paragraphs * 2 + connectors + dataFlows * 2 + conditionalFlows;
-    } catch (error: any) {
+    } catch (error) {
       this.logger.warn(`⚠️ 依赖深度估算失败: ${error?.message || 'Unknown error'}`);
       return 0;
     }
@@ -225,7 +225,7 @@ export class RequirementRefinerSkill extends Skill {
         // 关键:为每个模块注入独立 MemPalace Wing(解决长生命周期状态同步问题)
         await this.mempalace.createWing(`module-${mod.name}`, subGraph);
         this.logger.log(`✅ 已为模块 "${mod.name}" 创建独立 Wing`);
-      } catch (error: any) {
+      } catch (error) {
         this.logger.error(`❌ 模块 "${mod.name}" 创建失败: ${error?.message || 'Unknown error'}`);
         // 继续处理其他模块,不中断整个流程
         const emptySubGraph = new RefinedGraph();
@@ -265,7 +265,7 @@ export class RequirementRefinerSkill extends Skill {
       // 合并结果
       Object.assign(graph, standardResult);
 
-    } catch (error: any) {
+    } catch (error) {
       this.logger.warn(`⚠️ 增强解析失败,回退到标准精炼: ${error?.message || 'Unknown error'}`);
       return this.standardRefine(req);
     }
@@ -301,7 +301,7 @@ export class RequirementRefinerSkill extends Skill {
         // 暂时保留原内容,后续可扩展
       }
 
-    } catch (error: any) {
+    } catch (error) {
       this.logger.warn(`⚠️ 多格式解析警告: ${error?.message || 'Unknown error'}`);
     }
 
