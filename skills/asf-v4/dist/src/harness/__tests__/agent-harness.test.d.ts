@@ -1,4 +1,0 @@
-/**
- * Agent Harness Tests
- */
-export {};

@@ -1,4 +1,0 @@
-/**
- * Prototype Generator Tests
- */
-export {};

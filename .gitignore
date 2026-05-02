@@ -38,3 +38,12 @@ projects/anfsf-v1.1/
 # Project-specific
 projects/*/venv/
 projects/*/node_modules/
+
+# Tool state files
+.openclaw/
+.claude/
+*.js
+!jest.config.js
+!eslint.config.js
+!vitest.config.js
+*.d.ts

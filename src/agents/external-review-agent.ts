@@ -241,7 +241,10 @@ export class ExternalReviewAgent {
 // Factory
 // ============================================================================
 
-export function createExternalReviewAgent(): ExternalReviewAgent {
+export function createExternalReviewAgent(options?: { mockPool?: boolean }): ExternalReviewAgent {
+  if (options?.mockPool) {
+    return new ExternalReviewAgentWithMockDb();
+  }
   return new ExternalReviewAgent({
     host: process.env.EXTERNAL_REVIEW_DB_HOST || 'localhost',
     port: parseInt(process.env.EXTERNAL_REVIEW_DB_PORT || '5433'),
@@ -249,4 +252,43 @@ export function createExternalReviewAgent(): ExternalReviewAgent {
     password: process.env.EXTERNAL_REVIEW_DB_PASSWORD || 'external_review_password',
     database: process.env.EXTERNAL_REVIEW_DB_NAME || 'kpi_db',
   });
+}
+
+/**
+ * In-memory mock implementation for testing without PostgreSQL.
+ */
+class ExternalReviewAgentWithMockDb extends ExternalReviewAgent {
+  private mockKpiRecords: Array<{
+    time: Date;
+    trace_id: string;
+    score: number;
+    has_veto: boolean;
+    latency_ms: number;
+  }> = [];
+
+  constructor() {
+    super({ host: 'localhost', port: 5433, user: 'mock', password: 'mock', database: 'mock' });
+    // Override the dbPool with a mock
+    (this as any).dbPool = {
+      query: async (sql: string, params?: any[]) => {
+        if (sql.startsWith('INSERT')) {
+          this.mockKpiRecords.push({
+            time: new Date(),
+            trace_id: params![0],
+            score: params![1],
+            has_veto: params![2],
+            latency_ms: params![3],
+          });
+          return { rows: [] };
+        }
+        if (sql.startsWith('SELECT')) {
+          const limit = params?.[0] ?? 10;
+          const sorted = [...this.mockKpiRecords].sort((a, b) => b.time.getTime() - a.time.getTime());
+          return { rows: sorted.slice(0, limit) };
+        }
+        return { rows: [] };
+      },
+      end: async () => {},
+    };
+  }
 }

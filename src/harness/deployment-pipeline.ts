@@ -110,10 +110,10 @@ export class DeploymentPipeline {
   ): Promise<GuardResult> {
     // Parallel execution of all inline guards (<10ms target)
     const [qualityResult, hallucinationResult] = await Promise.all([
-      this.inlineGuard.execute(code, graph),
+      this.inlineGuard.execute({ code, graph }),
       this.hallucinationGuard.execute({
         generatedText: code,
-        sources: graph.nodes.map(n => ({ id: n.id, content: n.content, type: 'requirement', reliability: 0.9 })),
+        sources: graph.nodes.map(n => ({ id: n.id, content: n.content, type: 'graph_node' as const, reliability: 0.9 })),
         mode: 'standard',
         enableGraphValidation: true,
       }),

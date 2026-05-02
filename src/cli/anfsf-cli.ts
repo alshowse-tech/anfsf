@@ -9,6 +9,9 @@ import { MCPBus } from '../mcp/mcp-bus';
 import { SkillsRegistry } from '../skills/skills-registry';
 import { AgentHarness } from '../harness/agent-harness';
 import { ChangeEvent } from '../core/graph/types';
+import { ProductPipeline, PipelineConfig } from '../pipeline/product-pipeline';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // ============================================================================
 // Constants
@@ -96,14 +99,97 @@ function createChangeEvent(action: string, target: string, data: any, dryRun: bo
 
 /**
  * Synthesize command - Trigger role synthesis and architecture generation
+ * When --prd <file> is provided, runs the full L1→L4→L6→L7→Write pipeline.
  */
-export async function synthesizeCommand(options: CLIOptions & { projectId?: string; k?: number }): Promise<CommandResult> {
-  const { dryRun, kAuto, output, projectId, k } = options;
+export async function synthesizeCommand(options: CLIOptions & { projectId?: string; k?: number; prd?: string; output?: string; framework?: string }): Promise<CommandResult> {
+  const { dryRun, kAuto, output, projectId, k, prd: prdFile, framework } = options;
 
   try {
+    // If a PRD file is provided, run the real pipeline
+    if (prdFile) {
+      const resolvedPath = path.resolve(prdFile);
+      if (!fs.existsSync(resolvedPath)) {
+        return { success: false, error: `PRD file not found: ${resolvedPath}` };
+      }
+
+      const prdText = fs.readFileSync(resolvedPath, 'utf-8');
+      console.log(`[anfsf] ${dryRun ? '[DRY RUN] ' : ''}Synthesizing from PRD: ${resolvedPath}`);
+
+      const apiKey = process.env.DASHSCOPE_API_KEY || '';
+      if (!apiKey && !dryRun) {
+        return { success: false, error: 'DASHSCOPE_API_KEY environment variable is required. Set it or use --dry-run.' };
+      }
+
+      const outputDir = options.output || './output';
+
+      const config: PipelineConfig = {
+        apiKey: apiKey || 'dry-run-key',
+        uiFramework: (framework as any) || 'react',
+        outputDir,
+      };
+
+      if (dryRun) {
+        console.log(`[anfsf] [DRY RUN] Would run ProductPipeline with PRD: ${resolvedPath}`);
+        console.log(`[anfsf] [DRY RUN] Output directory: ${outputDir}`);
+        return {
+          success: true,
+          data: { dryRun: true, prdFile: resolvedPath, outputDir },
+        };
+      }
+
+      const pipeline = new ProductPipeline(config);
+      const result = await pipeline.run({ prdText });
+
+      if (!result.success || !result.output) {
+        return {
+          success: false,
+          error: result.output?.errors.join('; ') || 'Pipeline failed with unknown error',
+        };
+      }
+
+      const { output: pipelineOutput } = result;
+
+      const summary: any = {
+        steps: result.steps.map(s => `${s.name}: ${s.status} (${s.duration}ms)`),
+        totalDuration: `${result.totalDuration}ms`,
+        prdFeatures: pipelineOutput.prd.features.length,
+        irServices: pipelineOutput.ir.service.services.length,
+        irEndpoints: pipelineOutput.ir.service.endpoints.length,
+        irComponents: pipelineOutput.ir.ui.components.length,
+        irPages: pipelineOutput.ir.ui.pages.length,
+        uiComponentsGenerated: pipelineOutput.uiComponents.length,
+      };
+
+      if (pipelineOutput.frontendArchitecture) {
+        summary.frontendFiles = pipelineOutput.frontendArchitecture.summary;
+      }
+      if (pipelineOutput.backendArchitecture) {
+        summary.backendFiles = pipelineOutput.backendArchitecture.summary;
+      }
+      if (pipelineOutput.writeReport) {
+        summary.filesWritten = {
+          frontend: {
+            count: pipelineOutput.writeReport.frontend.totalWritten,
+            bytes: pipelineOutput.writeReport.frontend.totalBytes,
+            errors: pipelineOutput.writeReport.frontend.errors.length,
+          },
+          backend: {
+            count: pipelineOutput.writeReport.backend.totalWritten,
+            bytes: pipelineOutput.writeReport.backend.totalBytes,
+            errors: pipelineOutput.writeReport.backend.errors.length,
+          },
+        };
+      }
+
+      return {
+        success: true,
+        data: summary,
+      };
+    }
+
+    // Legacy: mock synthesis result (no PRD file provided)
     console.log(`[anfsf] ${dryRun ? '[DRY RUN] ' : ''}Synthesizing architecture...`);
 
-    // Mock synthesis result
     const result = {
       projectId: projectId || 'default',
       roles: kAuto ? 'auto-optimized' : k || 5,
@@ -525,6 +611,9 @@ Usage: anfsf <command> [subcommand] [options]
 
 Commands:
   synthesize              Trigger role synthesis and architecture generation
+    --prd <file>          Run full L1→L4→L6→L7 pipeline from PRD file
+    --framework <name>    UI framework: react (default), vue, angular
+    --output <dir>        Output directory for generated files (default: ./output)
   preview                 Preview architecture changes
   verify                  Verify architecture consistency
   role rebalance          Rebalance role assignments
@@ -536,12 +625,13 @@ Commands:
 Options:
   --dry-run              Simulate without making changes
   --k-auto               Auto-optimize role count
-  --output <format>      Output format: table | json (default: table)
+  --output <format|dir>  Output format: table | json (default: table), or output dir for synthesize
   --verbose              Enable verbose output
   --help                 Show this help message
 
 Examples:
-  anfsf synthesize --k-auto --dry-run
+  anfsf synthesize --prd ./my-prd.md --framework react --output ./generated
+  anfsf synthesize --prd ./my-prd.md --dry-run
   anfsf preview --output json
   anfsf role rebalance --project my-project
   anfsf ui gen --framework react

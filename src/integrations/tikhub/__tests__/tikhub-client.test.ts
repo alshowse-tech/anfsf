@@ -154,44 +154,5 @@ describe('TikHubClient', () => {
   });
 });
 
-describe('TikHubService 集成测试', () => {
-  // 延迟导入以避免循环依赖
-  let TikHubService: any;
-
-  beforeAll(async () => {
-    const module = await import('../../../../projects/jieyue-securities/backend/services/tikhub-service');
-    TikHubService = module.TikHubService;
-  });
-
-  describe('平台检测', () => {
-    it('应该正确识别抖音链接', () => {
-      const service = new TikHubService('test-api-key');
-      expect(service).toBeDefined();
-    });
-
-    it('应该正确识别 TikTok 链接', () => {
-      const service = new TikHubService('test-api-key');
-      expect(service).toBeDefined();
-    });
-
-    it('应该正确识别小红书链接', () => {
-      const service = new TikHubService('test-api-key');
-      expect(service).toBeDefined();
-    });
-
-    it('应该正确识别 B 站链接', () => {
-      const service = new TikHubService('test-api-key');
-      expect(service).toBeDefined();
-    });
-
-    it('应该拒绝不支持的平台', async () => {
-      const service = new TikHubService('test-api-key');
-      
-      try {
-        await service.parseVideoUrl('https://example.com/video');
-      } catch (error) {
-        expect(error).toBeInstanceOf(TikHubError);
-      }
-    });
-  });
-});
+// TikHubService integration tests removed: the referenced module
+// ../../../../projects/jieyue-securities/backend/services/tikhub-service was deleted during repository consolidation.

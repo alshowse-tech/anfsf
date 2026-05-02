@@ -9,7 +9,7 @@ describe('ExternalReviewAgent Tests', () => {
   let agent: ExternalReviewAgent;
 
   beforeEach(() => {
-    agent = createExternalReviewAgent();
+    agent = createExternalReviewAgent({ mockPool: true });
   });
 
   afterEach(async () => {

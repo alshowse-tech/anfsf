@@ -1,4 +1,0 @@
-/**
- * ANFSF CLI Tests
- */
-export {};

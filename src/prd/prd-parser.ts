@@ -159,15 +159,103 @@ export interface QASpec {
   automation: number;
 }
 
+export interface PRDParserConfig {
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+}
+
 /**
  * AI-Native PRD Parser
  */
 export class AINativePRDParser {
+  private apiKey: string;
+  private baseUrl: string;
+  private model: string;
+
+  constructor(config?: PRDParserConfig) {
+    this.apiKey = config?.apiKey || process.env.DASHSCOPE_API_KEY || '';
+    this.baseUrl = config?.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    this.model = config?.model || 'qwen3.5-plus';
+  }
+
   /**
    * 解析 PRD 文档
    */
-  parse(prdText: string): AINativePRD {
-    // TODO: 实现 AI 驱动的 PRD 解析
+  async parse(prdText: string): Promise<AINativePRD> {
+    if (!prdText || !prdText.trim()) {
+      return this.emptyPRD();
+    }
+
+    if (!this.apiKey) {
+      return this.emptyPRD();
+    }
+
+    const systemPrompt = `你是一个专业的 PRD 解析器。将输入的 PRD 文本解析为结构化的 JSON 格式。
+
+严格按照以下 JSON Schema 输出，不要输出任何其他内容：
+- features: 功能特性数组，每个特征包含 id, name, description, priority(P0/P1/P2/P3), status(draft/approved/in-progress/completed)
+- userFlows: 用户流程数组，每个流程包含 id, name, steps(步骤数组，每步含 step序号, action, expected)
+- uiRequirements: UI需求数组，每个包含 id, component, description, interactions(字符串数组)
+- data: 数据实体规格数组，每个包含 entity, fields(字段数组), relationships(关系数组)
+- constraints: 约束条件数组，每个包含 id, type(technical/business/regulatory), description
+- acceptanceCriteria: 验收标准数组，每个包含 id, featureId, description, testable(布尔)
+- dependencies: 依赖关系数组，每个包含 id, type(internal/external), description, critical(布尔)
+- nonFunctionalSpecs: 非功能需求数组，每个包含 category(performance/security/scalability/reliability), requirement, metric, target
+- workflow: 工作流数组，每个包含 id, name, triggers(数组), actions(数组)
+- backendSpecs: 后端规格，包含 api(path/method/request/response) 和 services(name/responsibility/dependencies)
+- infrastructureSpecs: 基础设施规格数组，每个包含 environment(dev/staging/prod), resources, scaling
+- qaSpecs: QA规格，包含 testTypes, coverage, automation
+
+如果某部分信息在输入中不存在，设为空数组，不要编造。`;
+
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prdText },
+        ],
+        temperature: 0.1,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`百炼 API 调用失败: ${response.status} ${error}`);
+    }
+
+    const data = await response.json() as { choices: Array<{ message: { content: string } }> };
+    const content = data.choices[0]?.message?.content || '';
+
+    try {
+      const parsed = JSON.parse(content) as Partial<AINativePRD>;
+      return {
+        features: parsed.features || [],
+        userFlows: parsed.userFlows || [],
+        uiRequirements: parsed.uiRequirements || [],
+        data: parsed.data || [],
+        constraints: parsed.constraints || [],
+        acceptanceCriteria: parsed.acceptanceCriteria || [],
+        dependencies: parsed.dependencies || [],
+        nonFunctionalSpecs: parsed.nonFunctionalSpecs || [],
+        workflow: parsed.workflow || [],
+        backendSpecs: parsed.backendSpecs || [],
+        infrastructureSpecs: parsed.infrastructureSpecs || [],
+        qaSpecs: parsed.qaSpecs || [],
+      };
+    } catch {
+      return this.emptyPRD();
+    }
+  }
+
+  private emptyPRD(): AINativePRD {
     return {
       features: [],
       userFlows: [],

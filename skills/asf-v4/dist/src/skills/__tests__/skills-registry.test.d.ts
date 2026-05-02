@@ -1,4 +1,0 @@
-/**
- * Skills Registry Tests
- */
-export {};

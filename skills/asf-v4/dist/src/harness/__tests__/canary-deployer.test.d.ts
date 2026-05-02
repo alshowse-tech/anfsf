@@ -1,4 +1,0 @@
-/**
- * Canary Deployer Tests
- */
-export {};

@@ -1,4 +1,0 @@
-/**
- * Layout Generator Tests
- */
-export {};
