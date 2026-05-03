@@ -131,9 +131,9 @@ describe('Layer 8.5 Harness Integration Tests', () => {
 
     it('should send messages with idempotency', async () => {
       // Register agent with callback to receive messages
-      const receivedMessages: any[] = [];
+      const receivedMessages: unknown[] = [];
       const bus = orchestrationHarness.getBus();
-      bus.subscribe('agent-1', (msg: any) => receivedMessages.push(msg));
+      bus.subscribe('agent-1', (_msg: unknown) => receivedMessages.push(_msg));
 
       const response1 = await orchestrationHarness.sendMessage(
         'sender',
@@ -163,15 +163,15 @@ describe('Layer 8.5 Harness Integration Tests', () => {
       const bus = orchestrationHarness.getBus();
       const receivedAgents = new Set<string>();
 
-      bus.subscribe('agent-1', (msg: any) => { receivedAgents.add('agent-1'); });
-      bus.subscribe('agent-2', (msg: any) => { receivedAgents.add('agent-2'); });
-      bus.subscribe('agent-3', (msg: any) => { receivedAgents.add('agent-3'); });
+      bus.subscribe('agent-1', (_msg: unknown) => { receivedAgents.add('agent-1'); });
+      bus.subscribe('agent-2', (_msg: unknown) => { receivedAgents.add('agent-2'); });
+      bus.subscribe('agent-3', (_msg: unknown) => { receivedAgents.add('agent-3'); });
 
       // Use MCP Bus directly for broadcast test
       const message = new MessageBuilder()
         .from('sender')
         .to('*')
-        .type('announcement' as any)
+        .type('proposal' as const)
         .payload({ message: 'hello' })
         .requiresAck(true)  // Require ack to get responses
         .build();

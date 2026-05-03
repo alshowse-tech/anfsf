@@ -9,7 +9,7 @@ import {
   applyViolations,
   simpleCheck,
 } from '../guard-pipeline';
-import type { GuardPipelineConfig, CheckResult, Violation } from '../guard-pipeline';
+import type { CheckResult, Violation } from '../guard-pipeline';
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -11,6 +11,7 @@ import {
   SandboxContext,
   isExecutionResult,
 } from './types';
+import * as vm from 'vm';
 
 // ============================================================================
 // Constants
@@ -83,7 +84,7 @@ function estimateMemoryUsage(obj: any): number {
         }
       } else {
         for (const key in value) {
-          if (value.hasOwnProperty(key)) {
+          if (Object.prototype.hasOwnProperty.call(value, key)) {
             size += calculateSize(value[key]);
           }
         }
@@ -231,37 +232,35 @@ export class SandboxExecutor {
   }
 
   private createSandboxConsole(): any {
-    const self = this;
-    
     return {
-      log(...args: any[]) {
+      log: (...args: any[]) => {
         const message = args.map(a => String(a)).join(' ');
-        if (self.config.enableConsoleCapture) {
-          self.consoleBuffer.push(`[LOG] ${message}`);
+        if (this.config.enableConsoleCapture) {
+          this.consoleBuffer.push(`[LOG] ${message}`);
         }
       },
-      warn(...args: any[]) {
+      warn: (...args: any[]) => {
         const message = args.map(a => String(a)).join(' ');
-        if (self.config.enableConsoleCapture) {
-          self.consoleBuffer.push(`[WARN] ${message}`);
+        if (this.config.enableConsoleCapture) {
+          this.consoleBuffer.push(`[WARN] ${message}`);
         }
       },
-      error(...args: any[]) {
+      error: (...args: any[]) => {
         const message = args.map(a => String(a)).join(' ');
-        if (self.config.enableConsoleCapture) {
-          self.consoleBuffer.push(`[ERROR] ${message}`);
+        if (this.config.enableConsoleCapture) {
+          this.consoleBuffer.push(`[ERROR] ${message}`);
         }
       },
-      debug(...args: any[]) {
+      debug: (...args: any[]) => {
         const message = args.map(a => String(a)).join(' ');
-        if (self.config.enableConsoleCapture) {
-          self.consoleBuffer.push(`[DEBUG] ${message}`);
+        if (this.config.enableConsoleCapture) {
+          this.consoleBuffer.push(`[DEBUG] ${message}`);
         }
       },
-      info(...args: any[]) {
+      info: (...args: any[]) => {
         const message = args.map(a => String(a)).join(' ');
-        if (self.config.enableConsoleCapture) {
-          self.consoleBuffer.push(`[INFO] ${message}`);
+        if (this.config.enableConsoleCapture) {
+          this.consoleBuffer.push(`[INFO] ${message}`);
         }
       },
     };
@@ -274,24 +273,24 @@ export class SandboxExecutor {
       }, this.config.maxExecutionTimeMs);
 
       try {
-        // Create a function from the code
-        // In production, this should use a proper sandbox like vm2 or isolated-vm
+        // Wrap code to accept context and call main function
         const wrappedCode = `
-          (function(context) {
+          (function() {
             'use strict';
-            try {
-              ${code}
-              return main ? main(context) : undefined;
-            } catch (error) {
-              throw error;
-            }
-          })
+            var __ctx = context;
+            ${code}
+            return typeof main === 'function' ? main(__ctx) : undefined;
+          })()
         `;
 
-        // Execute the code
-        // Note: This is a simplified implementation. In production, use a proper sandbox.
-        const executeFn = new Function('context', wrappedCode);
-        const result = executeFn(context);
+        // Create sandbox with only allowed globals
+        const sandbox = vm.createContext(context);
+
+        // Execute in VM context with timeout
+        const result = vm.runInContext(wrappedCode, sandbox, {
+          timeout: this.config.maxExecutionTimeMs,
+          displayErrors: true,
+        });
 
         clearTimeout(timeoutId);
 

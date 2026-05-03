@@ -7,6 +7,7 @@
 
 import { describe, it, expect } from '@jest/globals';
 import { calculateJSD, calculateDriftIndex, buildTaskTypeDistribution, InMemoryKPIDataSource } from '../kpi-engine';
+import type { Task } from '../kpi-types';
 
 describe('calculateJSD', () => {
   it('should return 0 for identical distributions', () => {
@@ -95,7 +96,7 @@ describe('buildTaskTypeDistribution', () => {
       { id: '3', type: 'db', status: 'completed', roleId: 'r1', createdAt: now - 1000, completedAt: now - 500 },
     ];
 
-    const dist = buildTaskTypeDistribution(tasks as any, 3600000);
+    const dist = buildTaskTypeDistribution(tasks as unknown as Task[], 3600000);
 
     expect(dist.api).toBeCloseTo(0.667, 2);
     expect(dist.db).toBeCloseTo(0.333, 2);
@@ -109,7 +110,7 @@ describe('buildTaskTypeDistribution', () => {
       { id: '3', type: 'ui', status: 'failed', roleId: 'r1', createdAt: now - 1000 },
     ];
 
-    const dist = buildTaskTypeDistribution(tasks as any, 3600000);
+    const dist = buildTaskTypeDistribution(tasks as unknown as Task[], 3600000);
 
     expect(dist.api).toBe(1);
     expect(dist.db).toBeUndefined();
@@ -123,7 +124,7 @@ describe('buildTaskTypeDistribution', () => {
       { id: '2', type: 'db', status: 'completed', roleId: 'r1', createdAt: now - 10000000, completedAt: now - 9999000 },
     ];
 
-    const dist = buildTaskTypeDistribution(tasks as any, 3600000);
+    const dist = buildTaskTypeDistribution(tasks as unknown as Task[], 3600000);
 
     expect(dist.api).toBe(1);
     expect(dist.db).toBeUndefined();
@@ -137,7 +138,7 @@ describe('InMemoryKPIDataSource', () => {
       { id: '1', type: 'api', status: 'completed', roleId: 'r1', createdAt: 0, completedAt: 100 },
     ];
 
-    source.setTasks('r1', tasks as any);
+    source.setTasks('r1', tasks as unknown as Task[]);
     const retrieved = await source.getTasks('r1', 0);
 
     expect(retrieved.length).toBe(1);

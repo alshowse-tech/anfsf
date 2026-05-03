@@ -411,9 +411,11 @@ export class ${name}Component {
 
     // Add custom dependencies
     if (requirement.dependencies) {
-      Array.isArray(requirement.dependencies)
-        ? requirement.dependencies.forEach((d: string) => deps.add(d))
-        : deps.add(requirement.dependencies);
+      if (Array.isArray(requirement.dependencies)) {
+        requirement.dependencies.forEach((d: string) => deps.add(d));
+      } else {
+        deps.add(requirement.dependencies);
+      }
     }
 
     return Array.from(deps);

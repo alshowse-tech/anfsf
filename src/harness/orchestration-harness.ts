@@ -7,12 +7,17 @@
 
 import { MCPBus, MessageBuilder } from '../mcp/mcp-bus';
 import type { MCPBusConfig } from '../mcp/types';
+import { TaskDAGEngine, createTaskDAGEngine, type TaskNode, type DAGExecutionPlan, type TaskInsertionResult } from '../core/task-dag/task-dag-engine';
 
 export interface OrchestrationConfig {
   mcpBusConfig: MCPBusConfig;
   maxConcurrentAgents: number;
   enableTracing: boolean;
   enableIdempotency: boolean;
+  /** DAG parallelism cap */
+  maxParallelism?: number;
+  /** Auto-break dependency cycles */
+  autoBreakCycles?: boolean;
 }
 
 const DEFAULT_CONFIG: OrchestrationConfig = {
@@ -27,6 +32,8 @@ const DEFAULT_CONFIG: OrchestrationConfig = {
   maxConcurrentAgents: 10,
   enableTracing: true,
   enableIdempotency: true,
+  maxParallelism: 10,
+  autoBreakCycles: true,
 };
 
 /**
@@ -37,12 +44,19 @@ export class OrchestrationHarness {
   private mcpBus: MCPBus;
   private activeAgents: Set<string>;
   private messageQueue: Array<{ message: any; timestamp: number }>;
+  private taskDAG: TaskDAGEngine;
+  private currentPlan: DAGExecutionPlan | null = null;
+  private onTaskComplete?: (taskId: string, newlyReady: string[]) => void;
 
   constructor(config: Partial<OrchestrationConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.mcpBus = new MCPBus(this.config.mcpBusConfig);
     this.activeAgents = new Set();
     this.messageQueue = [];
+    this.taskDAG = createTaskDAGEngine({
+      maxParallelism: this.config.maxParallelism,
+      autoBreakCycles: this.config.autoBreakCycles,
+    });
   }
 
   /**
@@ -50,6 +64,13 @@ export class OrchestrationHarness {
    */
   getBus(): MCPBus {
     return this.mcpBus;
+  }
+
+  /**
+   * Get Task DAG engine instance.
+   */
+  getTaskDAG(): TaskDAGEngine {
+    return this.taskDAG;
   }
 
   /**
@@ -78,6 +99,89 @@ export class OrchestrationHarness {
    */
   isAgentActive(agentId: string): boolean {
     return this.activeAgents.has(agentId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // DAG-based Task Orchestration
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Register a task for DAG-based execution.
+   */
+  registerTask(task: Omit<TaskNode, 'status' | 'dependencies' | 'dependents'> & { dependencies?: string[] }): void {
+    this.taskDAG.addTask(task);
+  }
+
+  /**
+   * Generate and execute DAG-based task plan.
+   * Returns the execution plan with parallel waves.
+   */
+  planAndExecute(): DAGExecutionPlan | null {
+    this.currentPlan = this.taskDAG.generateExecutionPlan();
+    return this.currentPlan;
+  }
+
+  /**
+   * Execute a single wave of ready tasks by sending messages to agents.
+   * Returns the list of task IDs dispatched in this wave.
+   */
+  async executeWave(agentId: string): Promise<string[]> {
+    const readyTasks = this.taskDAG.getReadyTasks();
+    const dispatched: string[] = [];
+
+    for (const taskId of readyTasks.slice(0, this.config.maxConcurrentAgents)) {
+      const task = this.taskDAG.getTask(taskId);
+      if (!task || task.status !== 'ready') continue;
+
+      task.status = 'running';
+      await this.sendMessage('orchestrator', agentId, 'task_execute', { taskId, task });
+      dispatched.push(taskId);
+    }
+
+    return dispatched;
+  }
+
+  /**
+   * Mark a task as completed and get newly ready tasks.
+   */
+  completeTask(taskId: string): string[] {
+    const result = this.taskDAG.completeTask(taskId);
+    if (this.onTaskComplete) {
+      this.onTaskComplete(taskId, result.newlyReady);
+    }
+    return result.newlyReady;
+  }
+
+  /**
+   * Insert a new task at runtime and re-plan.
+   */
+  insertTask(task: Omit<TaskNode, 'status' | 'dependencies' | 'dependents'> & { dependencies?: string[] }): TaskInsertionResult {
+    const result = this.taskDAG.insertTask(task);
+    if (result.inserted) {
+      this.currentPlan = result.newPlan ?? this.taskDAG.generateExecutionPlan();
+    }
+    return result;
+  }
+
+  /**
+   * Get DAG status summary.
+   */
+  getDAGStatus() {
+    return this.taskDAG.getStatus();
+  }
+
+  /**
+   * Get current execution plan.
+   */
+  getCurrentPlan(): DAGExecutionPlan | null {
+    return this.currentPlan;
+  }
+
+  /**
+   * Set callback for task completion.
+   */
+  onTaskCompleted(callback: (taskId: string, newlyReady: string[]) => void): void {
+    this.onTaskComplete = callback;
   }
 
   /**

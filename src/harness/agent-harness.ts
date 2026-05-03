@@ -607,7 +607,7 @@ export class AgentHarness {
 
       // Check 1: Critical CSS inlined
       const criticalInline = await page.evaluate(() => {
-        // @ts-ignore - browser context
+        // @ts-expect-error - browser context
         const criticalStyle = document.querySelector('style[data-critical]');
         return criticalStyle !== null;
       });
@@ -650,23 +650,22 @@ export class AgentHarness {
 
       // Check 4: Count total styles
       const styleCount = await page.evaluate(() => {
-        // @ts-ignore - browser context
+        // @ts-expect-error - browser context
         const stylesheets = Array.from(document.styleSheets);
-        // @ts-ignore - browser context
+        // @ts-expect-error - browser context
         const inlineStyles = document.querySelectorAll('style');
         return stylesheets.length + inlineStyles.length;
       });
 
       // Check 5: Verify no FOUC (check if body is visible before styles load)
       const foucDetected = await page.evaluate(() => {
-        // @ts-ignore - browser context
+        // @ts-expect-error - browser context
         const body = document.body;
-        // @ts-ignore - browser context
+        // @ts-expect-error - browser context
         const computedStyle = window.getComputedStyle(body);
-        // @ts-ignore - browser context
         return computedStyle.opacity === '1' && 
                computedStyle.visibility === 'visible' &&
-               // @ts-ignore - browser context
+               // @ts-expect-error - browser context
                !document.querySelector('style[data-critical]');
       });
 
@@ -720,9 +719,8 @@ export class AgentHarness {
     if (styleUrls.length > 0) {
       for (const url of styleUrls) {
         const isLoaded = await page.evaluate((styleUrl: string) => {
-          // @ts-ignore - browser context has document
+          // @ts-expect-error - browser context has document
           const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
-          // @ts-ignore - browser context
           return links.some((link: any) => link.href === styleUrl);
         }, url);
 

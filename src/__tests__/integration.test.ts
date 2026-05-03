@@ -71,7 +71,7 @@ describe('Layer 8.5 Integration Tests', () => {
   describe('MCP Bus Integration', () => {
     it('should coordinate agents via MCP', async () => {
       const bus = new MCPBus({ enableTracing: true });
-      const messages: any[] = [];
+      const messages: unknown[] = [];
 
       // Subscribe agents
       const sub1 = bus.subscribe('agent-1', (msg) => messages.push({ agent: 'agent-1', msg }));

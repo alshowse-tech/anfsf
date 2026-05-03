@@ -127,7 +127,7 @@ describe('AgentHarness', () => {
         config: {},
       };
 
-      const result = await harness.deployWithCanary(policy, {
+      await harness.deployWithCanary(policy, {
         stageDurationMs: 100,
       });
 

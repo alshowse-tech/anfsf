@@ -416,7 +416,7 @@ function calculateOpenAPIRiskScore(
   breaking: boolean,
   allDiffItems: DiffItem[]
 ): number {
-  let score = 50; // Base score
+  let score = 0; // Base score
 
   // Breaking changes add significant risk
   if (breaking) {
@@ -453,7 +453,7 @@ export function canAutoApproveOpenAPI(diff: OpenAPIDiff): boolean {
   if (diff.changes.removed.length > 0) return false;
 
   // Risk score must be low
-  if ((diff.riskScore || 50) >= 20) return false;
+  if ((diff.riskScore ?? 50) >= 20) return false;
 
   return true;
 }

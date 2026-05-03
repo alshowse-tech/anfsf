@@ -577,7 +577,7 @@ function calculateDBSchemaRiskScore(
   breaking: boolean,
   allDiffItems: DiffItem[]
 ): number {
-  let score = 50;
+  let score = 0;
 
   if (breaking) score += 30;
 
@@ -613,7 +613,7 @@ export function canAutoApproveDBSchema(diff: DBSchemaDiff): boolean {
   if (diff.changes.removed.length > 0) return false;
 
   // Risk score must be low
-  if ((diff.riskScore || 50) >= 20) return false;
+  if ((diff.riskScore ?? 50) >= 20) return false;
 
   return true;
 }

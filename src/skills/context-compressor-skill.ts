@@ -222,26 +222,82 @@ export class ContextCompressorSkill extends Skill {
   }
 
   /**
-   * Generate semantic summary for L2 layer.
+   * Generate semantic summary for L2 layer using extractive summarization.
+   * Scores sentences by term frequency and selectivity, picks top-k.
    */
   private async generateSemanticSummary(tokens: string[]): Promise<string[]> {
-    // Simulated semantic summarization
-    // In production, use actual summarization model
-    const summaryInterval = Math.max(1, Math.floor(tokens.length / 10));
-    const summary = tokens.filter((_, idx) => idx % summaryInterval === 0);
-    return [`[L2_SUMMARY:${summary.length} tokens]`, ...summary];
+    if (tokens.length === 0) return [];
+    if (tokens.length <= 10) return tokens;
+
+    // Build term frequency map
+    const termFreq = new Map<string, number>();
+    const sentenceTerms: Map<string, number>[] = [];
+
+    for (const token of tokens) {
+      const words = token.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+      const freq = new Map<string, number>();
+      for (const word of words) {
+        freq.set(word, (freq.get(word) || 0) + 1);
+        termFreq.set(word, (termFreq.get(word) || 0) + 1);
+      }
+      sentenceTerms.push(freq);
+    }
+
+    // Score each sentence by sum of IDF-weighted term frequencies
+    const totalSentences = tokens.length;
+    const scores = sentenceTerms.map((freq, idx) => {
+      let score = 0;
+      for (const [word, count] of freq) {
+        // IDF-like weighting: rarer terms are more important
+        const idf = Math.log(totalSentences / Math.max(1, termFreq.get(word) || 1));
+        score += count * idf;
+      }
+      // Position bonus: first and last sentences often carry more weight
+      if (idx === 0) score *= 1.2;
+      if (idx === tokens.length - 1) score *= 1.1;
+      return score;
+    });
+
+    // Select top-k sentences preserving original order
+    const targetSize = Math.max(1, Math.floor(tokens.length / 10));
+    const indexed = scores.map((s, i) => ({ score: s, index: i }));
+    indexed.sort((a, b) => b.score - a.score);
+    const selected = indexed.slice(0, targetSize).map(s => s.index).sort((a, b) => a - b);
+
+    const summary = selected.map(i => tokens[i]);
+    return [`[L2_EXTRACTIVE_SUMMARY:${summary.length} of ${tokens.length} sentences]`, ...summary];
   }
 
   /**
-   * Build graph index for L3 layer.
+   * Build graph index for L3 layer using inverted index.
+   * Maps terms to their positions for efficient lookup.
    */
   private async buildGraphIndex(tokens: string[]): Promise<string[]> {
-    // Simulated graph indexing
-    // In production, use actual GraphRAG
-    const uniqueTokens = [...new Set(tokens)];
-    const indexSize = Math.max(1, Math.floor(uniqueTokens.length / 100));
-    const index = uniqueTokens.slice(0, indexSize);
-    return [`[L3_GRAPH_INDEX:${index.length} nodes]`, ...index];
+    if (tokens.length === 0) return [];
+
+    // Build inverted index: term -> list of positions
+    const invertedIndex = new Map<string, number[]>();
+    tokens.forEach((token, idx) => {
+      const words = token.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+      for (const word of words) {
+        const positions = invertedIndex.get(word) || [];
+        positions.push(idx);
+        invertedIndex.set(word, positions);
+      }
+    });
+
+    // Select high-frequency terms as index nodes
+    const minFrequency = Math.max(2, Math.floor(tokens.length / 50));
+    const indexNodes = [...invertedIndex.entries()]
+      .filter(([, positions]) => positions.length >= minFrequency)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 50) // cap at 50 index nodes
+      .map(([term, positions]) => `[NODE:${term}×${positions.length}]`);
+
+    return [
+      `[L3_INVERTED_INDEX:${indexNodes.length} nodes, ${invertedIndex.size} terms]`,
+      ...indexNodes,
+    ];
   }
 
   /**
@@ -267,12 +323,10 @@ export class ContextCompressorSkill extends Skill {
    */
   async compressForUpgrade(rawInput: string): Promise<CompressedContext> {
     const tokenCount = this.estimateTokens(rawInput);
-    const droppedSections: string[] = [];
-    let truncated = false;
 
     if (tokenCount > MAX_TOKENS) {
       console.log(`[ContextCompressor] Token 超限: ${tokenCount} > ${MAX_TOKENS}, 执行优先级裁剪`);
-      
+
       // 优先级裁剪规则
       const rules: PriorityRules = {
         keep: ['currentTask', 'currentFile', 'directDeps', 'criticalContext'],
@@ -280,8 +334,6 @@ export class ContextCompressorSkill extends Skill {
       };
 
       const truncatedInput = this.truncateByPriority(rawInput, rules);
-      droppedSections.push(...rules.drop);
-      truncated = true;
 
       const newTokenCount = this.estimateTokens(truncatedInput);
       console.log(`[ContextCompressor] 裁剪后 token: ${newTokenCount}, 压缩比: ${(tokenCount / newTokenCount).toFixed(2)}x`);
@@ -296,8 +348,8 @@ export class ContextCompressorSkill extends Skill {
         tokens: compressedTokens,
         tokenCount: newTokenCount,
         compressionRatio: tokenCount / newTokenCount,
-        truncated,
-        droppedSections
+        truncated: true,
+        droppedSections: [...rules.drop],
       };
     }
 
@@ -336,8 +388,7 @@ export class ContextCompressorSkill extends Skill {
    */
   private truncateByPriority(input: string, rules: PriorityRules): string {
     const lines = input.split('\n');
-    const result: string[] = [];
-    
+
     // 标记各区域
     const sections: { type: string; content: string[]; priority: number }[] = [];
     let currentSection: string[] = [];

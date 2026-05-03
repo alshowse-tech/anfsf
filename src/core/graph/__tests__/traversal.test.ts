@@ -8,6 +8,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { calculateBlastRadius, findShortestPath, getNodesAtDepth } from '../traversal';
 import type { GraphNode, TraceEdge } from '../types';
+import type { GraphStoreLike } from '../traversal';
 
 /**
  * Mock graph store for testing.
@@ -58,7 +59,7 @@ describe('calculateBlastRadius', () => {
     graph.addEdge({ id: 'e2', from: 'B', to: 'C', relation: 'DEPENDS_ON', ts: 0 });
     graph.addEdge({ id: 'e3', from: 'C', to: 'D', relation: 'DEPENDS_ON', ts: 0 });
 
-    const result = calculateBlastRadius(graph as any, 'A', 5);
+    const result = calculateBlastRadius(graph as GraphStoreLike, 'A', 5);
 
     expect(result.totalBlastRadius).toBe(3);
     expect(result.directImpact).toBe(1);
@@ -81,7 +82,7 @@ describe('calculateBlastRadius', () => {
     graph.addEdge({ id: 'e2', from: 'B', to: 'C', relation: 'DEPENDS_ON', ts: 0 });
     graph.addEdge({ id: 'e3', from: 'C', to: 'D', relation: 'DEPENDS_ON', ts: 0 });
 
-    const result = calculateBlastRadius(graph as any, 'A', 2);
+    const result = calculateBlastRadius(graph as GraphStoreLike, 'A', 2);
 
     expect(result.totalBlastRadius).toBe(2);
     expect(result.impactedNodes).toEqual(['B', 'C']);
@@ -93,7 +94,7 @@ describe('calculateBlastRadius', () => {
     
     graph.addNode({ id: 'A', type: 'Service', name: 'A', createdAt: 0, updatedAt: 0 });
 
-    const result = calculateBlastRadius(graph as any, 'A', 5);
+    const result = calculateBlastRadius(graph as GraphStoreLike, 'A', 5);
 
     expect(result.totalBlastRadius).toBe(0);
     expect(result.directImpact).toBe(0);
@@ -110,7 +111,7 @@ describe('calculateBlastRadius', () => {
     graph.addEdge({ id: 'e1', from: 'A', to: 'B', relation: 'DEPENDS_ON', ts: 0 });
     graph.addEdge({ id: 'e2', from: 'B', to: 'C', relation: 'DEPENDS_ON', ts: 0 });
 
-    const result = calculateBlastRadius(graph as any, 'A', 5);
+    const result = calculateBlastRadius(graph as GraphStoreLike, 'A', 5);
 
     expect(result.criticalPath).toContain('B');
   });
@@ -127,7 +128,7 @@ describe('findShortestPath', () => {
     graph.addEdge({ id: 'e1', from: 'A', to: 'B', relation: 'DEPENDS_ON', ts: 0 });
     graph.addEdge({ id: 'e2', from: 'B', to: 'C', relation: 'DEPENDS_ON', ts: 0 });
 
-    const path = findShortestPath(graph as any, 'A', 'C');
+    const path = findShortestPath(graph as GraphStoreLike, 'A', 'C');
 
     expect(path).toEqual(['A', 'B', 'C']);
   });
@@ -138,7 +139,7 @@ describe('findShortestPath', () => {
     graph.addNode({ id: 'A', type: 'Service', name: 'A', createdAt: 0, updatedAt: 0 });
     graph.addNode({ id: 'B', type: 'Service', name: 'B', createdAt: 0, updatedAt: 0 });
 
-    const path = findShortestPath(graph as any, 'A', 'B');
+    const path = findShortestPath(graph as GraphStoreLike, 'A', 'B');
 
     expect(path).toBeNull();
   });
@@ -147,7 +148,7 @@ describe('findShortestPath', () => {
     const graph = new MockGraphStore();
     graph.addNode({ id: 'A', type: 'Service', name: 'A', createdAt: 0, updatedAt: 0 });
 
-    const path = findShortestPath(graph as any, 'A', 'A');
+    const path = findShortestPath(graph as GraphStoreLike, 'A', 'A');
 
     expect(path).toEqual(['A']);
   });
@@ -166,10 +167,10 @@ describe('getNodesAtDepth', () => {
     graph.addEdge({ id: 'e2', from: 'A', to: 'C', relation: 'DEPENDS_ON', ts: 0 });
     graph.addEdge({ id: 'e3', from: 'B', to: 'D', relation: 'DEPENDS_ON', ts: 0 });
 
-    const depth1 = getNodesAtDepth(graph as any, 'A', 1);
+    const depth1 = getNodesAtDepth(graph as GraphStoreLike, 'A', 1);
     expect(depth1).toEqual(['B', 'C']);
 
-    const depth2 = getNodesAtDepth(graph as any, 'A', 2);
+    const depth2 = getNodesAtDepth(graph as GraphStoreLike, 'A', 2);
     expect(depth2).toEqual(['D']);
   });
 
@@ -177,7 +178,7 @@ describe('getNodesAtDepth', () => {
     const graph = new MockGraphStore();
     graph.addNode({ id: 'A', type: 'Service', name: 'A', createdAt: 0, updatedAt: 0 });
 
-    const result = getNodesAtDepth(graph as any, 'A', 0);
+    const result = getNodesAtDepth(graph as GraphStoreLike, 'A', 0);
 
     expect(result).toEqual(['A']);
   });

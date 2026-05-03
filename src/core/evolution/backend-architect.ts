@@ -179,25 +179,56 @@ ${fields}
 
       const methods = relatedEntities.map(entity => {
         const entityName = this.pascalCase(entity.name);
+        const repoVar = this.camelCase(entity.name) + 'Repo';
+        const entityFields = entity.fields.filter(f => f.name !== 'id' && f.name !== 'createdAt' && f.name !== 'updatedAt');
+        const createFields = entityFields.map(f => f.name).join(', ');
+
         return `
-  async findAll(): Promise<${entityName}[]> {
-    throw new Error('Not implemented');
+  // ====== ${entityName} CRUD ======
+
+  async findAll(page = 1, limit = 20): Promise<{ items: ${entityName}[]; total: number; page: number; limit: number }> {
+    const offset = (page - 1) * limit;
+    const items = await ${repoVar}.findAndCountAll({
+      limit,
+      offset,
+      order: [['createdAt', 'DESC']],
+    });
+    return {
+      items: items.rows,
+      total: items.count,
+      page,
+      limit,
+    };
   }
 
   async findById(id: string): Promise<${entityName} | null> {
-    throw new Error('Not implemented');
+    return ${repoVar}.findByPk(id);
   }
 
-  async create(data: Omit<${entityName}, 'createdAt' | 'updatedAt'>): Promise<${entityName}> {
-    throw new Error('Not implemented');
+  async create(data: Omit<${entityName}, 'id' | 'createdAt' | 'updatedAt'>): Promise<${entityName}> {
+    const instance = await ${repoVar}.create({
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    return instance;
   }
 
   async update(id: string, data: Partial<${entityName}>): Promise<${entityName} | null> {
-    throw new Error('Not implemented');
+    const instance = await this.findById(id);
+    if (!instance) return null;
+    await instance.update({
+      ...data,
+      updatedAt: new Date(),
+    });
+    return instance;
   }
 
   async delete(id: string): Promise<boolean> {
-    throw new Error('Not implemented');
+    const instance = await this.findById(id);
+    if (!instance) return false;
+    await instance.destroy();
+    return true;
   }
 `;
       }).join('\n');
@@ -226,10 +257,66 @@ ${methods}
 
       const handlers = endpoints.map(ep => {
         const methodName = this.handlerMethodName(ep.method, ep.path);
-        return `
+        const resource = this.extractResourceName(ep.path);
+
+        switch (ep.method.toLowerCase()) {
+          case 'get': {
+            const isSingle = ep.path.includes(':');
+            if (isSingle) {
+              return `
   async ${methodName}(req: Request, res: Response): Promise<void> {
-    throw new Error('Not implemented');
+    const { id } = req.params;
+    const ${resource} = await ${svcVar}Service.findById(id);
+    if (!${resource}) {
+      res.status(404).json({ error: '${this.pascalCase(resource)} not found' });
+      return;
+    }
+    res.json(${resource});
   }`;
+            }
+            return `
+  async ${methodName}(req: Request, res: Response): Promise<void> {
+    const { page = 1, limit = 20 } = req.query;
+    const result = await ${svcVar}Service.findAll(Number(page), Number(limit));
+    res.json(result);
+  }`;
+          }
+          case 'post':
+            return `
+  async ${methodName}(req: Request, res: Response): Promise<void> {
+    const data = req.body;
+    const ${resource} = await ${svcVar}Service.create(data);
+    res.status(201).json(${resource});
+  }`;
+          case 'put':
+            return `
+  async ${methodName}(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+    const data = req.body;
+    const ${resource} = await ${svcVar}Service.update(id, data);
+    if (!${resource}) {
+      res.status(404).json({ error: '${this.pascalCase(resource)} not found' });
+      return;
+    }
+    res.json(${resource});
+  }`;
+          case 'delete':
+            return `
+  async ${methodName}(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+    const deleted = await ${svcVar}Service.delete(id);
+    if (!deleted) {
+      res.status(404).json({ error: 'Resource not found' });
+      return;
+    }
+    res.status(204).send();
+  }`;
+          default:
+            return `
+  async ${methodName}(req: Request, res: Response): Promise<void> {
+    res.status(501).json({ error: 'Not implemented' });
+  }`;
+        }
       }).join('\n');
 
       const content = `import type { Request, Response } from 'express';
@@ -336,6 +423,12 @@ export { router as ${this.serviceVarName(grouped[0]?.svc ?? { name: 'api' })}Rou
 
   private routePath(path: string): string {
     return path.replace(/:(\w+)/g, ':$1');
+  }
+
+  private extractResourceName(path: string): string {
+    const parts = path.split('/').filter(Boolean).map(p => p.replace(/^:/, ''));
+    const name = parts[parts.length - 1] || 'item';
+    return this.camelCase(name);
   }
 
   private serviceVarName(svc: ServiceComponentIR): string {

@@ -12,6 +12,9 @@ import { ContractGate } from '../../core/ownership/gates';
 import { canAutoApprove } from '../../core/dod/auto-approve';
 import { checkCompileGate } from '../../core/dod/compile-gate';
 import type { ContractDiff, ContractProposal } from '../../core/ownership/types';
+import type { OwnershipLatticeLike } from '../../core/ownership/gates';
+import type { ContractStateProvider } from '../../core/dod/compile-gate';
+import type { OwnershipLattice } from '../../core/ownership/proposals';
 
 /**
  * Mock ownership lattice for testing.
@@ -82,7 +85,7 @@ class MockContractStateProvider {
     );
   }
 
-  async getApprovedContract(contractId: string): Promise<any | null> {
+  async getApprovedContract(contractId: string): Promise<unknown> {
     const state = this.states.get(contractId);
     return state === 'approved' ? { id: contractId } : null;
   }
@@ -100,8 +103,8 @@ describe('Ownership Flow Integration', () => {
     lattice.setAuthority('backend-team', 'developer');
     
     proposalStore = new InMemoryProposalStore();
-    proposalManager = new ProposalManager(proposalStore, lattice as any);
-    gate = new ContractGate(lattice as any);
+    proposalManager = new ProposalManager(proposalStore, lattice as unknown as OwnershipLattice);
+    gate = new ContractGate(lattice as OwnershipLatticeLike);
   });
 
   it('should complete full contract approval workflow', async () => {
@@ -248,7 +251,7 @@ describe('Auto-Approve + Compile Gate Integration', () => {
     // Compile gate should pass
     const compileResult = await checkCompileGate({
       contractIds: ['api-gateway-v1'],
-      stateProvider: stateProvider as any,
+      stateProvider: stateProvider as ContractStateProvider,
     });
 
     expect(compileResult.allowed).toBe(true);
@@ -260,7 +263,7 @@ describe('Auto-Approve + Compile Gate Integration', () => {
 
     const compileResult = await checkCompileGate({
       contractIds: ['api-gateway-v1'],
-      stateProvider: stateProvider as any,
+      stateProvider: stateProvider as ContractStateProvider,
     });
 
     expect(compileResult.allowed).toBe(false);
@@ -286,7 +289,7 @@ describe('Auto-Approve + Compile Gate Integration', () => {
 
     const compileResult = await checkCompileGate({
       contractIds: ['api-gateway-v1'],
-      stateProvider: stateProvider as any,
+      stateProvider: stateProvider as ContractStateProvider,
     });
 
     expect(compileResult.allowed).toBe(false);
@@ -301,7 +304,7 @@ describe('Auto-Approve + Compile Gate Integration', () => {
 
     const compileResult = await checkCompileGate({
       contractIds: ['api-gateway-v1', 'user-service'],
-      stateProvider: stateProvider as any,
+      stateProvider: stateProvider as ContractStateProvider,
     });
 
     expect(compileResult.allowed).toBe(true);
@@ -316,7 +319,7 @@ describe('Full Workflow: Propose → Approve → Compile', () => {
     lattice.setAuthority('architect', 'architect');
     
     const proposalStore = new InMemoryProposalStore();
-    const proposalManager = new ProposalManager(proposalStore, lattice as any);
+    const proposalManager = new ProposalManager(proposalStore, lattice as unknown as OwnershipLattice);
     const stateMachine = new ContractStateMachine('api-v1', 'draft', '1.0.0');
     const stateProvider = new MockContractStateProvider();
 
@@ -347,7 +350,7 @@ describe('Full Workflow: Propose → Approve → Compile', () => {
     // Step 5: Check compile gate
     const compileResult = await checkCompileGate({
       contractIds: ['api-v1'],
-      stateProvider: stateProvider as any,
+      stateProvider: stateProvider as ContractStateProvider,
     });
 
     expect(compileResult.allowed).toBe(true);

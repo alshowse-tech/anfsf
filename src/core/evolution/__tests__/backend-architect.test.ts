@@ -143,6 +143,39 @@ describe('Backend Architect Unit Tests', () => {
     expect(result.summary.models).toBe(0);
   });
 
+  it('should generate controller handlers with real implementations', () => {
+    const result = architect.generate(sampleServiceIR, sampleDataIR);
+    const userCtrl = result.files.find(f => f.path.includes('user') && f.type === 'controller');
+    expect(userCtrl?.content).toContain('req.params');
+    expect(userCtrl?.content).toContain('req.body');
+    expect(userCtrl?.content).toContain('res.json');
+    expect(userCtrl?.content).toContain('res.status');
+    expect(userCtrl?.content).toContain('findById');
+    expect(userCtrl?.content).toContain('findAll');
+    expect(userCtrl?.content).toContain('create');
+    expect(userCtrl?.content).toContain('update');
+    expect(userCtrl?.content).toContain('delete');
+  });
+
+  it('should generate GET handler with 404 handling for single resource', () => {
+    const result = architect.generate(sampleServiceIR, sampleDataIR);
+    const userCtrl = result.files.find(f => f.path.includes('user') && f.type === 'controller');
+    expect(userCtrl?.content).toContain('404');
+    expect(userCtrl?.content).toContain('not found');
+  });
+
+  it('should generate POST handler with 201 status', () => {
+    const result = architect.generate(sampleServiceIR, sampleDataIR);
+    const userCtrl = result.files.find(f => f.path.includes('user') && f.type === 'controller');
+    expect(userCtrl?.content).toContain('201');
+  });
+
+  it('should generate DELETE handler with 204 status', () => {
+    const result = architect.generate(sampleServiceIR, sampleDataIR);
+    const userCtrl = result.files.find(f => f.path.includes('user') && f.type === 'controller');
+    expect(userCtrl?.content).toContain('204');
+  });
+
   it('should map all field types correctly', () => {
     const dataIR: DataIR = {
       entities: [

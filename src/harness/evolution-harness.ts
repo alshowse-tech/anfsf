@@ -132,7 +132,7 @@ export class EvolutionHarness {
       return { dataPoints: 0, modelUpdates: 0, feedbackLoops: 0, timestamp: Date.now() };
     }
 
-    let dataPoints = this.projectData.length;
+    const dataPoints = this.projectData.length;
     let modelUpdates = 0;
     let feedbackLoops = 0;
 

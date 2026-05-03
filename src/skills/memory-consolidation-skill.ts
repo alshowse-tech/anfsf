@@ -333,19 +333,43 @@ export class MemoryConsolidationSkill extends Skill {
   }
 
   /**
-   * Get RL reward for memory (placeholder for actual RL model).
+   * Get RL reward for memory based on task outcome and access patterns.
+   * Uses deterministic heuristics from available metadata rather than random values.
    */
   private async getRLReward(memory: MemoryData): Promise<number> {
-    // Simulated RL reward
-    return 0.5 + Math.random() * 0.5;
+    // Base reward from task outcome if available
+    if (memory.taskOutcome) {
+      return memory.taskOutcome.success
+        ? 0.6 + memory.taskOutcome.impactScore * 0.4
+        : 0.2;
+    }
+
+    // Fallback: derive reward from access patterns
+    // Frequently accessed memories are more valuable
+    const daysSinceCreation = (Date.now() - memory.createdAt) / (1000 * 60 * 60 * 24);
+    const accessRate = memory.accessCount / Math.max(1, daysSinceCreation);
+    return Math.min(1, 0.3 + accessRate * 0.1);
   }
 
   /**
-   * Get user feedback for memory (placeholder for actual feedback system).
+   * Get user feedback for memory based on metadata and usage patterns.
+   * Uses deterministic heuristics from available metadata rather than random values.
    */
   private async getUserFeedback(memory: MemoryData): Promise<number> {
-    // Simulated user feedback
-    return 0.5 + Math.random() * 0.5;
+    // Check if metadata contains explicit user feedback
+    if (memory.metadata?.userRating) {
+      return Math.min(1, Math.max(0, memory.metadata.userRating));
+    }
+
+    // Derive feedback from connectivity (well-connected memories tend to be more useful)
+    const connectivityScore = Math.min(1, memory.connectedMemories.length / 10);
+
+    // Derive feedback from access frequency
+    const daysSinceCreation = (Date.now() - memory.createdAt) / (1000 * 60 * 60 * 24);
+    const frequencyScore = Math.min(1, memory.accessCount / Math.max(1, daysSinceCreation * 5));
+
+    // Combined estimate
+    return 0.4 * connectivityScore + 0.6 * frequencyScore;
   }
 
   /**

@@ -3,6 +3,7 @@
  */
 
 import { InteractionFlowEngine, createInteractionFlowEngine, generateStateMachine, calculateFlowComplexity } from '../interaction-flow-engine';
+import type { InteractionFlow } from '../types';
 
 describe('InteractionFlowEngine', () => {
   let engine: InteractionFlowEngine;
@@ -105,7 +106,7 @@ describe('InteractionFlowEngine', () => {
         errorHandling: [],
       };
 
-      const result = await engine.validateFlow(flow as any);
+      const result = await engine.validateFlow(flow as InteractionFlow);
 
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('trigger'))).toBe(true);

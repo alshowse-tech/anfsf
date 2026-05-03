@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { calculateHeatScore, generateHeatmap } from '../heatmap';
+import { calculateHeatScore } from '../heatmap';
 import { NODE_TYPE_WEIGHTS } from '../constants';
 
 describe('calculateHeatScore', () => {

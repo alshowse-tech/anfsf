@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { RequirementGraphEngine } from '../graph-engine';
-import type { AINativePRD } from '../../prd/prd-parser';
+import type { AINativePRD, Field, Relationship } from '../../prd/prd-parser';
 
 // ============================================================================
 // Helpers
@@ -68,7 +68,7 @@ describe('compileFromPRD — Service IR', () => {
   it('should default missing fields', () => {
     const engine = new RequirementGraphEngine();
     const prd = makeMinimalPRD();
-    prd.backendSpecs = [{ api: [{} as any], services: [{} as any] }];
+    prd.backendSpecs = [{ api: [{ path: '/unknown', method: 'GET' as const, request: {}, response: {} }], services: [{ name: 'unknown', responsibility: '', dependencies: [] }] }];
 
     const ir = engine.compileFromPRD(prd);
 
@@ -234,7 +234,7 @@ describe('compileFromPRD — Data IR', () => {
   it('should default field values', () => {
     const engine = new RequirementGraphEngine();
     const prd = makeMinimalPRD();
-    prd.data = [{ entity: 'Item', fields: [{} as any], relationships: [{} as any] }];
+    prd.data = [{ entity: 'Item', fields: [{ name: 'unknown', type: 'string', required: false } satisfies Field], relationships: [{ type: 'one-to-many', target: 'unknown' } satisfies Relationship] }];
 
     const ir = engine.compileFromPRD(prd);
 

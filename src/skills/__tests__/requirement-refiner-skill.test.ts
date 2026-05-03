@@ -114,8 +114,9 @@ describe('RequirementRefinerSkill Tests', () => {
       const rawRequirement = '开发一个电商系统';
       const traceId = 'test-trace';
 
-      // Access private method via any cast for testing
-      const twoSourceResult = await (skill as any).runTwoSource(rawRequirement, traceId);
+      // Access private method via typed cast for testing
+      const typed = skill as unknown as { runTwoSource(req: string, trace: string): Promise<{ nodes: unknown[]; edges: unknown[] }> };
+      const twoSourceResult = await typed.runTwoSource(rawRequirement, traceId);
 
       expect(twoSourceResult).toBeDefined();
       expect(twoSourceResult.nodes).toBeDefined();
@@ -128,7 +129,8 @@ describe('RequirementRefinerSkill Tests', () => {
       const rawRequirement = '开发一个博客系统';
       const traceId = 'test-trace';
 
-      const baselineResult = await (skill as any).runBaselineOneSource(rawRequirement, traceId);
+      const typed2 = skill as unknown as { runBaselineOneSource(req: string, trace: string): Promise<{ nodes: unknown[] }> };
+      const baselineResult = await typed2.runBaselineOneSource(rawRequirement, traceId);
 
       expect(baselineResult).toBeDefined();
       expect(baselineResult.nodes.length).toBeGreaterThan(0);
@@ -153,7 +155,8 @@ describe('RequirementRefinerSkill Tests', () => {
         traceId: 'trace2',
       };
 
-      const improvement = (skill as any).calculateImprovement(twoSource, baseline);
+      const typed3 = skill as unknown as { calculateImprovement(a: object, b: object): number };
+      const improvement = typed3.calculateImprovement(twoSource, baseline);
 
       expect(improvement).toBeGreaterThan(0);
       expect(improvement).toBeLessThanOrEqual(1);
@@ -176,7 +179,8 @@ describe('RequirementRefinerSkill Tests', () => {
         traceId: 'trace2',
       };
 
-      const improvement = (skill as any).calculateImprovement(twoSource, baseline);
+      const typed3 = skill as unknown as { calculateImprovement(a: object, b: object): number };
+      const improvement = typed3.calculateImprovement(twoSource, baseline);
 
       expect(improvement).toBeLessThan(0);
     });
@@ -188,7 +192,8 @@ describe('RequirementRefinerSkill Tests', () => {
       const verifiedStatements = ['需求 1', '需求 2', '需求 3'];
       const traceId = 'test-trace';
 
-      const graph = (skill as any).buildGraph(rawRequirement, verifiedStatements, traceId);
+      const typed4 = skill as unknown as { buildGraph(req: string, stmts: string[], trace: string): { nodes: unknown[]; edges: unknown[]; quality: number; traceId: string } };
+      const graph = typed4.buildGraph(rawRequirement, verifiedStatements, traceId);
 
       expect(graph.nodes.length).toBe(3);
       expect(graph.edges.length).toBe(2);
@@ -201,7 +206,8 @@ describe('RequirementRefinerSkill Tests', () => {
       const verifiedStatements: string[] = [];
       const traceId = 'test-trace';
 
-      const graph = (skill as any).buildGraph(rawRequirement, verifiedStatements, traceId);
+      const typed4 = skill as unknown as { buildGraph(req: string, stmts: string[], trace: string): { nodes: unknown[]; edges: unknown[]; quality: number; traceId: string } };
+      const graph = typed4.buildGraph(rawRequirement, verifiedStatements, traceId);
 
       expect(graph.nodes.length).toBe(0);
       expect(graph.edges.length).toBe(0);

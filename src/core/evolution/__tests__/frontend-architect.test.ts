@@ -181,4 +181,32 @@ describe('Frontend Architect Unit Tests', () => {
     const homePage = result.files.find(f => f.path.includes('home') && f.type === 'page');
     expect(homePage).toBeDefined();
   });
+
+  it('should generate Zustand store with workflow-driven actions', () => {
+    const result = architect.generate(sampleUIIR, sampleWorkflowIR);
+    const store = result.files.find(f => f.type === 'store');
+    expect(store?.content).toContain('userLogin');
+    expect(store?.content).toContain('orderSubmit');
+    expect(store?.content).toContain('set((state)');
+    expect(store?.content).toContain('authenticate');
+  });
+
+  it('should generate Redux slices per workflow', () => {
+    const reduxArchitect = createFrontendArchitect({ stateLib: 'redux' });
+    const result = reduxArchitect.generate(sampleUIIR, sampleWorkflowIR);
+    const store = result.files.find(f => f.type === 'store');
+    expect(store?.content).toContain('userLoginSlice');
+    expect(store?.content).toContain('orderSubmitSlice');
+    expect(store?.content).toContain('createSlice');
+    expect(store?.content).toContain("status: 'idle'");
+  });
+
+  it('should generate Jotai atoms per component state', () => {
+    const jotaiArchitect = createFrontendArchitect({ stateLib: 'jotai' });
+    const result = jotaiArchitect.generate(sampleUIIR, sampleWorkflowIR);
+    const store = result.files.find(f => f.type === 'store');
+    expect(store?.content).toContain('userListItemsAtom');
+    expect(store?.content).toContain('userListLoadingAtom');
+    expect(store?.content).toContain('orderFormFormAtom');
+  });
 });

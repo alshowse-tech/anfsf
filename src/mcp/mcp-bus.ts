@@ -232,7 +232,7 @@ export class MCPBus {
     this.stats.totalBroadcasts++;
 
     // Get all subscribers (use array to allow same callback for multiple agents)
-    const allSubscribers: Function[] = [];
+    const allSubscribers: Array<(msg: MCPMessage) => void> = [];
     for (const [agentId, callbacks] of this.subscriptions.entries()) {
       if (agentId !== '*') {
         callbacks.forEach(cb => allSubscribers.push(cb));

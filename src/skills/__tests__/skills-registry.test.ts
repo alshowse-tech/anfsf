@@ -149,7 +149,7 @@ describe('SkillsRegistry', () => {
 
   describe('Event System', () => {
     it('should emit load event', async () => {
-      const events: any[] = [];
+      const events: Array<{ type: string; skillName?: string }> = [];
       registry.onEvent(event => events.push(event));
 
       await registry.load('test-skill', '1.0.0');
@@ -160,7 +160,7 @@ describe('SkillsRegistry', () => {
     });
 
     it('should emit unload event', async () => {
-      const events: any[] = [];
+      const events: Array<{ type: string; skillName?: string }> = [];
       registry.onEvent(event => events.push(event));
 
       await registry.load('test-skill', '1.0.0');

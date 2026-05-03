@@ -216,10 +216,20 @@ export default AppRouter;
 
     const actions = workflowIR.workflows.map(wf => {
       const actionName = this.camelCase(wf.id || wf.triggers.join('_'));
+      const params = wf.actions.length > 0 ? `payload: { ${wf.actions.map(a => `${this.camelCase(a)}?: any`).join(', ')} }` : '';
+      const body = wf.actions.length > 0
+        ? `
+    // Workflow: ${wf.id}
+    // Triggers: ${wf.triggers.join(', ')}
+    set((state) => ({
+      ${wf.actions.map(a => `${this.camelCase(a)}: payload.${this.camelCase(a)} ?? state.${this.camelCase(a)}`).join(',\n      ')}
+    }));
+    console.log('[store] ${actionName} executed with', ${params.includes('payload') ? 'payload' : '{}'});`
+        : `
+    console.log('[store] ${actionName} triggered');`;
+
       return `
-  ${actionName}: () => {
-    // TODO: implement ${wf.id} workflow
-    console.log('${wf.id} triggered');
+  ${actionName}: (${params}) => {${body}
   },`;
     }).join('\n');
 
@@ -239,16 +249,39 @@ ${actions || '  // Add action implementations here'}
 
     const reduxContent = `import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-// TODO: define slices per component
-const appSlice = createSlice({
-  name: 'app',
-  initialState: {} as Record<string, unknown>,
-  reducers: {},
+${workflowIR.workflows.map(wf => {
+  const sliceName = this.camelCase(wf.id || wf.triggers.join('_'));
+  return `// ${wf.id} slice
+interface ${this.pascalCase(sliceName)}State {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  lastTriggered: number | null;
+  ${wf.actions.map(a => `${this.camelCase(a)}: any;`).join('\n  ')}
+}
+
+const initial${this.pascalCase(sliceName)}State: ${this.pascalCase(sliceName)}State = {
+  status: 'idle',
+  lastTriggered: null,
+  ${wf.actions.map(a => `${this.camelCase(a)}: null,`).join('\n  ')}
+};
+
+const ${sliceName}Slice = createSlice({
+  name: '${sliceName}',
+  initialState: initial${this.pascalCase(sliceName)}State,
+  reducers: {
+    ${sliceName}: (state, action: PayloadAction<Partial<${this.pascalCase(sliceName)}State>>) => {
+      Object.assign(state, action.payload);
+      state.status = 'success';
+      state.lastTriggered = Date.now();
+    },
+  },
 });
+
+export const { ${sliceName} } = ${sliceName}Slice.actions;`;
+}).join('\n\n')}
 
 export const store = configureStore({
   reducer: {
-    app: appSlice.reducer,
+${workflowIR.workflows.map(wf => `    ${this.camelCase(wf.id || wf.triggers.join('_'))}: ${this.camelCase(wf.id || wf.triggers.join('_'))}Slice.reducer,`).join('\n')}
   },
 });
 
@@ -258,12 +291,21 @@ export type AppDispatch = typeof store.dispatch;
 
     const jotaiContent = `import { atom } from 'jotai';
 
-// TODO: define atoms per component state
-// Example:
-// export const userAtom = atom<User | null>(null);
-// export const themeAtom = atom<'light' | 'dark'>('light');
+// Per-component state atoms
+${uiIR.components.filter(c => c.state && Object.keys(c.state).length > 0).map(comp => {
+  const atoms = Object.entries(comp.state).map(([k, v]) => `export const ${this.camelCase(comp.name)}${this.pascalCase(k)}Atom = atom<${typeof v === 'string' ? 'string' : typeof v}>(typeof v === 'string' ? '${v}' : ${JSON.stringify(v)});`).join('\n');
+  return `// ${comp.name} atoms\n${atoms}`;
+}).join('\n\n') || '// Define component atoms as needed'}
 
-export const globalStateAtom = atom<Record<string, unknown>>({});
+// Workflow-derived atoms
+${workflowIR.workflows.map(wf => {
+  const deps = wf.actions.map(a => `atomWith${this.pascalCase(a)}`).join(', ');
+  return `// ${wf.id}
+export const ${this.camelCase(wf.id || wf.triggers.join('_'))}Atom = atom((get) => ({
+  status: 'idle' as const,
+  lastTriggered: null as number | null,
+}));`;
+}).join('\n\n') || '// Define workflow atoms as needed'}
 `;
 
     let content: string;

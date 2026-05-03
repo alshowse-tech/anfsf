@@ -11,7 +11,6 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import {
   UISynthesisModule,
   createAssetManifest,
-  type AssetManifest,
   type StyleAssets,
   type ComponentTreeAssets,
 } from '../core/contract/ui-synthesis-module';
@@ -24,18 +23,18 @@ import {
 import {
   ContractGate,
   createDefaultContractGate,
+  type OwnershipLatticeLike,
 } from '../core/ownership/gates';
 
 import {
   ProgressiveEvolutionFramework,
-  type StyleLoadingKPI,
 } from '../core/evolution/framework';
 
 // Mock implementations
 class MockMCPBus {
   messages: any[] = [];
-  
-  async send(message: any): Promise<void> {
+
+  async send(message: unknown): Promise<void> {
     this.messages.push(message);
   }
 }
@@ -48,7 +47,7 @@ class MockOwnershipLattice {
     return roleAuthorities.includes(authority) || roleId === authority;
   }
 
-  getOwner(nodeId: string): string | null {
+  getOwner(_nodeId: string): string | null {
     return 'architect';
   }
 
@@ -198,7 +197,7 @@ describe('PreviewControllerUIExtension', () => {
   describe('probeStyles', () => {
     it('should return passed=true when all styles are available', async () => {
       // Mock fetch to return success
-      (global as any).fetch = jest.fn(() =>
+      (global as { fetch?: unknown }).fetch = jest.fn(() =>
         Promise.resolve({
           ok: true,
           status: 200,
@@ -219,7 +218,7 @@ describe('PreviewControllerUIExtension', () => {
 
     it('should return passed=false when styles are unavailable', async () => {
       // Mock fetch to return failure
-      (global as any).fetch = jest.fn(() =>
+      (global as { fetch?: unknown }).fetch = jest.fn(() =>
         Promise.resolve({
           ok: false,
           status: 404,
@@ -238,7 +237,7 @@ describe('PreviewControllerUIExtension', () => {
 
     it('should trigger self-healing when failures detected', async () => {
       // Mock fetch to return failure
-      (global as any).fetch = jest.fn(() =>
+      (global as { fetch?: unknown }).fetch = jest.fn(() =>
         Promise.resolve({
           ok: false,
           status: 404,
@@ -275,16 +274,16 @@ describe('ContractGate - UI Style Rules', () => {
     lattice = new MockOwnershipLattice();
     lattice.setAuthority('architect', 'architect');
     lattice.setAuthority('frontend', 'frontend');
-    gate = createDefaultContractGate(lattice as any);
+    gate = createDefaultContractGate(lattice as OwnershipLatticeLike);
   });
 
   describe('canAutoApprove for ui:style/**', () => {
     it('should auto-approve adding non-critical styles', () => {
       const diff = {
-        contractType: 'ui:style/components' as any,
-        version: { before: '1.0.0', after: '1.1.0', bump: 'minor' as any },
+        contractType: 'ui:style/components',
+        version: { before: '1.0.0', after: '1.1.0', bump: 'minor' },
         changes: {
-          added: [{ path: '/button', type: 'color', description: 'Add button color', severity: 'low' as any, details: {} }],
+          added: [{ path: '/button', type: 'color', description: 'Add button color', severity: 'low', details: {} }],
           removed: [],
           modified: [],
         },
@@ -294,18 +293,19 @@ describe('ContractGate - UI Style Rules', () => {
         riskScore: 10,
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const canApprove = gate.canAutoApprove(diff as any);
       expect(canApprove).toBe(true);
     });
 
     it('should NOT auto-approve critical CSS changes', () => {
       const diff = {
-        contractType: 'ui:style/critical/base' as any,
-        version: { before: '1.0.0', after: '1.1.0', bump: 'minor' as any },
+        contractType: 'ui:style/critical/base',
+        version: { before: '1.0.0', after: '1.1.0', bump: 'minor' },
         changes: {
           added: [],
           removed: [],
-          modified: [{ path: '/body', type: 'margin', description: 'Modify body margin', severity: 'low' as any, details: {} }],
+          modified: [{ path: '/body', type: 'margin', description: 'Modify body margin', severity: 'low', details: {} }],
         },
         breaking: false,
         requiresApproval: false,
@@ -313,17 +313,18 @@ describe('ContractGate - UI Style Rules', () => {
         riskScore: 10,
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const canApprove = gate.canAutoApprove(diff as any);
       expect(canApprove).toBe(false); // Critical CSS requires review
     });
 
     it('should NOT auto-approve breaking changes', () => {
       const diff = {
-        contractType: 'ui:style/components' as any,
-        version: { before: '1.0.0', after: '2.0.0', bump: 'major' as any },
+        contractType: 'ui:style/components',
+        version: { before: '1.0.0', after: '2.0.0', bump: 'major' },
         changes: {
           added: [],
-          removed: [{ path: '/button', type: 'component', description: 'Remove button', severity: 'high' as any, details: {} }],
+          removed: [{ path: '/button', type: 'component', description: 'Remove button', severity: 'high', details: {} }],
           modified: [],
         },
         breaking: true,
@@ -332,6 +333,7 @@ describe('ContractGate - UI Style Rules', () => {
         riskScore: 50,
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const canApprove = gate.canAutoApprove(diff as any);
       expect(canApprove).toBe(false);
     });
@@ -433,7 +435,7 @@ describe('ProgressiveEvolutionFramework', () => {
       });
 
       // Manually set small budget for testing
-      (framework as any).personalizationBudget = {
+      (framework as unknown as Record<string, unknown>).personalizationBudget = {
         totalBudget: 1000,
         usedBudget: 900,
         styleBudget: 500,
@@ -499,10 +501,6 @@ describe('Style Loading Integration', () => {
       { framework: 'react', enableCriticalCSS: true },
       mcpBus
     );
-
-    const extension = new PreviewControllerUIExtension({
-      enableAutoHealing: false,
-    });
 
     const framework = new ProgressiveEvolutionFramework();
 

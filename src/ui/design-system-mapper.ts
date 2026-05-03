@@ -205,8 +205,8 @@ export class DesignSystemMapper {
     const prdText = JSON.stringify(prd).toLowerCase();
     
     let primary = { ...DEFAULT_PRIMARY_COLOR };
-    let secondary = { ...DEFAULT_SECONDARY_COLOR };
-    let neutral = { ...DEFAULT_NEUTRAL_COLOR };
+    const secondary = { ...DEFAULT_SECONDARY_COLOR };
+    const neutral = { ...DEFAULT_NEUTRAL_COLOR };
     const semantic = { ...DEFAULT_SEMANTIC_COLORS };
 
     // Detect brand colors from PRD

@@ -3,6 +3,7 @@
  */
 
 import { PrototypeGenerator, createPrototypeGenerator, generatePrototypeSummary, validatePrototype } from '../prototype-generator';
+import type { PrototypeDefinition } from '../types';
 
 describe('PrototypeGenerator', () => {
   let generator: PrototypeGenerator;
@@ -315,7 +316,7 @@ describe('validatePrototype', () => {
       shareUrl: '',
     };
 
-    const result = validatePrototype(incompletePrototype as any);
+    const result = validatePrototype(incompletePrototype as unknown as PrototypeDefinition);
 
     expect(result.valid).toBe(false);
     expect(result.issues.length).toBeGreaterThan(0);
