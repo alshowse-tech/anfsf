@@ -211,4 +211,46 @@ describe('Backend Architect Unit Tests', () => {
     expect(model?.content).toContain('i: any');
     expect(model?.content).toContain('j: any');
   });
+
+  it('should generate Dockerfile for generated project', () => {
+    const emptySvc: ServiceIR = { endpoints: [], services: [] };
+    const emptyData: DataIR = { entities: [], relationships: [] };
+    const result = architect.generate(emptySvc, emptyData);
+    const dockerfile = result.files.find(f => f.path === 'Dockerfile');
+    expect(dockerfile).toBeDefined();
+    expect(dockerfile?.content).toContain('FROM node:20-alpine');
+    expect(dockerfile?.content).toContain('EXPOSE 3000');
+    expect(dockerfile?.content).toContain('HEALTHCHECK');
+    expect(dockerfile?.content).toContain('dist/app.js');
+  });
+
+  it('should generate docker-compose.yml for generated project', () => {
+    const emptySvc: ServiceIR = { endpoints: [], services: [] };
+    const emptyData: DataIR = { entities: [], relationships: [] };
+    const result = architect.generate(emptySvc, emptyData);
+    const compose = result.files.find(f => f.path === 'docker-compose.yml');
+    expect(compose).toBeDefined();
+    expect(compose?.content).toContain('postgres:16-alpine');
+    expect(compose?.content).toContain('DB_PASSWORD');
+    expect(compose?.content).toContain('healthcheck');
+  });
+
+  it('should generate .dockerignore for generated project', () => {
+    const emptySvc: ServiceIR = { endpoints: [], services: [] };
+    const emptyData: DataIR = { entities: [], relationships: [] };
+    const result = architect.generate(emptySvc, emptyData);
+    const dockerignore = result.files.find(f => f.path === '.dockerignore');
+    expect(dockerignore).toBeDefined();
+    expect(dockerignore?.content).toContain('node_modules');
+    expect(dockerignore?.content).toContain('dist');
+  });
+
+  it('should include Docker files in total file count', () => {
+    const emptySvc: ServiceIR = { endpoints: [], services: [] };
+    const emptyData: DataIR = { entities: [], relationships: [] };
+    const result = architect.generate(emptySvc, emptyData);
+    expect(result.summary.totalFiles).toBe(result.files.length);
+    // Should have at least: entry, middleware, package.json, tsconfig.json, Dockerfile, docker-compose.yml, .dockerignore
+    expect(result.files.length).toBeGreaterThanOrEqual(7);
+  });
 });

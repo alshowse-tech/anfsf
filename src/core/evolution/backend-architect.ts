@@ -27,7 +27,7 @@ export interface BackendArchitectureConfig {
 export interface GeneratedFile {
   path: string;
   content: string;
-  type: 'route' | 'controller' | 'service' | 'model' | 'middleware' | 'entry';
+  type: 'route' | 'controller' | 'service' | 'model' | 'middleware' | 'entry' | 'config';
 }
 
 export interface BackendArchitecture {
@@ -71,6 +71,9 @@ export class BackendArchitect {
     files.push(this.generateRoutes(serviceIR));
     files.push(this.generatePackageJson());
     files.push(this.generateTsConfig());
+    files.push(this.generateDockerfile());
+    files.push(this.generateDockerCompose());
+    files.push(this.generateGitignore());
 
     return {
       files,
@@ -514,6 +517,108 @@ export { router as ${this.serviceVarName(grouped[0]?.svc ?? { name: 'api' })}Rou
   "exclude": ["node_modules", "dist"]
 }`;
     return { path: 'tsconfig.json', content, type: 'entry' };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dockerfile for generated project
+  // ---------------------------------------------------------------------------
+
+  private generateDockerfile(): GeneratedFile {
+    const content = `# syntax=docker/dockerfile:1
+
+# ---- Build stage ----
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --ignore-scripts
+COPY tsconfig.json ./
+COPY . .
+RUN npx tsc --noEmit
+
+# ---- Production stage ----
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --omit=dev --ignore-scripts
+COPY tsconfig.json ./
+COPY --from=builder /app/dist ./dist
+
+RUN addgroup -g 1001 -S app && \\
+    adduser -S app -u 1001 -G app
+USER app
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \\
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+CMD ["node", "dist/app.js"]
+`;
+    return { path: 'Dockerfile', content, type: 'entry' };
+  }
+
+  // ---------------------------------------------------------------------------
+  // docker-compose.yml for generated project
+  // ---------------------------------------------------------------------------
+
+  private generateDockerCompose(): GeneratedFile {
+    const content = `services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    networks:
+      - app-net
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=app
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=\${DB_PASSWORD:-changeme}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  app-net:
+    driver: bridge
+
+volumes:
+  db-data:
+`;
+    return { path: 'docker-compose.yml', content, type: 'entry' };
+  }
+
+  // ---------------------------------------------------------------------------
+  // .dockerignore for generated project
+  // ---------------------------------------------------------------------------
+
+  private generateGitignore(): GeneratedFile {
+    const content = `node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+`;
+    return { path: '.dockerignore', content, type: 'entry' };
   }
 }
 
