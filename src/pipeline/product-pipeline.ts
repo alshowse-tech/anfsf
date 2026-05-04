@@ -22,6 +22,7 @@ import { BackendArchitect, BackendArchitecture, GeneratedFile as BackendGenerate
 import { writeProjectFiles, WriteReport } from '../core/fs/file-writer';
 import { RefinedGraph, refineGraphToRequirementGraph, applyRefinementConstraints } from '../core/fs/refined-graph-bridge';
 import { CompileValidator, CompileValidationResult } from '../core/quality/compile-validator';
+import { matchTemplateByKeywords, boostPRD, IndustryTemplate } from '../templates';
 
 // ============================================================================
 // Types
@@ -76,6 +77,7 @@ export interface PipelineOutput {
   frontendArchitecture: FrontendArchitecture | null;
   backendArchitecture: BackendArchitecture | null;
   writeReport: { frontend: WriteReport; backend: WriteReport } | null;
+  matchedTemplate: IndustryTemplate | null;
   errors: string[];
   pipelineErrors: PipelineError[];
 }
@@ -163,13 +165,28 @@ export class ProductPipeline {
     }
     this.recordStep(steps, { name: 'L1: PRD Parse', duration: Date.now() - l1Start, status: 'ok' });
 
+    // --- Industry Template Detection & Boost ---
+    let matchedTemplate: IndustryTemplate | null = null;
+    let boostedPrdText = input.prdText;
+    const templateStart = Date.now();
+    try {
+      const template = matchTemplateByKeywords(input.prdText);
+      if (template) {
+        matchedTemplate = template;
+        boostedPrdText = boostPRD(input.prdText, template);
+      }
+    } catch {
+      // Template matching is non-critical — proceed without boost
+    }
+    this.recordStep(steps, { name: 'Template Detection', duration: Date.now() - templateStart, status: 'ok' });
+
     // --- PRD Quality Gate ---
     let qualityReport: PRDQualityReport | null = null;
     if (this.config.enableQualityGate) {
       const qgStart = Date.now();
       try {
         const govEngine = new InputGovernanceEngine({ apiKey: this.config.apiKey, model: this.config.model });
-        qualityReport = await govEngine.assessWithLLM(prd, input.prdText);
+        qualityReport = await govEngine.assessWithLLM(prd, boostedPrdText);
       } catch (e) {
         const err = e instanceof Error ? e.message : String(e);
         pipelineErrors.push({ step: 'PRD Quality Gate', message: err, recoverable: true });
@@ -191,7 +208,7 @@ export class ProductPipeline {
       const reasonStart = Date.now();
       try {
         const reasoner = new WhyWhatHowReasoner({ apiKey: this.config.apiKey, model: this.config.model });
-        reasoningResult = await reasoner.reason(input.prdText);
+        reasoningResult = await reasoner.reason(boostedPrdText);
       } catch (e) {
         const err = e instanceof Error ? e.message : String(e);
         pipelineErrors.push({ step: 'Why-What-How Reasoning', message: err, recoverable: true });
@@ -453,6 +470,7 @@ export class ProductPipeline {
       frontendArchitecture: frontendArch,
       backendArchitecture: backendArch,
       writeReport,
+      matchedTemplate,
       errors,
       pipelineErrors,
     };
