@@ -69,6 +69,8 @@ export class BackendArchitect {
     files.push(...this.generateServices(serviceIR, dataIR));
     files.push(...this.generateControllers(serviceIR));
     files.push(this.generateRoutes(serviceIR));
+    files.push(this.generatePackageJson());
+    files.push(this.generateTsConfig());
 
     return {
       files,
@@ -464,6 +466,54 @@ export { router as ${this.serviceVarName(grouped[0]?.svc ?? { name: 'api' })}Rou
 
   private kebabCase(s: string): string {
     return s.replace(/([A-Z])/g, '-$1').replace(/^[-_]/, '').toLowerCase();
+  }
+
+  private generatePackageJson(): GeneratedFile {
+    const content = `{
+  "name": "anfsf-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/node": "^20.11.0",
+    "ts-node": "^10.9.2"
+  }
+}`;
+    return { path: 'package.json', content, type: 'entry' };
+  }
+
+  private generateTsConfig(): GeneratedFile {
+    const content = `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}`;
+    return { path: 'tsconfig.json', content, type: 'entry' };
   }
 }
 

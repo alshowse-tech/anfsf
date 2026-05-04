@@ -71,6 +71,8 @@ export class FrontendArchitect {
     files.push(this.generateStore(uiIR, workflowIR));
     files.push(this.generateAppEntry(uiIR));
     files.push(...this.generateHooks(uiIR));
+    files.push(this.generatePackageJson());
+    files.push(this.generateTsConfig());
 
     return {
       files,
@@ -430,6 +432,58 @@ ${stateEntries}
 
   private kebabCase(s: string): string {
     return s.replace(/([A-Z])/g, '-$1').replace(/^[-_]/, '').toLowerCase();
+  }
+
+  private generatePackageJson(): GeneratedFile {
+    const content = `{
+  "name": "anfsf-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.1.0"
+  }
+}`;
+    return { path: 'package.json', content, type: 'entry' };
+  }
+
+  private generateTsConfig(): GeneratedFile {
+    const content = `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}`;
+    return { path: 'tsconfig.json', content, type: 'entry' };
   }
 }
 

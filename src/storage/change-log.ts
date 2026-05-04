@@ -297,20 +297,196 @@ export class InMemoryChangeLogStore implements ChangeLogStore {
 }
 
 /**
+ * File-backed change log store with JSON persistence.
+ */
+export class FileBackedChangeLogStore implements ChangeLogStore {
+  private events: Map<string, ChangeEvent>;
+  private indexByTarget: Map<string, Set<string>>;
+  private indexByRole: Map<string, Set<string>>;
+  private indexByTime: ChangeEvent[];
+  private filePath: string;
+  private persisting: Promise<void> | null = null;
+
+  constructor(filePath: string) {
+    this.filePath = filePath;
+    this.events = new Map();
+    this.indexByTarget = new Map();
+    this.indexByRole = new Map();
+    this.indexByTime = [];
+  }
+
+  /** Load existing events from file and build indexes */
+  async init(): Promise<void> {
+    try {
+      const raw = await import('fs/promises').then(fs => fs.readFile(this.filePath, 'utf-8'));
+      const parsed = JSON.parse(raw) as ChangeEvent[];
+      for (const event of parsed) {
+        this.indexEvent(event);
+      }
+      this.indexByTime.sort((a, b) => a.ts - b.ts);
+    } catch {
+      // File doesn't exist — start fresh
+    }
+  }
+
+  async append(event: ChangeEvent): Promise<void> {
+    this.indexEvent(event);
+    await this.persist();
+  }
+
+  async appendBatch(events: ChangeEvent[]): Promise<void> {
+    for (const event of events) {
+      this.indexEvent(event);
+    }
+    await this.persist();
+  }
+
+  async query(options: ChangeLogQuery): Promise<ChangeEvent[]> {
+    let results = [...this.indexByTime];
+
+    if (options.since !== undefined) {
+      results = results.filter((e) => e.ts >= options.since!);
+    }
+    if (options.until !== undefined) {
+      results = results.filter((e) => e.ts <= options.until!);
+    }
+    if (options.targetId !== undefined) {
+      results = results.filter((e) => e.target.idOrPath === options.targetId);
+    }
+    if (options.actorRoleId !== undefined) {
+      results = results.filter((e) => e.actorRoleId === options.actorRoleId);
+    }
+    if (options.action !== undefined) {
+      results = results.filter((e) => e.action === options.action);
+    }
+    if (options.ownershipRuleId !== undefined) {
+      results = results.filter((e) => e.ownershipRuleId === options.ownershipRuleId);
+    }
+
+    const order = options.order || 'desc';
+    if (order === 'desc') {
+      results.sort((a, b) => b.ts - a.ts);
+    } else {
+      results.sort((a, b) => a.ts - b.ts);
+    }
+
+    if (options.limit !== undefined) {
+      results = results.slice(0, options.limit);
+    }
+
+    return results;
+  }
+
+  async getById(eventId: string): Promise<ChangeEvent | null> {
+    return this.events.get(eventId) || null;
+  }
+
+  async getByTarget(targetId: string, limit: number = 100): Promise<ChangeEvent[]> {
+    const eventIds = this.indexByTarget.get(targetId);
+    if (!eventIds) return [];
+
+    const result: ChangeEvent[] = [];
+    for (const id of eventIds) {
+      const event = this.events.get(id);
+      if (event) result.push(event);
+    }
+    result.sort((a, b) => b.ts - a.ts);
+    return result.slice(0, limit);
+  }
+
+  async getByRole(roleId: string, limit: number = 100): Promise<ChangeEvent[]> {
+    const eventIds = this.indexByRole.get(roleId);
+    if (!eventIds) return [];
+
+    const result: ChangeEvent[] = [];
+    for (const id of eventIds) {
+      const event = this.events.get(id);
+      if (event) result.push(event);
+    }
+    result.sort((a, b) => b.ts - a.ts);
+    return result.slice(0, limit);
+  }
+
+  async getCount(since?: number): Promise<number> {
+    if (since === undefined) return this.events.size;
+    return this.indexByTime.filter((e) => e.ts >= since).length;
+  }
+
+  async pruneBefore(timestamp: number): Promise<number> {
+    const toDelete: string[] = [];
+    for (const [id, event] of this.events.entries()) {
+      if (event.ts < timestamp) toDelete.push(id);
+    }
+    for (const id of toDelete) {
+      const event = this.events.get(id)!;
+      this.indexByTarget.get(event.target.idOrPath)?.delete(id);
+      this.indexByRole.get(event.actorRoleId)?.delete(id);
+      const timeIndex = this.indexByTime.findIndex((e) => e.id === id);
+      if (timeIndex !== -1) this.indexByTime.splice(timeIndex, 1);
+      this.events.delete(id);
+    }
+    await this.persist();
+    return toDelete.length;
+  }
+
+  clear(): void {
+    this.events.clear();
+    this.indexByTarget.clear();
+    this.indexByRole.clear();
+    this.indexByTime = [];
+  }
+
+  export(): ChangeEvent[] {
+    return [...this.indexByTime];
+  }
+
+  import(events: ChangeEvent[]): void {
+    this.clear();
+    for (const event of events) {
+      this.indexEvent(event);
+    }
+    this.indexByTime.sort((a, b) => a.ts - b.ts);
+  }
+
+  private indexEvent(event: ChangeEvent): void {
+    this.events.set(event.id, event);
+    this.indexByTime.push(event);
+
+    if (!this.indexByTarget.has(event.target.idOrPath)) {
+      this.indexByTarget.set(event.target.idOrPath, new Set());
+    }
+    this.indexByTarget.get(event.target.idOrPath)!.add(event.id);
+
+    if (!this.indexByRole.has(event.actorRoleId)) {
+      this.indexByRole.set(event.actorRoleId, new Set());
+    }
+    this.indexByRole.get(event.actorRoleId)!.add(event.id);
+  }
+
+  private async persist(): Promise<void> {
+    if (this.persisting) return this.persisting;
+    this.persisting = this.doPersist().finally(() => { this.persisting = null; });
+    return this.persisting;
+  }
+
+  private async doPersist(): Promise<void> {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const dir = path.dirname(this.filePath);
+    await fs.mkdir(dir, { recursive: true });
+    const raw = JSON.stringify(this.export(), null, 2);
+    await fs.writeFile(this.filePath, raw, 'utf-8');
+  }
+}
+
+/**
  * Create a change log store with automatic persistence.
- * 
+ *
  * @param filePath - Path to JSON file for persistence
  * @returns ChangeLogStore with file-based persistence
  */
 export function createFileBackedChangeLogStore(filePath: string): ChangeLogStore {
-  // This would use fs module for file I/O
-  // For now, return in-memory store
-  // Implementation would:
-  // 1. Load existing events from file on init
-  // 2. Append to file on each write (or batch writes)
-  // 3. Handle concurrent access safely
-  
-  return new InMemoryChangeLogStore();
+  return new FileBackedChangeLogStore(filePath);
 }
 
 /**

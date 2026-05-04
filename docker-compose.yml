@@ -1,0 +1,48 @@
+services:
+  anfsf:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - ANFSF_PORT=3000
+      - ANFSF_HOST=0.0.0.0
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - ANFSF_MODEL=${ANFSF_MODEL:-qwen3.5-plus}
+    networks:
+      - anfsf-net
+    depends_on:
+      - prometheus
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - anfsf-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - anfsf-net
+    depends_on:
+      - prometheus
+
+networks:
+  anfsf-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

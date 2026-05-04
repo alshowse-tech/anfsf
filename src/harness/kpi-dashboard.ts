@@ -106,6 +106,30 @@ export class KPIDashboard {
   }
 
   /**
+   * Export metrics in Prometheus text exposition format.
+   */
+  exportPrometheus(): string {
+    const lines: string[] = [];
+    lines.push('# HELP anfsf_kpi_value Current KPI metric values');
+    lines.push('# TYPE anfsf_kpi_value gauge');
+    for (const [name, value] of Object.entries(this.getCurrentMetrics())) {
+      lines.push(`anfsf_kpi_value{name="${name}"} ${value}`);
+    }
+    return lines.join('\n') + '\n';
+  }
+
+  /**
+   * Export labels for Prometheus instance identification.
+   */
+  exportPrometheusLabels(): Record<string, string> {
+    return {
+      job: 'anfsf',
+      instance: process.env.HOSTNAME || 'localhost',
+      version: process.env.npm_package_version || '0.8.5',
+    };
+  }
+
+  /**
    * Daily architecture self-check.
    */
   async dailyArchitectureSelfCheck(currentMetrics: ArchitectureMetrics): Promise<{ passed: boolean; violations: string[] }> {

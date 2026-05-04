@@ -9,7 +9,9 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "server": "ts-node src/server/index.ts",
+    "start": "node dist/server/index.js"
   },
   "keywords": [
     "asf",
@@ -37,7 +39,10 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@fastify/sensible": "^6.0.4",
     "@types/pg": "^8.20.0",
+    "fastify": "^5.8.5",
     "pg": "^8.20.0"
   }
 }
