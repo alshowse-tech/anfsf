@@ -6,6 +6,8 @@
  * Part of the self-evolution four-gate system.
  */
 
+import { LLMClient, type LLMClientConfig } from '../../integrations/llm-client';
+
 export interface IntrospectionConfig {
   apiKey?: string;
   model?: string;
@@ -13,6 +15,8 @@ export interface IntrospectionConfig {
   /** Source directories to analyze */
   sourceDirs: string[];
   timeoutMs?: number;
+  llmClient?: LLMClient;
+  llmConfig?: Partial<LLMClientConfig>;
 }
 
 export interface ArchitectureFinding {
@@ -59,16 +63,23 @@ Rules:
 - Maximum 10 findings per review`;
 
 export class IntrospectionEngine {
-  private apiKey: string;
+  private llm: LLMClient;
   private model: string;
-  private llmBaseUrl: string;
   private sourceDirs: string[];
   private timeoutMs: number;
 
   constructor(config: IntrospectionConfig) {
-    this.apiKey = config.apiKey || process.env.DASHSCOPE_API_KEY || '';
+    if (config.llmClient) {
+      this.llm = config.llmClient;
+    } else {
+      this.llm = new LLMClient({
+        apiKey: config.apiKey || process.env.DASHSCOPE_API_KEY || '',
+        baseUrl: config.llmBaseUrl,
+        defaultModel: config.model || 'qwen3.5-plus',
+        ...config.llmConfig,
+      });
+    }
     this.model = config.model || 'qwen3.5-plus';
-    this.llmBaseUrl = config.llmBaseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     this.sourceDirs = config.sourceDirs;
     this.timeoutMs = config.timeoutMs ?? 60_000;
   }
@@ -162,42 +173,24 @@ export class IntrospectionEngine {
   private async analyzeChunk(
     files: Array<{ path: string; content: string }>
   ): Promise<{ summary: string; findings: ArchitectureFinding[] } | null> {
-    if (!this.apiKey) return null;
-
     const inputText = files
       .map(f => `=== ${f.path} ===\n${f.content}`)
       .join('\n\n');
 
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
-      const response = await fetch(`${this.llmBaseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: inputText },
-          ],
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-        }),
-        signal: controller.signal,
+      const result = await this.llm.chat({
+        model: this.model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: inputText },
+        ],
+        temperature: 0.1,
       });
-      clearTimeout(timer);
 
-      if (!response.ok) return null;
-
-      const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-      const content = data.choices[0]?.message?.content || '';
+      if (!result.ok) return null;
 
       try {
-        const parsed = JSON.parse(content) as { summary?: string; findings?: Array<Record<string, unknown>> };
+        const parsed = JSON.parse(result.content) as { summary?: string; findings?: Array<Record<string, unknown>> };
         return {
           summary: parsed.summary || '',
           findings: (parsed.findings || []).map(f => ({

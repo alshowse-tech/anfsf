@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Minimal CSS reset (replaces Tailwind preflight to avoid Firefox -webkit-text-size-adjust warning) */
+*, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
+html { line-height: 1.5; -webkit-text-size-adjust: none; text-size-adjust: none; -moz-tab-size: 4; tab-size: 4; }
+body { margin: 0; line-height: inherit; }
+h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; }
+p, ol, ul, dl, blockquote, pre { margin: 0; }
+ol, ul { list-style: none; padding: 0; }
+table { text-indent: 0; border-color: inherit; border-collapse: collapse; }
+button, input, select, textarea { font: inherit; color: inherit; background: transparent; padding: 0; line-height: inherit; }
+img, svg, video { display: block; vertical-align: middle; }
+a { color: inherit; text-decoration: inherit; }

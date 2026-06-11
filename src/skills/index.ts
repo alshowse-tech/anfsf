@@ -31,7 +31,12 @@ export {
   type OwnershipCheckResult,
 } from './policy-guard-skill';
 
-export function registerContextCompressorSkill(registry: any): void {
+/** Minimal registrar interface for skill registration */
+export interface SkillsRegistrar {
+  register(skill: object): void;
+}
+
+export function registerContextCompressorSkill(registry: SkillsRegistrar): void {
   registry.register(new ContextCompressorSkill());
 }
 
@@ -48,7 +53,7 @@ export {
   type RetrievalResult as MemoryRetrievalResult,
 } from './memory-consolidation-skill';
 
-export function registerMemoryConsolidationSkill(registry: any): void {
+export function registerMemoryConsolidationSkill(registry: SkillsRegistrar): void {
   registry.register(new MemoryConsolidationSkill());
 }
 
@@ -63,7 +68,7 @@ export {
   type RetrievalResult as HybridRetrievalResult,
 } from './hybrid-retriever-skill';
 
-export function registerHybridRetrieverSkill(registry: any): void {
+export function registerHybridRetrieverSkill(registry: SkillsRegistrar): void {
   registry.register(new HybridRetrieverSkill());
 }
 
@@ -78,7 +83,7 @@ export {
   type CitationResult,
 } from './citation-tracer-skill';
 
-export function registerCitationTracerSkill(registry: any): void {
+export function registerCitationTracerSkill(registry: SkillsRegistrar): void {
   registry.register(new CitationTracerSkill());
 }
 
@@ -93,7 +98,7 @@ export {
   type VerificationResult,
 } from './hallucination-guard-skill';
 
-export function registerHallucinationGuardSkill(registry: any): void {
+export function registerHallucinationGuardSkill(registry: SkillsRegistrar): void {
   registry.register(new HallucinationGuardSkill());
 }
 
@@ -104,7 +109,7 @@ export function createHallucinationGuardSkill(): HallucinationGuardSkill {
 /**
  * Register all fusion skills to registry.
  */
-export function registerAllFusionSkills(registry: any): void {
+export function registerAllFusionSkills(registry: SkillsRegistrar): void {
   registerContextCompressorSkill(registry);
   registerMemoryConsolidationSkill(registry);
   registerHybridRetrieverSkill(registry);

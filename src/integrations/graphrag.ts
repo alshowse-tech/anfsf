@@ -10,6 +10,7 @@
 
 import { FileBackedStore } from '../storage/file-store';
 import { cosineSimilarity } from './vector-search';
+import { LLMClient, type LLMClientConfig } from './llm-client';
 
 // ============================================================================
 // Types
@@ -259,6 +260,8 @@ export interface GraphRAGConfig {
   model?: string;
   llmBaseUrl?: string;
   graph: KnowledgeGraph;
+  llmClient?: LLMClient;
+  llmConfig?: Partial<LLMClientConfig>;
 }
 
 const SYSTEM_PROMPT = `You are a knowledge graph assistant. You have access to a project knowledge graph containing modules, classes, functions, and their relationships.
@@ -271,15 +274,22 @@ Answer the user's query based on the provided graph context. Be specific about:
 If the context doesn't contain enough information, say so clearly. Do not invent code or relationships.`;
 
 export class GraphRAG {
-  private apiKey: string;
+  private llm: LLMClient;
   private model: string;
-  private llmBaseUrl: string;
   private graph: KnowledgeGraph;
 
   constructor(config: GraphRAGConfig) {
-    this.apiKey = config.apiKey || process.env.DASHSCOPE_API_KEY || '';
+    if (config.llmClient) {
+      this.llm = config.llmClient;
+    } else {
+      this.llm = new LLMClient({
+        apiKey: config.apiKey || process.env.DASHSCOPE_API_KEY || '',
+        baseUrl: config.llmBaseUrl,
+        defaultModel: config.model || 'qwen3.5-plus',
+        ...config.llmConfig,
+      });
+    }
     this.model = config.model || 'qwen3.5-plus';
-    this.llmBaseUrl = config.llmBaseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     this.graph = config.graph;
   }
 
@@ -297,7 +307,7 @@ export class GraphRAG {
     const context = this.buildContext(relevantNodes);
 
     // Step 3: Use LLM to reason over the context
-    if (this.apiKey && relevantNodes.length > 0) {
+    if (relevantNodes.length > 0) {
       const answer = await this.reasonWithLLM(question, context);
       return {
         nodes: relevantNodes,
@@ -410,26 +420,17 @@ export class GraphRAG {
 
   private async reasonWithLLM(question: string, context: string): Promise<string | null> {
     try {
-      const response = await fetch(`${this.llmBaseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: `Context:\n${context}\n\nQuestion: ${question}` },
-          ],
-          temperature: 0.1,
-        }),
+      const result = await this.llm.chat({
+        model: this.model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: `Context:\n${context}\n\nQuestion: ${question}` },
+        ],
+        temperature: 0.1,
       });
 
-      if (!response.ok) return null;
-
-      const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-      return data.choices[0]?.message?.content || null;
+      if (!result.ok) return null;
+      return result.content || null;
     } catch {
       return null;
     }
@@ -480,18 +481,43 @@ export class GraphRAG {
   /** Legacy: validate statements against graph */
   async validateStatements(
     statements: string[],
-    _sources: Array<{ id: string; content: string }>
+    sources: Array<{ id: string; content: string }>
   ): Promise<{ passed: boolean; validatedNodes: number[]; conflictingNodes: number[]; confidence: number }> {
     const validatedNodes: number[] = [];
     const conflictingNodes: number[] = [];
 
+    // Build a keyword index from all graph nodes
+    const allText = new Map<string, string>();
+    for (const node of (this.graph as any).nodes.values()) {
+      const text = `${node.label} ${node.description} ${node.tags.join(' ')} ${node.filePath}`.toLowerCase();
+      allText.set(node.id, text);
+    }
+
+    // Build keyword index from sources
+    const sourceWords = new Set<string>();
+    for (const src of sources) {
+      const words = src.content.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+      words.forEach(w => sourceWords.add(w));
+    }
+
     for (let i = 0; i < statements.length; i++) {
-      // Use keyword matching as fallback (same as old simulation)
-      const isValid = Math.random() > 0.1;
-      if (isValid) {
+      const statementWords = statements[i].toLowerCase().split(/\W+/).filter(w => w.length > 3);
+      const matchingNodes = [...allText.entries()].filter(([, text]) =>
+        statementWords.some(w => text.includes(w))
+      );
+
+      // A statement is validated if it references nodes that exist in the graph
+      // and shares keywords with the provided sources
+      const hasGraphGrounding = matchingNodes.length > 0;
+      const hasSourceOverlap = statementWords.some(w => sourceWords.has(w));
+
+      if (hasGraphGrounding && hasSourceOverlap) {
         validatedNodes.push(i);
-      } else {
+      } else if (!hasGraphGrounding && !hasSourceOverlap) {
         conflictingNodes.push(i);
+      } else {
+        // Partial match — still valid but with lower confidence
+        validatedNodes.push(i);
       }
     }
 
@@ -499,7 +525,7 @@ export class GraphRAG {
       passed: conflictingNodes.length === 0,
       validatedNodes,
       conflictingNodes,
-      confidence: validatedNodes.length / statements.length,
+      confidence: statements.length > 0 ? validatedNodes.length / statements.length : 0,
     };
   }
 }

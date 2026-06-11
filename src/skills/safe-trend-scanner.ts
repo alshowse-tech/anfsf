@@ -5,6 +5,8 @@
  * technology trends. Read-only mode — returns suggestions, never auto-adopts.
  */
 
+import { LLMClient, type LLMClientConfig } from '../integrations/llm-client';
+
 export interface TrendSource {
   id: string;
   type: 'github-release' | 'npm-package';
@@ -60,19 +62,28 @@ export interface SafeTrendScannerConfig {
   baseUrl?: string;
   sources?: TrendSource[];
   timeoutMs?: number;
+  llmClient?: LLMClient;
+  llmConfig?: Partial<LLMClientConfig>;
 }
 
 export class SafeTrendScanner {
-  private apiKey: string;
+  private llm: LLMClient;
   private model: string;
-  private llmBaseUrl: string;
   private sources: TrendSource[];
   private timeoutMs: number;
 
   constructor(config: SafeTrendScannerConfig = {}) {
-    this.apiKey = config.apiKey || process.env.DASHSCOPE_API_KEY || '';
+    if (config.llmClient) {
+      this.llm = config.llmClient;
+    } else {
+      this.llm = new LLMClient({
+        apiKey: config.apiKey || process.env.DASHSCOPE_API_KEY || '',
+        baseUrl: config.baseUrl,
+        defaultModel: config.model || 'qwen3.5-plus',
+        ...config.llmConfig,
+      });
+    }
     this.model = config.model || 'qwen3.5-plus';
-    this.llmBaseUrl = config.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     this.sources = config.sources ?? WHITELIST_SOURCES;
     this.timeoutMs = config.timeoutMs ?? 30_000;
   }
@@ -102,7 +113,7 @@ export class SafeTrendScanner {
     }
 
     // Analyze findings with LLM if available
-    if (this.apiKey && findings.length > 0) {
+    if (findings.length > 0) {
       const analyzedFindings = await this.analyzeWithLLM(findings);
       if (analyzedFindings) {
         return {
@@ -170,42 +181,24 @@ export class SafeTrendScanner {
   }
 
   private async analyzeWithLLM(findings: TrendFinding[]): Promise<TrendFinding[] | null> {
-    if (!this.apiKey) return null;
-
     const inputText = findings
       .map(f => `### ${f.source.id}: ${f.title}\n${f.summary}`)
       .join('\n\n');
 
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
-      const response = await fetch(`${this.llmBaseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: inputText },
-          ],
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-        }),
-        signal: controller.signal,
+      const result = await this.llm.chat({
+        model: this.model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: inputText },
+        ],
+        temperature: 0.1,
       });
-      clearTimeout(timer);
 
-      if (!response.ok) return null;
-
-      const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-      const content = data.choices[0]?.message?.content || '';
+      if (!result.ok) return null;
 
       try {
-        const parsed = JSON.parse(content) as Record<string, Record<string, unknown>>;
+        const parsed = JSON.parse(result.content) as Record<string, Record<string, unknown>>;
         return findings.map((f, i) => {
           const key = Object.keys(parsed)[i];
           const analysis = key ? parsed[key] : {};

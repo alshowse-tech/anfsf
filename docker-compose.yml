@@ -1,35 +1,81 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: anfsf-postgres
+    restart: unless-stopped
+    # No exposed ports — internal Docker networking only
+    environment:
+      POSTGRES_DB: anfsf
+      POSTGRES_USER: anfsf
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anfsf_dev_password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anfsf"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - anfsf-net
+
   anfsf:
     build: .
+    container_name: anfsf-backend
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - ANFSF_PORT=3000
-      - ANFSF_HOST=0.0.0.0
-      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
-      - ANFSF_MODEL=${ANFSF_MODEL:-qwen3.5-plus}
+      ANFSF_PORT: "3000"
+      ANFSF_HOST: "0.0.0.0"
+      LLM_API_KEY: ${LLM_API_KEY}
+      ANFSF_MODEL: ${ANFSF_MODEL:-qwen3.5-plus}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      DATABASE_URL: postgresql://anfsf:${POSTGRES_PASSWORD:-anfsf_dev_password}@postgres:5432/anfsf
+      ANFSF_API_TOKEN: ${ANFSF_API_TOKEN:-}
+      ANFSF_ALLOWED_ORIGINS: ${ANFSF_ALLOWED_ORIGINS:-}
+      ANFSF_DATA_RETENTION_DAYS: ${ANFSF_DATA_RETENTION_DAYS:-30}
+    volumes:
+      - anfsf-data:/app/.anfsf
+      - ./output:/app/output
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - anfsf-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_ANFSF_API: ""
+    container_name: anfsf-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
     depends_on:
-      - prometheus
+      - anfsf
+    networks:
+      - anfsf-net
 
   prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
+    image: prom/prometheus:v2.51.0
+    # No exposed ports — internal Docker networking only
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     networks:
       - anfsf-net
+    restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.4.0
     ports:
       - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-anfsf_secure_password}
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -38,11 +84,14 @@ services:
       - anfsf-net
     depends_on:
       - prometheus
+    restart: unless-stopped
 
 networks:
   anfsf-net:
     driver: bridge
 
 volumes:
+  postgres-data:
+  anfsf-data:
   prometheus-data:
   grafana-data:

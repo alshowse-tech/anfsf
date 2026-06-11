@@ -95,21 +95,44 @@ export interface UISynthesisConfig {
 export interface UISynthesisResult {
   /** Component name */
   componentName: string;
-  
+
   /** Generated code */
   code: string;
-  
+
   /** Component props */
-  props: Record<string, any>;
-  
+  props: Record<string, unknown>;
+
   /** Dependencies */
   dependencies: string[];
-  
+
   /** Accessibility score */
   a11yScore: number;
-  
+
   /** Asset manifest */
   assetManifest: AssetManifest;
+}
+
+/**
+ * Input requirement for UI component synthesis.
+ */
+export interface UIComponentRequirement {
+  componentName: string;
+  props?: Record<string, unknown>;
+  state?: Record<string, unknown>;
+  tailwindClasses?: string[];
+  dependencies?: string[];
+  criticalCSS?: string;
+  externalStyles?: string[];
+  dynamicStyles?: string[];
+  fonts?: string[];
+  // Accessibility hints (optional)
+  hasImages?: boolean;
+  altText?: string;
+  hasInputs?: boolean;
+  labels?: boolean;
+  lowContrast?: boolean;
+  interactive?: boolean;
+  keyboardNav?: boolean;
 }
 
 /**
@@ -127,7 +150,7 @@ export interface MCPMessage {
   from?: string;
   to?: string;
   target?: string;
-  payload: any;
+  payload: Record<string, unknown>;
   traceId?: string;
   idempotencyKey?: string;
   ttl?: number;
@@ -162,7 +185,7 @@ export class UISynthesisModule {
    * Synthesize UI component from requirements.
    */
   async synthesize(
-    requirement: any,
+    requirement: UIComponentRequirement,
     componentTree: ComponentTreeAssets
   ): Promise<UISynthesisResult> {
     // Generate component code (simplified for demo)
@@ -225,8 +248,11 @@ export class UISynthesisModule {
    * Throws error if manifest is empty or invalid.
    */
   private validateManifestIntegrity(manifest: AssetManifest): void {
-    // Check if both critical and external styles are missing
-    if (!manifest.styles.critical && manifest.styles.external.length === 0) {
+    // At least one style source must be present: critical CSS, external stylesheets, or Tailwind classes
+    const hasStyles = !!(manifest.styles.critical) ||
+      manifest.styles.external.length > 0 ||
+      manifest.styles.tailwind.length > 0;
+    if (!hasStyles) {
       throw new Error('Style asset manifest empty - GenUI output validation failed');
     }
 
@@ -256,7 +282,7 @@ export class UISynthesisModule {
   /**
    * Extract styles from requirement.
    */
-  private extractStyles(requirement: any): StyleAssets {
+  private extractStyles(requirement: UIComponentRequirement): StyleAssets {
     const styles: StyleAssets = {
       critical: undefined,
       external: [],
@@ -304,9 +330,9 @@ export class UISynthesisModule {
   /**
    * Generate component code (simplified).
    */
-  private generateComponentCode(requirement: any): string {
+  private generateComponentCode(requirement: UIComponentRequirement): string {
     const componentName = requirement.componentName || 'Component';
-    
+
     switch (this.config.framework) {
       case 'react':
         return this.generateReactComponent(componentName, requirement);
@@ -319,7 +345,7 @@ export class UISynthesisModule {
     }
   }
 
-  private generateReactComponent(name: string, requirement: any): string {
+  private generateReactComponent(name: string, requirement: UIComponentRequirement): string {
     return `import React from 'react';
 
 export interface ${name}Props {
@@ -339,7 +365,7 @@ export const ${name}: React.FC<${name}Props> = (props) => {
 export default ${name};`;
   }
 
-  private generateVueComponent(name: string, requirement: any): string {
+  private generateVueComponent(name: string, requirement: UIComponentRequirement): string {
     return `<template>
   <div class="${(requirement.tailwindClasses || []).join(' ')}">
     ${name} Component
@@ -352,15 +378,15 @@ import { defineComponent } from 'vue';
 export default defineComponent({
   name: '${name}',
   props: {
-    ${Object.entries(requirement.props || {}).map(([key, value]: [string, any]) => 
-    `${key}: { type: ${value.type || 'Object'}, required: ${value.required || false} }`
+    ${Object.entries(requirement.props || {}).map(([key, value]) =>
+    `${key}: { type: ${(value as any).type || 'Object'}, required: ${(value as any).required || false} }`
   ).join(',\n    ')}
   }
 });
 </script>`;
   }
 
-  private generateAngularComponent(name: string, requirement: any): string {
+  private generateAngularComponent(name: string, requirement: UIComponentRequirement): string {
     return `import { Component, Input } from '@angular/core';
 
 @Component({
@@ -372,8 +398,8 @@ export default defineComponent({
   \`
 })
 export class ${name}Component {
-  ${Object.entries(requirement.props || {}).map(([key, value]: [string, any]) => 
-    `@Input() ${key}${value.required ? '' : '?'}: ${value.type || 'any'};`
+  ${Object.entries(requirement.props || {}).map(([key, value]) =>
+    `@Input() ${key}${(value as any).required ? '' : '?'}: ${(value as any).type || 'any'};`
   ).join('\n  ')}
 }`;
   }
@@ -381,14 +407,14 @@ export class ${name}Component {
   /**
    * Extract props from requirement.
    */
-  private extractProps(requirement: any): Record<string, any> {
+  private extractProps(requirement: UIComponentRequirement): Record<string, unknown> {
     return requirement.props || {};
   }
 
   /**
    * Extract dependencies from requirement.
    */
-  private extractDependencies(requirement: any): string[] {
+  private extractDependencies(requirement: UIComponentRequirement): string[] {
     const deps = new Set<string>();
     
     // Add framework-specific dependencies
@@ -424,7 +450,7 @@ export class ${name}Component {
   /**
    * Calculate accessibility score.
    */
-  private calculateA11yScore(requirement: any): number {
+  private calculateA11yScore(requirement: UIComponentRequirement): number {
     let score = 100;
 
     // Deduct for missing alt text
@@ -500,8 +526,11 @@ export function createAssetManifest(
     },
   };
 
-  // Validate manifest
-  if (!manifest.styles.critical && manifest.styles.external.length === 0) {
+  // Validate manifest: at least one style source must exist
+  const hasStyles = !!(manifest.styles.critical) ||
+    manifest.styles.external.length > 0 ||
+    manifest.styles.tailwind.length > 0;
+  if (!hasStyles) {
     throw new Error('Style asset manifest empty - GenUI output validation failed');
   }
 

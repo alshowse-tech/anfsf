@@ -380,25 +380,32 @@ export class HallucinationGuardSkill extends Skill {
       };
     } catch (error) {
       console.error('[HallucinationGuard] GraphRAG validation error:', error);
-      // Fallback to simulated validation
-      return this.simulateGraphValidation(statements);
+      // Fallback: use keyword overlap grounding as proxy for graph validation
+      return this.fallbackGraphValidation(statements, sources);
     }
   }
 
   /**
-   * Simulate graph validation (fallback when GraphRAG unavailable).
+   * Fallback graph validation when GraphRAG is unavailable.
    * Uses keyword overlap with source content as a proxy for entity validation.
    */
-  private simulateGraphValidation(statements: string[]): VerificationResult['graphValidation'] {
+  private fallbackGraphValidation(
+    statements: string[],
+    sources: VerificationSource[]
+  ): VerificationResult['graphValidation'] {
     const validatedNodes: number[] = [];
     const conflictingNodes: number[] = [];
 
     for (let i = 0; i < statements.length; i++) {
-      // Use deterministic validation based on statement content hash
-      // rather than pure random, so results are reproducible
-      const hash = this.simpleHash(statements[i]);
-      const isValid = (hash % 10) > 0; // ~90% pass rate deterministically
-      if (isValid) {
+      const statementWords = statements[i].toLowerCase().split(/\s+/).filter(w => w.length > 3);
+
+      const maxOverlap = sources.reduce((max, source) => {
+        const sourceWords = source.content.toLowerCase().split(/\s+/);
+        const overlap = statementWords.filter(w => sourceWords.includes(w)).length;
+        return Math.max(max, overlap / Math.max(1, statementWords.length));
+      }, 0);
+
+      if (maxOverlap > 0.2) {
         validatedNodes.push(i);
       } else {
         conflictingNodes.push(i);

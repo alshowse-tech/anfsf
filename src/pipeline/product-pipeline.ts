@@ -8,11 +8,12 @@
  *     → Compile Validate → Quality Gate → L10 (Guard Checks)
  */
 
-import { AINativePRDParser, AINativePRD, ValidationReport, PRDQualityReport } from '../prd/prd-parser';
+import { AINativePRDParser, AINativePRD, ValidationReport, PRDQualityReport, autoEnhancePRD } from '../prd/prd-parser';
 import { InputGovernanceEngine } from '../input-governance/governance';
 import { WhyWhatHowReasoner, ReasoningResult } from '../skills/why-what-how-reasoner';
 import { DetailPolisher, FilePolishResult, DetailPolisherConfig } from '../skills/detail-polisher';
 import { QualityGate, QualityGateResult, QualityGateInput } from '../core/quality/quality-gate';
+import { createLogger, type Logger } from '../observability/logger';
 import { RequirementGraphEngine, RequirementGraph, IR, GraphLevel } from '../req-graph/graph-engine';
 import { ArchitectureAutoScaler, ArchitectureMode } from '../core/architecture/auto-scaling-engine';
 import { UISynthesisModule, AssetManifest, ComponentTreeAssets, UISynthesisResult } from '../core/contract/ui-synthesis-module';
@@ -23,14 +24,41 @@ import { writeProjectFiles, WriteReport } from '../core/fs/file-writer';
 import { RefinedGraph, refineGraphToRequirementGraph, applyRefinementConstraints } from '../core/fs/refined-graph-bridge';
 import { CompileValidator, CompileValidationResult } from '../core/quality/compile-validator';
 import { matchTemplateByKeywords, boostPRD, IndustryTemplate } from '../templates';
+import { LLMClient } from '../integrations/llm-client';
 
 // ============================================================================
 // Types
 // ============================================================================
 
+/** Pipeline-level timeout: 30 minutes (1800 seconds) */
+const PIPELINE_TIMEOUT_MS = 30 * 60 * 1000;
+
+/** Per-step timeout budget (ms) — prevents a single LLM call from starving the rest */
+const STEP_TIMEOUT_MS: Record<string, number> = {
+  'L1: PRD Parse': 5 * 60 * 1000,
+  'Template Detection': 30 * 1000,
+  'PRD Quality Gate': 5 * 60 * 1000,
+  'PRD Auto Enhancement': 3 * 60 * 1000,
+  'Why-What-How Reasoning': 8 * 60 * 1000,
+  'L4: Graph→IR Compile': 2 * 60 * 1000,
+  'L2→L4 Bridge + IR Compile': 2 * 60 * 1000,
+  'L6: Architecture': 1 * 60 * 1000,
+  'L7: UI Synthesis': 10 * 60 * 1000,
+  'L6: Architecture Generation': 5 * 60 * 1000,
+  'Detail Polisher': 5 * 60 * 1000,
+  'Write Files': 2 * 60 * 1000,
+  'Compile Validation': 3 * 60 * 1000,
+  'Quality Gate': 5 * 60 * 1000,
+  'L10: Guard Check': 5 * 60 * 1000,
+  'L1: PRD Auto Enhancement': 5 * 60 * 1000,
+};
+const DEFAULT_STEP_TIMEOUT_MS = 5 * 60 * 1000;
+
 export interface PipelineConfig {
   apiKey: string;
   model?: string;
+  baseUrl?: string;
+  llmClient?: LLMClient;
   uiFramework?: 'react' | 'vue' | 'angular' | 'svelte';
   uiLibrary?: 'antd' | 'material-ui' | 'chakra' | 'tailwind';
   enableGuardChecks?: boolean;
@@ -42,6 +70,7 @@ export interface PipelineConfig {
   enableCodeQualityGate?: boolean;
   detailPolisherConfig?: DetailPolisherConfig;
   qualityGateMinScore?: number;
+  timeoutMs?: number;
   onProgress?: (step: PipelineStep) => void;
 }
 
@@ -101,10 +130,13 @@ export interface PipelineResult {
 
 export class ProductPipeline {
   private config: Required<PipelineConfig>;
+  private llm: LLMClient;
+  private log: Logger;
 
   constructor(config: PipelineConfig) {
     this.config = {
       model: config.model || 'qwen3.5-plus',
+      baseUrl: config.baseUrl || '',
       uiFramework: config.uiFramework || 'react',
       uiLibrary: config.uiLibrary || 'tailwind',
       enableGuardChecks: config.enableGuardChecks ?? true,
@@ -117,8 +149,36 @@ export class ProductPipeline {
       enableCodeQualityGate: config.enableCodeQualityGate ?? false,
       detailPolisherConfig: config.detailPolisherConfig ?? { apiKey: config.apiKey },
       qualityGateMinScore: config.qualityGateMinScore ?? 0.80,
+      timeoutMs: config.timeoutMs ?? PIPELINE_TIMEOUT_MS,
       onProgress: config.onProgress ?? (() => {}),
+      llmClient: config.llmClient || null as unknown as LLMClient,
     };
+
+    // Use shared LLMClient if provided, otherwise create one (backward compat)
+    this.llm = config.llmClient || new LLMClient({
+      apiKey: this.config.apiKey,
+      baseUrl: this.config.baseUrl || undefined,
+      defaultModel: this.config.model,
+    });
+
+    this.log = createLogger('pipeline');
+  }
+
+  /** Get the shared LLMClient (for monitoring circuit breaker state, cost, etc.) */
+  getLLMClient(): LLMClient {
+    return this.llm;
+  }
+
+  /**
+   * Wrap a step promise with a per-step timeout.
+   * If the step exceeds its budget, rejects with a timeout error instead of hanging.
+   */
+  private withStepTimeout<T>(stepName: string, promise: Promise<T>): Promise<T> {
+    const timeoutMs = STEP_TIMEOUT_MS[stepName] ?? DEFAULT_STEP_TIMEOUT_MS;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Step '${stepName}' timed out after ${timeoutMs / 1000}s`)), timeoutMs);
+    });
+    return Promise.race([promise, timeoutPromise]);
   }
 
   /**
@@ -130,25 +190,56 @@ export class ProductPipeline {
   }
 
   /**
-   * Run the full L1→L4→L6→L7→L10 pipeline.
+   * Run the full L1→L4→L6→L7→L10 pipeline with timeout protection.
    */
   async run(input: PipelineInput): Promise<PipelineResult> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Pipeline timeout: exceeded ${this.config.timeoutMs / 1000}s`)), this.config.timeoutMs);
+    });
+
+    return Promise.race([this.runPipeline(input), timeoutPromise]).catch(e => {
+      const err = e instanceof Error ? e.message : String(e);
+      return {
+        output: null,
+        steps: [],
+        totalDuration: this.config.timeoutMs,
+        success: false,
+        _timeoutError: err, // internal field for store notification
+      } as PipelineResult;
+    });
+  }
+
+  /** Internal pipeline execution without timeout wrapper */
+  private async runPipeline(input: PipelineInput): Promise<PipelineResult> {
     const startTime = Date.now();
     const steps: PipelineStep[] = [];
     const errors: string[] = [];
     const pipelineErrors: PipelineError[] = [];
 
+    this.log.info('pipeline started', { prdLength: input.prdText.length, hasRefinedGraph: !!input.refinedGraph });
+
     // --- L1: PRD Parse ---
     const l1Start = Date.now();
     let prd: AINativePRD;
     let validation: ValidationReport;
+    let llmParseFailed = false;
+    let boostedPrdText = input.prdText; // declared early for L1 auto-enhance
     try {
       const parser = new AINativePRDParser({
-        apiKey: this.config.apiKey,
+        llmClient: this.llm,
         model: this.config.model,
       });
-      prd = await parser.parse(input.prdText);
+      prd = await this.withStepTimeout('L1: PRD Parse', parser.parse(input.prdText));
       validation = parser.validateCompleteness(prd);
+
+      // Detect silent LLM parse failure: emptyPRD() returns a dummy feature
+      // If the only feature has id='default' and userFlows/constraints/acceptanceCriteria are all empty,
+      // the LLM likely failed to parse the PRD
+      if (prd.features.length === 1 && prd.features[0].id === 'default' &&
+          prd.userFlows.length === 0 && prd.constraints.length === 0 &&
+          prd.acceptanceCriteria.length === 0 && prd.nonFunctionalSpecs.length === 0) {
+        llmParseFailed = true;
+      }
 
       if (!validation.valid) {
         pipelineErrors.push({
@@ -163,11 +254,33 @@ export class ProductPipeline {
       pipelineErrors.push({ step: 'L1: PRD Parse', message: err, recoverable: false });
       return this.failResult(steps, errors, pipelineErrors, startTime);
     }
-    this.recordStep(steps, { name: 'L1: PRD Parse', duration: Date.now() - l1Start, status: 'ok' });
+    this.recordStep(steps, { name: 'L1: PRD Parse', duration: Date.now() - l1Start, status: llmParseFailed ? 'error' : 'ok' });
+
+    // If LLM parse failed silently, try to auto-enhance before continuing
+    if (llmParseFailed) {
+      const enhanceStart = Date.now();
+      try {
+        const enhancedText = await this.withStepTimeout('L1: PRD Auto Enhancement', autoEnhancePRD(input.prdText, {
+          score: 10,
+          ambiguities: [],
+          conflicts: [],
+          missingSections: ['全部结构化字段'],
+          suggestions: ['为 PRD 补充完整的验收标准、约束条件、非功能需求、用户流程'],
+        }, this.llm, this.config.model));
+        const parser = new AINativePRDParser({ llmClient: this.llm, model: this.config.model });
+        const enhancedPRD = await this.withStepTimeout('L1: PRD Auto Enhancement', parser.parse(enhancedText));
+        prd = enhancedPRD;
+        boostedPrdText = enhancedText;
+      } catch (e) {
+        const err = e instanceof Error ? e.message : String(e);
+        pipelineErrors.push({ step: 'L1: PRD Auto Enhancement', message: `LLM parse failed and enhancement also failed: ${err}`, recoverable: false });
+        return this.failResult(steps, errors, pipelineErrors, startTime);
+      }
+      this.recordStep(steps, { name: 'L1: PRD Auto Enhancement', duration: Date.now() - enhanceStart, status: 'ok' });
+    }
 
     // --- Industry Template Detection & Boost ---
     let matchedTemplate: IndustryTemplate | null = null;
-    let boostedPrdText = input.prdText;
     const templateStart = Date.now();
     try {
       const template = matchTemplateByKeywords(input.prdText);
@@ -182,23 +295,35 @@ export class ProductPipeline {
 
     // --- PRD Quality Gate ---
     let qualityReport: PRDQualityReport | null = null;
+    let enhancedText: string | null = null;
     if (this.config.enableQualityGate) {
       const qgStart = Date.now();
       try {
-        const govEngine = new InputGovernanceEngine({ apiKey: this.config.apiKey, model: this.config.model });
-        qualityReport = await govEngine.assessWithLLM(prd, boostedPrdText);
+        const govEngine = new InputGovernanceEngine({ llmClient: this.llm, model: this.config.model });
+        qualityReport = await this.withStepTimeout('PRD Quality Gate', govEngine.assessWithLLM(prd, boostedPrdText));
       } catch (e) {
         const err = e instanceof Error ? e.message : String(e);
         pipelineErrors.push({ step: 'PRD Quality Gate', message: err, recoverable: true });
       }
       this.recordStep(steps, { name: 'PRD Quality Gate', duration: Date.now() - qgStart, status: qualityReport ? 'ok' : 'error' });
 
+      // Auto-enhance when quality score is too low
       if (qualityReport && qualityReport.score < 50) {
-        pipelineErrors.push({
-          step: 'PRD Quality Gate',
-          message: `PRD quality score too low: ${qualityReport.score}/100`,
-          recoverable: true,
-        });
+        const enhanceStart = Date.now();
+        try {
+          enhancedText = await autoEnhancePRD(boostedPrdText, qualityReport, this.llm, this.config.model);
+          // Re-parse the enhanced PRD to get a complete struct
+          const parser = new AINativePRDParser({ llmClient: this.llm, model: this.config.model });
+          const enhancedPRD = await parser.parse(enhancedText);
+          // Replace the PRD object with the enhanced version
+          prd = enhancedPRD;
+          // Use enhanced text for downstream steps
+          boostedPrdText = enhancedText;
+        } catch (e) {
+          const err = e instanceof Error ? e.message : String(e);
+          pipelineErrors.push({ step: 'PRD Auto Enhancement', message: err, recoverable: true });
+        }
+        this.recordStep(steps, { name: 'PRD Auto Enhancement', duration: Date.now() - enhanceStart, status: enhancedText ? 'ok' : 'error' });
       }
     }
 
@@ -207,8 +332,8 @@ export class ProductPipeline {
     if (this.config.enableReasoning) {
       const reasonStart = Date.now();
       try {
-        const reasoner = new WhyWhatHowReasoner({ apiKey: this.config.apiKey, model: this.config.model });
-        reasoningResult = await reasoner.reason(boostedPrdText);
+        const reasoner = new WhyWhatHowReasoner({ llmClient: this.llm, model: this.config.model });
+        reasoningResult = await this.withStepTimeout('Why-What-How Reasoning', reasoner.reason(boostedPrdText));
       } catch (e) {
         const err = e instanceof Error ? e.message : String(e);
         pipelineErrors.push({ step: 'Why-What-How Reasoning', message: err, recoverable: true });
@@ -280,7 +405,7 @@ export class ProductPipeline {
             icons: [],
           };
 
-          const result = await uiModule.synthesize(
+          const result = await this.withStepTimeout('L7: UI Synthesis', uiModule.synthesize(
             {
               componentName: comp.name,
               props: comp.props || {},
@@ -289,7 +414,7 @@ export class ProductPipeline {
               dependencies: [],
             },
             componentTree
-          );
+          ));
           uiComponents.push(result);
         }
       }
@@ -301,7 +426,7 @@ export class ProductPipeline {
             icons: [],
           };
 
-          const result = await uiModule.synthesize(
+          const result = await this.withStepTimeout('L7: UI Synthesis', uiModule.synthesize(
             {
               componentName: uiReq.component,
               props: {},
@@ -309,7 +434,7 @@ export class ProductPipeline {
               dependencies: [],
             },
             componentTree
-          );
+          ));
           uiComponents.push(result);
         }
       }
@@ -318,6 +443,7 @@ export class ProductPipeline {
       errors.push(`L7 UI Synthesis failed: ${err}`);
     }
     this.recordStep(steps, { name: 'L7: UI Synthesis', duration: Date.now() - l7Start, status: errors.length > 0 ? 'error' : 'ok' });
+    const l7Failed = errors.length > 0;
 
     // --- L6: Architecture Generation (Frontend + Backend) ---
     const l6genStart = Date.now();
@@ -325,7 +451,7 @@ export class ProductPipeline {
     let backendArch: BackendArchitecture | null = null;
     try {
       const frontendArchitect = new FrontendArchitect({
-        framework: this.config.uiFramework === 'react' ? 'react' : this.config.uiFramework === 'vue' ? 'react' : 'react',
+        framework: this.config.uiFramework === 'vue' ? 'react' : this.config.uiFramework === 'angular' ? 'react' : 'react', // FrontendArchitect only supports React for now
         router: 'react-router',
         stateLib: 'zustand',
       });
@@ -344,16 +470,21 @@ export class ProductPipeline {
     this.recordStep(steps, { name: 'L6: Architecture Generation', duration: Date.now() - l6genStart, status: frontendArch && backendArch ? 'ok' : 'error' });
 
     // --- Detail Polisher (polish generated files in memory) ---
+    // Skipped when L7 failed and no UI components were generated
     let polishResults: FilePolishResult[] | null = null;
-    if (this.config.enableCodeQualityGate && frontendArch && backendArch) {
+    const hasGeneratedCode = frontendArch && backendArch;
+    if (this.config.enableCodeQualityGate && hasGeneratedCode && !l7Failed) {
       const polishStart = Date.now();
       try {
         const allFiles = [
           ...frontendArch.files.map(f => ({ path: f.path, content: f.content })),
           ...backendArch.files.map(f => ({ path: f.path, content: f.content })),
         ];
-        const polisher = new DetailPolisher(this.config.detailPolisherConfig);
-        polishResults = await polisher.polish(allFiles, input.prdText);
+        const polisher = new DetailPolisher({
+          ...this.config.detailPolisherConfig,
+          llmClient: this.llm,
+        });
+        polishResults = await this.withStepTimeout('Detail Polisher', polisher.polish(allFiles, input.prdText));
 
         // Replace files with polished versions
         const polishMap = new Map(polishResults.filter(r => r.modified).map(r => [r.path, r.code]));
@@ -371,8 +502,9 @@ export class ProductPipeline {
     }
 
     // --- Write generated files to disk ---
+    // Skipped when L7 failed (no UI components to write)
     let writeReport: { frontend: WriteReport; backend: WriteReport } | null = null;
-    if (frontendArch && backendArch) {
+    if (hasGeneratedCode && !l7Failed) {
       const writeStart = Date.now();
       try {
         const frontendFiles = frontendArch.files.map(f => ({ path: f.path, content: f.content }));
@@ -433,8 +565,9 @@ export class ProductPipeline {
     }
 
     // --- L10: Guard Checks ---
+    // Skipped when L7 failed (no UI components to verify)
     let guardResult: VerificationResult | null = null;
-    if (this.config.enableGuardChecks && uiComponents.length > 0) {
+    if (this.config.enableGuardChecks && uiComponents.length > 0 && !l7Failed) {
       const l10Start = Date.now();
       try {
         const guard = new HallucinationGuardSkill();
@@ -445,7 +578,7 @@ export class ProductPipeline {
           mode: 'fast',
           enableGraphValidation: false,
         };
-        guardResult = await guard.execute(ctx);
+        guardResult = await this.withStepTimeout('L10: Guard Check', guard.execute(ctx));
       } catch (e) {
         const err = e instanceof Error ? e.message : String(e);
         errors.push(`L10 Guard Check failed: ${err}`);
@@ -475,7 +608,15 @@ export class ProductPipeline {
       pipelineErrors,
     };
 
-    return { output, steps, totalDuration, success: pipelineErrors.filter(e => !e.recoverable).length === 0 };
+    const hasFatalErrors = pipelineErrors.filter(e => !e.recoverable).length === 0;
+    this.log.info('pipeline finished', {
+      totalDuration,
+      stepCount: steps.length,
+      success: hasFatalErrors,
+      errorCount: pipelineErrors.length,
+    });
+
+    return { output, steps, totalDuration, success: hasFatalErrors };
   }
 
   /**
@@ -484,6 +625,13 @@ export class ProductPipeline {
   private recordStep(steps: PipelineStep[], step: PipelineStep): void {
     steps.push(step);
     this.config.onProgress?.(step);
+
+    // Structured logging for observability
+    if (step.status === 'error') {
+      this.log.error(`step ${step.name} failed`, { duration: step.duration, totalSteps: steps.length });
+    } else {
+      this.log.info(`step ${step.name} completed`, { duration: step.duration, totalSteps: steps.length });
+    }
   }
 
   /**
@@ -527,7 +675,26 @@ export class ProductPipeline {
 
   private failResult(steps: PipelineStep[], errors: string[], pipelineErrors: PipelineError[], startTime: number): PipelineResult {
     return {
-      output: null,
+      output: {
+        prd: {} as AINativePRD,
+        validation: {} as ValidationReport,
+        qualityReport: null,
+        reasoningResult: null,
+        graph: {} as RequirementGraph,
+        ir: {} as IR,
+        architecture: {} as ArchitectureMode,
+        uiComponents: [],
+        guardResults: null,
+        compileValidation: null,
+        polishResults: null,
+        qualityGateResult: null,
+        frontendArchitecture: null,
+        backendArchitecture: null,
+        writeReport: null,
+        matchedTemplate: null,
+        errors,
+        pipelineErrors,
+      },
       steps,
       totalDuration: Date.now() - startTime,
       success: false,

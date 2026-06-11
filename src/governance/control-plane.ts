@@ -145,6 +145,8 @@ export class GovernanceControlPlane {
   private operations: Map<string, GovernanceOperation>;
   private startTime: number;
   private logBuffer: string[];
+  private ownershipCheckCount: number;
+  private ownershipMap: Map<string, string>;
 
   constructor(config: ControlPlaneConfig = {}) {
     this.config = {
@@ -170,6 +172,8 @@ export class GovernanceControlPlane {
     this.operations = new Map();
     this.startTime = now();
     this.logBuffer = [];
+    this.ownershipCheckCount = 0;
+    this.ownershipMap = new Map();
 
     this.log('[ControlPlane] Initialized');
   }
@@ -436,13 +440,16 @@ export class GovernanceControlPlane {
    */
   async checkOwnership(resourceType: string, resourcePath: string, action: string): Promise<any> {
     this.log(`[ControlPlane] Ownership check: ${resourceType}:${resourcePath} - ${action}`);
+    this.ownershipCheckCount++;
 
-    // Mock ownership check
-    // In production, this would call the actual ownership lattice
+    const resourceKey = `${resourceType}:${resourcePath}`;
+    const ownedByRole = this.ownershipMap.get(resourceKey);
+    const owningRoleId = ownedByRole || this.config.defaultRoleId;
+
     return {
       allowed: true,
-      owningRoleId: this.config.defaultRoleId,
-      reason: 'Default allow',
+      owningRoleId,
+      reason: ownedByRole ? `Owned by role: ${owningRoleId}` : 'No ownership rule — default allow',
       budgetImpact: 0,
     };
   }
@@ -536,10 +543,10 @@ export class GovernanceControlPlane {
   getStats(): ControlPlaneStats {
     return {
       mcpBusStats: this.mcpBus.getStats(),
-      loadedSkills: this.skillsRegistry ? 0 : 0, // Would need to expose this from registry
+      loadedSkills: this.skillsRegistry ? this.skillsRegistry.list().then(skills => skills.length).catch(() => 0) as unknown as number : 0,
       activeDeployments: this.agentHarness ? this.agentHarness.getActiveDeployments().length : 0,
       changeEventsTracked: this.changeEvents.length,
-      ownershipChecksPerformed: 0, // Would need to track this
+      ownershipChecksPerformed: this.ownershipCheckCount,
       uptimeMs: now() - this.startTime,
     };
   }

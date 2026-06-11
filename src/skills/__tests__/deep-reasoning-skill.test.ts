@@ -5,6 +5,28 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { DeepReasoningSkill, createDeepReasoningSkill } from '../deep-reasoning-skill';
 import { RequirementGraphEngine } from '../../req-graph/graph-engine';
+import type { Feature } from '../../prd/prd-parser';
+
+function F(id: string, name: string, description: string): Feature {
+  return { id, name, description, priority: 'P0', status: 'draft' };
+}
+
+function S(name: string): any {
+  return { api: [], services: [{ name, responsibility: name, dependencies: [] }] };
+}
+
+function build(intent: string, features: Feature[] = [], system: any = { api: [], services: [] }) {
+  const engine = new RequirementGraphEngine();
+  return engine.build(
+    { intent },
+    {},
+    features,
+    [],
+    system as any,
+    [],
+    { criteria: [], constraints: [] },
+  );
+}
 
 describe('Deep Reasoning Skill Tests', () => {
   let skill: DeepReasoningSkill;
@@ -19,19 +41,10 @@ describe('Deep Reasoning Skill Tests', () => {
   });
 
   it('should perform causal reasoning', async () => {
-    const graphEngine = new RequirementGraphEngine();
-    const graph = graphEngine.build(
-      'User system',
-      [],
-      [
-        { id: 'f1', name: 'User Auth', description: 'User authentication' },
-        { id: 'f2', name: 'User Profile', description: 'User profile management' },
-      ],
-      [],
-      [{ id: 's1', name: 'Auth Service', architecture: 'monolith' }],
-      [],
-      [],
-    );
+    const graph = build('User system', [
+      F('f1', 'User Auth', 'User authentication'),
+      F('f2', 'User Profile', 'User profile management'),
+    ], S('Auth Service'));
 
     const result = await skill.execute({
       graph,
@@ -41,24 +54,14 @@ describe('Deep Reasoning Skill Tests', () => {
 
     expect(result.steps.length).toBeGreaterThanOrEqual(0);
     expect(result.answer).toContain('推理起点');
-    // Note: with no edges, steps may be empty but reasoning still ran
   });
 
   it('should perform impact reasoning', async () => {
-    const graphEngine = new RequirementGraphEngine();
-    const graph = graphEngine.build(
-      'E-commerce',
-      [],
-      [
-        { id: 'f1', name: 'Product Catalog', description: 'Product listing' },
-        { id: 'f2', name: 'Shopping Cart', description: 'Cart management' },
-        { id: 'f3', name: 'Checkout', description: 'Order processing' },
-      ],
-      [],
-      [],
-      [],
-      [],
-    );
+    const graph = build('E-commerce', [
+      F('f1', 'Product Catalog', 'Product listing'),
+      F('f2', 'Shopping Cart', 'Cart management'),
+      F('f3', 'Checkout', 'Order processing'),
+    ]);
 
     const result = await skill.execute({
       graph,
@@ -68,21 +71,13 @@ describe('Deep Reasoning Skill Tests', () => {
     });
 
     expect(result.impactAssessment).toBeDefined();
-    // With no edges, impact may be empty, but the reasoning still ran
     expect(result.answer).toContain('推理模式');
   });
 
   it('should perform dependency reasoning', async () => {
-    const graphEngine = new RequirementGraphEngine();
-    const graph = graphEngine.build(
-      'Blog system',
-      [],
-      [{ id: 'f1', name: 'Blog Posts', description: 'Create and manage posts' }],
-      [],
-      [{ id: 's1', name: 'Blog API', architecture: 'monolith' }],
-      [{ id: 'e1', name: 'Post', type: 'entity' }],
-      [],
-    );
+    const graph = build('Blog system', [
+      F('f1', 'Blog Posts', 'Create and manage posts'),
+    ], [{ id: 's1', name: 'Blog API', architecture: 'monolith' }]);
 
     const result = await skill.execute({
       graph,
@@ -95,19 +90,10 @@ describe('Deep Reasoning Skill Tests', () => {
   });
 
   it('should perform consistency reasoning', async () => {
-    const graphEngine = new RequirementGraphEngine();
-    const graph = graphEngine.build(
-      'Task app',
-      [],
-      [
-        { id: 'f1', name: 'Tasks', description: 'Task management' },
-        { id: 'f2', name: 'Task List', description: 'Display tasks' },
-      ],
-      [],
-      [],
-      [],
-      [],
-    );
+    const graph = build('Task app', [
+      F('f1', 'Tasks', 'Task management'),
+      F('f2', 'Task List', 'Display tasks'),
+    ]);
 
     const result = await skill.execute({
       graph,
@@ -120,8 +106,7 @@ describe('Deep Reasoning Skill Tests', () => {
   });
 
   it('should return empty result for empty graph', async () => {
-    const graphEngine = new RequirementGraphEngine();
-    const graph = graphEngine.build('Empty', [], [], [], [], [], []);
+    const graph = build('Empty', []);
 
     const result = await skill.execute({
       graph,
@@ -133,16 +118,9 @@ describe('Deep Reasoning Skill Tests', () => {
   });
 
   it('should use focus node when specified', async () => {
-    const graphEngine = new RequirementGraphEngine();
-    const graph = graphEngine.build(
-      'System',
-      [],
-      [{ id: 'f1', name: 'Feature A', description: 'Feature A' }],
-      [],
-      [],
-      [],
-      [],
-    );
+    const graph = build('System', [
+      F('f1', 'Feature A', 'Feature A'),
+    ]);
 
     const firstNodeId = [...graph.nodes.keys()][0];
 
@@ -153,25 +131,15 @@ describe('Deep Reasoning Skill Tests', () => {
       mode: 'causal',
     });
 
-    // With no edges, steps may be empty but reasoning executed successfully
     expect(result.steps.length).toBeGreaterThanOrEqual(0);
   });
 
   it('should respect maxDepth', async () => {
-    const graphEngine = new RequirementGraphEngine();
-    const graph = graphEngine.build(
-      'Chain system',
-      [],
-      [
-        { id: 'f1', name: 'A', description: 'A' },
-        { id: 'f2', name: 'B', description: 'B' },
-        { id: 'f3', name: 'C', description: 'C' },
-      ],
-      [],
-      [],
-      [],
-      [],
-    );
+    const graph = build('Chain system', [
+      F('f1', 'A', 'A'),
+      F('f2', 'B', 'B'),
+      F('f3', 'C', 'C'),
+    ]);
 
     const result = await skill.execute({
       graph,
@@ -184,8 +152,7 @@ describe('Deep Reasoning Skill Tests', () => {
   });
 
   it('should compute confidence', async () => {
-    const graphEngine = new RequirementGraphEngine();
-    const graph = graphEngine.build('Test', [], [{ id: 'f1', name: 'Feature', description: 'test' }], [], [], [], []);
+    const graph = build('Test', [F('f1', 'Feature', 'test')]);
 
     const result = await skill.execute({
       graph,

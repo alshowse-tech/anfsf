@@ -1,0 +1,14 @@
+{
+  "retro_run_1778402269334_254ljk_1778402320798": {
+    "id": "retro_run_1778402269334_254ljk_1778402320798",
+    "projectId": "run_1778402269334_254ljk",
+    "category": "retrospective",
+    "content": "{\"summary\":\"Project completed successfully in 13s with 2 steps. 15 files generated, quality score 0.95.\",\"lessons\":[{\"category\":\"quality\",\"title\":\"High quality output\",\"description\":\"Quality score of 0.95 indicates effective generation pipeline.\",\"action\":\"do\",\"confidence\":0.7}],\"metrics\":{\"filesGenerated\":15,\"filesPolished\":5,\"qualityScore\":0.95,\"compileSuccess\":true,\"guardPassed\":true}}",
+    "metadata": {
+      "success": true,
+      "duration": 12516,
+      "stepCount": 2
+    },
+    "createdAt": 1778402320798
+  }
+}

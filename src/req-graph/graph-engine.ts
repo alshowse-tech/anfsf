@@ -6,7 +6,17 @@
  * @date 2026-03-29
  */
 
-import type { AINativePRD } from '../prd/prd-parser';
+import type { AINativePRD, Feature, UserFlow, BackendSpec, Workflow, AcceptanceCriterion, Constraint as PRDConstraint } from '../prd/prd-parser';
+
+export interface GraphBuildInput {
+  intent: { intent: string };
+  experience: Record<string, unknown>;
+  features: Feature[];
+  interactions: UserFlow[];
+  system: BackendSpec[];
+  execution: Workflow[];
+  validation: { criteria: AcceptanceCriterion[]; constraints: PRDConstraint[] };
+}
 
 /**
  * 需求图节点层级
@@ -221,6 +231,8 @@ export interface RelationshipIR {
  */
 export class RequirementGraphEngine {
   private graph: RequirementGraph;
+  private versionHistory: Map<string, { nodes: Map<string, GraphNode>; edges: Map<string, GraphEdge>; timestamp: number }>;
+  private lastCommittedVersion: string | null;
 
   constructor() {
     this.graph = {
@@ -234,40 +246,67 @@ export class RequirementGraphEngine {
         totalEdges: 0,
       },
     };
+    this.versionHistory = new Map();
+    this.lastCommittedVersion = null;
   }
 
   /**
    * 4.1 Graph Builder (六层构建)
    */
   build(
-    intent: any,
-    experience: any,
-    features: any[],
-    interactions: any[],
-    system: any,
-    execution: any,
-    validation: any
+    intent: { intent: string },
+    experience: Record<string, unknown>,
+    features: Feature[],
+    interactions: UserFlow[],
+    system: BackendSpec[],
+    execution: Workflow[],
+    validation: { criteria: AcceptanceCriterion[]; constraints: PRDConstraint[] }
   ): RequirementGraph {
-    // L0: Intent
-    this.addLevel(GraphLevel.L0_Intent, intent);
+    const levels = [
+      { level: GraphLevel.L0_Intent, data: intent },
+      { level: GraphLevel.L0_Experience, data: experience },
+      { level: GraphLevel.L1_Feature, data: features },
+      { level: GraphLevel.L2_Interaction, data: interactions },
+      { level: GraphLevel.L3_System, data: system },
+      { level: GraphLevel.L4_Execution, data: execution },
+      { level: GraphLevel.L5_Validation, data: validation },
+    ];
 
-    // L0.5: Experience
-    this.addLevel(GraphLevel.L0_Experience, experience);
+    const nodeIdsByLevel: Map<GraphLevel, string[]> = new Map();
 
-    // L1: Feature
-    this.addLevel(GraphLevel.L1_Feature, features);
+    for (const { level, data } of levels) {
+      const nodeId = this.addLevel(level, data);
+      if (nodeId) {
+        const existing = nodeIdsByLevel.get(level) || [];
+        existing.push(nodeId);
+        nodeIdsByLevel.set(level, existing);
+      }
+    }
 
-    // L2: Interaction
-    this.addLevel(GraphLevel.L2_Interaction, interactions);
+    // Create edges between consecutive levels
+    const levelOrder = [
+      GraphLevel.L0_Intent,
+      GraphLevel.L0_Experience,
+      GraphLevel.L1_Feature,
+      GraphLevel.L2_Interaction,
+      GraphLevel.L3_System,
+      GraphLevel.L4_Execution,
+      GraphLevel.L5_Validation,
+    ];
 
-    // L3: System
-    this.addLevel(GraphLevel.L3_System, system);
+    for (let i = 0; i < levelOrder.length - 1; i++) {
+      const fromLevel = levelOrder[i];
+      const toLevel = levelOrder[i + 1];
+      const fromNodes = nodeIdsByLevel.get(fromLevel) || [];
+      const toNodes = nodeIdsByLevel.get(toLevel) || [];
 
-    // L4: Execution
-    this.addLevel(GraphLevel.L4_Execution, execution);
-
-    // L5: Validation
-    this.addLevel(GraphLevel.L5_Validation, validation);
+      // Connect each node in fromLevel to each node in toLevel
+      for (const fromId of fromNodes) {
+        for (const toId of toNodes) {
+          this.addEdge(fromId, toId, `derives_${fromLevel}_to_${toLevel}`);
+        }
+      }
+    }
 
     return this.graph;
   }
@@ -443,8 +482,8 @@ export class RequirementGraphEngine {
   /**
    * 添加层级节点
    */
-  private addLevel(level: GraphLevel, data: any): void {
-    if (!data) return;
+  private addLevel(level: GraphLevel, data: any): string | null {
+    if (!data) return null;
 
     const node: GraphNode = {
       id: `node-${level}-${Date.now()}`,
@@ -461,6 +500,28 @@ export class RequirementGraphEngine {
 
     this.graph.nodes.set(node.id, node);
     this.graph.metadata.totalNodes++;
+    return node.id;
+  }
+
+  /**
+   * 添加边
+   */
+  private addEdge(from: string, to: string, type: string): void {
+    if (!this.graph.nodes.has(from) || !this.graph.nodes.has(to)) return;
+
+    const edgeId = `edge-${from}-${to}-${type}`;
+    if (this.graph.edges.has(edgeId)) return; // dedup
+
+    const edge: GraphEdge = {
+      id: edgeId,
+      from,
+      to,
+      type,
+      weight: 1.0,
+    };
+
+    this.graph.edges.set(edgeId, edge);
+    this.graph.metadata.totalEdges++;
   }
 
   /**
@@ -744,6 +805,14 @@ export class RequirementGraphEngine {
    * 提交版本
    */
   private commit(version: string): RequirementGraph {
+    // Snapshot current state
+    const snapshot = {
+      nodes: new Map(this.graph.nodes),
+      edges: new Map(this.graph.edges),
+      timestamp: Date.now(),
+    };
+    this.versionHistory.set(version, snapshot);
+    this.lastCommittedVersion = version;
     this.graph.version = version;
     this.graph.metadata.updatedAt = Date.now();
     return this.graph;
@@ -753,16 +822,101 @@ export class RequirementGraphEngine {
    * 版本差异
    */
   private diff(version: string): RequirementGraph {
-    return this.graph;
+    const snapshot = this.versionHistory.get(version);
+    if (!snapshot) {
+      // Version not found — return current graph with no changes
+      return this.graph;
+    }
+
+    // Compare current graph with snapshot
+    const diffGraph: RequirementGraph = {
+      nodes: new Map(),
+      edges: new Map(),
+      version: `${version}..current`,
+      metadata: {
+        createdAt: snapshot.timestamp,
+        updatedAt: Date.now(),
+        totalNodes: 0,
+        totalEdges: 0,
+      },
+    };
+
+    // Find added/modified nodes
+    for (const [id, node] of this.graph.nodes) {
+      const oldNode = snapshot.nodes.get(id);
+      if (!oldNode) {
+        // New node
+        diffGraph.nodes.set(id, { ...node, data: { action: 'added', ...node.data } });
+        diffGraph.metadata.totalNodes++;
+      } else if (JSON.stringify(oldNode.data) !== JSON.stringify(node.data)) {
+        // Modified node
+        diffGraph.nodes.set(id, { ...node, data: { action: 'modified', before: oldNode.data, after: node.data } });
+        diffGraph.metadata.totalNodes++;
+      }
+    }
+
+    // Find deleted nodes
+    for (const [id] of snapshot.nodes) {
+      if (!this.graph.nodes.has(id)) {
+        diffGraph.nodes.set(id, {
+          id,
+          level: GraphLevel.L3_System,
+          type: 'deleted',
+          data: { action: 'deleted' },
+          constraints: [],
+          metadata: { createdAt: 0, updatedAt: 0, version: '' },
+        });
+        diffGraph.metadata.totalNodes++;
+      }
+    }
+
+    // Find added/removed edges
+    for (const [id] of this.graph.edges) {
+      if (!snapshot.edges.has(id)) {
+        const edge = this.graph.edges.get(id)!;
+        diffGraph.edges.set(id, edge);
+        diffGraph.metadata.totalEdges++;
+      }
+    }
+    for (const [id] of snapshot.edges) {
+      if (!this.graph.edges.has(id)) {
+        diffGraph.edges.set(id, { id, from: '', to: '', type: 'removed', weight: 0 });
+        diffGraph.metadata.totalEdges++;
+      }
+    }
+
+    return diffGraph;
   }
 
   /**
    * 回滚版本
    */
   private rollback(version: string): RequirementGraph {
+    const snapshot = this.versionHistory.get(version);
+    if (!snapshot) {
+      // Version not found — return current graph unchanged
+      return this.graph;
+    }
+
+    // Restore from snapshot
+    this.graph.nodes = new Map(snapshot.nodes);
+    this.graph.edges = new Map(snapshot.edges);
     this.graph.version = version;
     this.graph.metadata.updatedAt = Date.now();
+    this.graph.metadata.totalNodes = this.graph.nodes.size;
+    this.graph.metadata.totalEdges = this.graph.edges.size;
     return this.graph;
+  }
+
+  /**
+   * 获取版本历史
+   */
+  getVersionHistory(): { version: string; timestamp: number }[] {
+    const history: { version: string; timestamp: number }[] = [];
+    for (const [version, snapshot] of this.versionHistory) {
+      history.push({ version, timestamp: snapshot.timestamp });
+    }
+    return history;
   }
 
   /**

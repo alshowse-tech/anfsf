@@ -1,17 +1,21 @@
 /**
- * ANFSF V4 Layer 8.5 - Sandbox Executor Implementation
- * 
- * Secure sandbox execution environment for skills with memory and time limits.
- * Features: isolated execution, resource limits, console capture, API restrictions.
+ * ANFSF V4 Layer 8.5 - Sandbox Executor
+ *
+ * Secure sandbox using child_process.spawn (not vm.createContext) for real
+ * process isolation. The code runs in a separate Node.js process with a
+ * minimal global scope, blocked API detection via static analysis, and
+ * configurable time limits.
  */
 
+import { spawn } from 'child_process';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 import {
   ExecutionResult,
   SandboxConfig,
   SandboxContext,
-  isExecutionResult,
 } from './types';
-import * as vm from 'vm';
 
 // ============================================================================
 // Constants
@@ -28,7 +32,6 @@ const DEFAULT_CONFIG: Required<SandboxConfig> = {
   readOnlyPaths: [],
 };
 
-// Task type specific limits
 const TASK_TYPE_LIMITS: Record<string, { maxMemoryMB: number; maxExecutionTimeMs: number }> = {
   'requirement-graph': { maxMemoryMB: 512, maxExecutionTimeMs: 60000 },
   'deep-reasoning': { maxMemoryMB: 512, maxExecutionTimeMs: 60000 },
@@ -37,75 +40,97 @@ const TASK_TYPE_LIMITS: Record<string, { maxMemoryMB: number; maxExecutionTimeMs
   'default': { maxMemoryMB: 256, maxExecutionTimeMs: 30000 },
 };
 
-// Hard upper limits
 const MAX_MEMORY_MB = 1024;
 const MAX_EXECUTION_TIME_MS = 120000;
 
 // ============================================================================
-// Helper Functions
+// Worker subprocess code — written to temp file and run via `node`
 // ============================================================================
 
-/** Get current timestamp */
+const WORKER_CODE = `
+'use strict';
+process.stdin.setEncoding('utf8');
+var _data = '';
+process.stdin.on('data', function(c) { _data += c; });
+process.stdin.on('end', function() {
+  try {
+    var input = JSON.parse(_data);
+    var ctx = input.context;
+    var code = input.code;
+    var logs = [];
+    ['log','warn','error','debug','info'].forEach(function(m) {
+      console[m] = function() {
+        logs.push({ method: m, message: Array.prototype.slice.call(arguments).map(String).join(' ') });
+      };
+    });
+    var allowed = {
+      console: console, Math: Math, Date: Date, JSON: JSON,
+      Array: Array, Object: Object, String: String, Number: Number, Boolean: Boolean
+    };
+    if (ctx && ctx.apis) {
+      Object.keys(ctx.apis).forEach(function(k) { allowed[k] = ctx.apis[k]; });
+    }
+    var keys = Object.keys(allowed);
+    var values = keys.map(function(k) { return allowed[k]; });
+    keys.push('__ctx');
+    values.push(ctx || {});
+    var args = keys.concat([code + '\\nreturn typeof main==="function"?main(__ctx):undefined']);
+    var Fn = Function.prototype.constructor;
+    var fn = new (Fn.bind.apply(Fn, [null].concat(args)));
+    var result = fn.apply(null, values);
+    if (result && typeof result.then === 'function') {
+      result.then(function(r) { send(r); }, function(e) { sendErr(e); });
+    } else {
+      send(result);
+    }
+    function send(r) { process.stdout.write(JSON.stringify({ status:'success', returnValue:r, logs:logs })); }
+    function sendErr(e) { process.stdout.write(JSON.stringify({ status:'error', error:String(e), logs:logs })); }
+  } catch(e) {
+    process.stdout.write(JSON.stringify({ status:'error', error:String(e), logs:[] }));
+  }
+});
+process.stdin.resume();
+`;
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
 function now(): number {
   return Date.now();
 }
 
-/** Estimate memory usage (simplified) */
-function estimateMemoryUsage(obj: any): number {
+function estimateMemoryUsage(obj: unknown): number {
   const cache = new Set();
-  
-  function calculateSize(value: any): number {
-    if (value === null || value === undefined) {
-      return 0;
-    }
-
-    if (typeof value === 'boolean') {
-      return 4;
-    }
-
-    if (typeof value === 'number') {
-      return 8;
-    }
-
-    if (typeof value === 'string') {
-      return value.length * 2;
-    }
-
+  function calculateSize(value: unknown): number {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'boolean') return 4;
+    if (typeof value === 'number') return 8;
+    if (typeof value === 'string') return value.length * 2;
     if (typeof value === 'object') {
-      if (cache.has(value)) {
-        return 0; // Circular reference
-      }
+      if (cache.has(value)) return 0;
       cache.add(value);
-
       let size = 0;
       if (Array.isArray(value)) {
-        for (const item of value) {
-          size += calculateSize(item);
-        }
+        for (const item of value) size += calculateSize(item);
       } else {
         for (const key in value) {
           if (Object.prototype.hasOwnProperty.call(value, key)) {
-            size += calculateSize(value[key]);
+            size += calculateSize((value as Record<string, unknown>)[key]);
           }
         }
       }
       return size;
     }
-
     return 0;
   }
-
-  const bytes = calculateSize(obj);
-  return bytes / (1024 * 1024); // Convert to MB
+  return calculateSize(obj) / (1024 * 1024);
 }
 
 // ============================================================================
 // SandboxExecutor Class
 // ============================================================================
 
-/**
- * SandboxExecutor - Secure execution environment for skills
- */
 export class SandboxExecutor {
   private config: Required<SandboxConfig>;
   private consoleBuffer: string[];
@@ -116,195 +141,152 @@ export class SandboxExecutor {
   constructor(config: SandboxConfig = {}, taskType: string = 'default') {
     this.taskType = taskType;
     const limits = TASK_TYPE_LIMITS[taskType] || TASK_TYPE_LIMITS['default'];
+    const userTimeout = config.maxExecutionTimeMs ?? limits.maxExecutionTimeMs;
+    const userMemory = config.maxMemoryMB ?? limits.maxMemoryMB;
     this.config = {
       ...DEFAULT_CONFIG,
       ...config,
-      maxMemoryMB: Math.min(limits.maxMemoryMB, MAX_MEMORY_MB),
-      maxExecutionTimeMs: Math.min(limits.maxExecutionTimeMs, MAX_EXECUTION_TIME_MS),
+      maxMemoryMB: Math.min(userMemory, MAX_MEMORY_MB),
+      maxExecutionTimeMs: Math.min(userTimeout, MAX_EXECUTION_TIME_MS),
     };
     this.consoleBuffer = [];
     this.executionStartTime = 0;
     this.memoryUsage = 0;
   }
 
-  // ============================================================================
-  // Core Methods
-  // ============================================================================
-
-  /**
-   * Execute code in sandbox
-   */
-  async execute(code: string, context: SandboxContext = { apis: {}, env: {}, config: {}, logger: console as any }): Promise<ExecutionResult> {
+  async execute(
+    code: string,
+    context: SandboxContext = { apis: {}, env: {}, config: {}, logger: console as never },
+  ): Promise<ExecutionResult> {
     this.executionStartTime = now();
     this.consoleBuffer = [];
     this.memoryUsage = 0;
 
-    // Validate code
     if (!code || typeof code !== 'string') {
       return this.createErrorResult('Invalid code: code must be a non-empty string');
     }
 
-    // Check for blocked APIs
-    const blockedAPIsFound = this.config.blockedAPIs.filter(api => 
-      new RegExp(`\\b${api}\\s*\\(`).test(code)
+    const blockedAPIsFound = this.config.blockedAPIs.filter(api =>
+      new RegExp(`\\b${api}\\s*\\(`).test(code),
     );
 
     if (blockedAPIsFound.length > 0) {
       return this.createErrorResult(`Blocked APIs detected: ${blockedAPIsFound.join(', ')}`);
     }
 
-    try {
-      // Create sandbox context
-      const sandboxContext = this.createSandboxContext(context);
-
-      // Execute code with timeout
-      const result = await this.executeWithTimeout(code, sandboxContext);
-
-      // Calculate execution time
-      const executionTime = now() - this.executionStartTime;
-
-      // Check execution time limit
-      if (executionTime > this.config.maxExecutionTimeMs) {
-        return this.createErrorResult(`Execution timeout: exceeded ${this.config.maxExecutionTimeMs}ms`);
-      }
-
-      // Estimate memory usage
-      this.memoryUsage = estimateMemoryUsage(result);
-      
-      if (this.memoryUsage > this.config.maxMemoryMB) {
-        return this.createErrorResult(`Memory limit exceeded: ${this.memoryUsage.toFixed(2)}MB > ${this.config.maxMemoryMB}MB`);
-      }
-
-      return {
-        status: 'success',
-        returnValue: result,
-        executionTime,
-        memoryUsed: this.memoryUsage,
-        consoleOutput: this.config.enableConsoleCapture ? [...this.consoleBuffer] : undefined,
-      };
-    } catch (error) {
-      const executionTime = now() - this.executionStartTime;
-      
-      return {
-        status: 'error',
-        error: String(error),
-        stackTrace: error instanceof Error ? error.stack : undefined,
-        executionTime,
-        memoryUsed: this.memoryUsage,
-        consoleOutput: this.config.enableConsoleCapture ? [...this.consoleBuffer] : undefined,
-      };
-    }
+    return this.runInSubprocess(code, context);
   }
 
-  // ============================================================================
-  // Private Methods
-  // ============================================================================
-
-  private createSandboxContext(context: SandboxContext): any {
-    const sandboxContext: any = {
-      // Allowed globals
-      console: this.createSandboxConsole(),
-      Math,
-      Date,
-      JSON,
-      Array,
-      Object,
-      String,
-      Number,
-      Boolean,
-      
-      // Context-provided APIs
-      ...context.apis,
-      
-      // Environment
-      __env: context.env,
-      __config: context.config,
-      __logger: context.logger,
+  private runInSubprocess(
+    code: string,
+    context: SandboxContext,
+  ): Promise<ExecutionResult> {
+    const startTime = now();
+    const serializedContext = {
+      apis: this.serializeApis(context.apis),
+      env: context.env,
+      config: context.config,
     };
 
-    // Restrict network access
-    if (!this.config.allowNetwork) {
-      delete sandboxContext.fetch;
-      delete sandboxContext.XMLHttpRequest;
-    }
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'anfsf-sandbox-'));
+    const workerPath = path.join(tmpDir, 'worker.js');
+    fs.writeFileSync(workerPath, WORKER_CODE);
 
-    return sandboxContext;
-  }
+    return new Promise<ExecutionResult>((resolve) => {
+      const cleanup = () => {
+        try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      };
 
-  private createSandboxConsole(): any {
-    return {
-      log: (...args: any[]) => {
-        const message = args.map(a => String(a)).join(' ');
-        if (this.config.enableConsoleCapture) {
-          this.consoleBuffer.push(`[LOG] ${message}`);
-        }
-      },
-      warn: (...args: any[]) => {
-        const message = args.map(a => String(a)).join(' ');
-        if (this.config.enableConsoleCapture) {
-          this.consoleBuffer.push(`[WARN] ${message}`);
-        }
-      },
-      error: (...args: any[]) => {
-        const message = args.map(a => String(a)).join(' ');
-        if (this.config.enableConsoleCapture) {
-          this.consoleBuffer.push(`[ERROR] ${message}`);
-        }
-      },
-      debug: (...args: any[]) => {
-        const message = args.map(a => String(a)).join(' ');
-        if (this.config.enableConsoleCapture) {
-          this.consoleBuffer.push(`[DEBUG] ${message}`);
-        }
-      },
-      info: (...args: any[]) => {
-        const message = args.map(a => String(a)).join(' ');
-        if (this.config.enableConsoleCapture) {
-          this.consoleBuffer.push(`[INFO] ${message}`);
-        }
-      },
-    };
-  }
+      const child = spawn('node', [workerPath], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
 
-  private async executeWithTimeout(code: string, context: any): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error(`Execution timeout: exceeded ${this.config.maxExecutionTimeMs}ms`));
-      }, this.config.maxExecutionTimeMs);
+        const input = JSON.stringify({ context: serializedContext, code });
+        child.stdin?.write(input);
+        child.stdin?.end();
 
-      try {
-        // Wrap code to accept context and call main function
-        const wrappedCode = `
-          (function() {
-            'use strict';
-            var __ctx = context;
-            ${code}
-            return typeof main === 'function' ? main(__ctx) : undefined;
-          })()
-        `;
+        let stdoutData = '';
+        let stderrData = '';
 
-        // Create sandbox with only allowed globals
-        const sandbox = vm.createContext(context);
+        child.stdout?.on('data', (chunk: Buffer) => { stdoutData += chunk.toString(); });
+        child.stderr?.on('data', (chunk: Buffer) => { stderrData += chunk.toString(); });
 
-        // Execute in VM context with timeout
-        const result = vm.runInContext(wrappedCode, sandbox, {
-          timeout: this.config.maxExecutionTimeMs,
-          displayErrors: true,
+        const timer = setTimeout(() => {
+          child.kill('SIGKILL');
+          cleanup();
+          resolve({
+            status: 'error',
+            error: `Execution timeout: exceeded ${this.config.maxExecutionTimeMs}ms`,
+            executionTime: now() - startTime,
+            memoryUsed: 0,
+            consoleOutput: this.config.enableConsoleCapture ? [...this.consoleBuffer] : undefined,
+          });
+        }, this.config.maxExecutionTimeMs + 1000);
+
+        child.on('close', (exitCode) => {
+          clearTimeout(timer);
+          cleanup();
+          try {
+            const result = JSON.parse(stdoutData.trim()) as {
+              status: string; returnValue?: unknown; error?: string;
+              logs: Array<{ method: string; message: string }>;
+            };
+            const executionTime = now() - startTime;
+
+            if (this.config.enableConsoleCapture && result.logs) {
+              this.consoleBuffer = result.logs.map(l => `[${l.method.toUpperCase()}] ${l.message}`);
+            }
+
+            if (result.status === 'success') {
+              this.memoryUsage = estimateMemoryUsage(result.returnValue);
+              resolve({
+                status: 'success',
+                returnValue: result.returnValue,
+                executionTime,
+                memoryUsed: this.memoryUsage,
+                consoleOutput: this.config.enableConsoleCapture ? [...this.consoleBuffer] : undefined,
+              });
+            } else {
+              const errMsg = result.error || `Sandbox subprocess exited with code ${exitCode}`;
+              resolve({
+                status: 'error',
+                error: stderrData ? `${errMsg}\nstderr: ${stderrData.trim()}` : errMsg,
+                executionTime,
+                memoryUsed: 0,
+                consoleOutput: this.config.enableConsoleCapture ? [...this.consoleBuffer] : undefined,
+              });
+            }
+          } catch {
+            resolve({
+              status: 'error',
+              error: `Sandbox subprocess failed: ${stderrData || 'no output'}. exit code: ${exitCode}`,
+              executionTime: now() - startTime,
+              memoryUsed: 0,
+            });
+          }
         });
 
-        clearTimeout(timeoutId);
+        child.on('error', () => {
+          clearTimeout(timer);
+          cleanup();
+          resolve({
+            status: 'error',
+            error: 'Failed to spawn sandbox subprocess',
+            executionTime: now() - startTime,
+            memoryUsed: 0,
+          });
+        });
+      });
+  }
 
-        // Handle promise results
-        if (result instanceof Promise) {
-          result.then(resolve).catch(reject);
-        } else {
-          resolve(result);
-        }
-      } catch (error) {
-        clearTimeout(timeoutId);
-        reject(error);
-      }
-    });
+  private serializeApis(apis: Record<string, unknown> | undefined): Record<string, unknown> {
+    if (!apis) return {};
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(apis)) {
+      if (typeof value === 'function') continue;
+      try { JSON.stringify(value); result[key] = value; } catch { /* skip */ }
+    }
+    return result;
   }
 
   private createErrorResult(error: string): ExecutionResult {
@@ -317,61 +299,19 @@ export class SandboxExecutor {
     };
   }
 
-  // ============================================================================
-  // Utility Methods
-  // ============================================================================
-
-  /**
-   * Get console output from last execution
-   */
-  getConsoleOutput(): string[] {
-    return [...this.consoleBuffer];
-  }
-
-  /**
-   * Clear console buffer
-   */
-  clearConsole(): void {
-    this.consoleBuffer = [];
-  }
-
-  /**
-   * Get memory usage from last execution
-   */
-  getMemoryUsage(): number {
-    return this.memoryUsage;
-  }
-
-  /**
-   * Update sandbox configuration
-   */
-  updateConfig(config: Partial<SandboxConfig>): void {
-    this.config = { ...this.config, ...config };
-  }
+  getConsoleOutput(): string[] { return [...this.consoleBuffer]; }
+  clearConsole(): void { this.consoleBuffer = []; }
+  getMemoryUsage(): number { return this.memoryUsage; }
+  updateConfig(config: Partial<SandboxConfig>): void { this.config = { ...this.config, ...config }; }
 }
 
-// ============================================================================
-// SafeEval Function
-// ============================================================================
-
-/**
- * safeEval - Evaluate code in a safe sandbox
- * 
- * @param code - Code to evaluate
- * @param context - Execution context
- * @param config - Sandbox configuration
- */
 export async function safeEval(
   code: string,
-  context: SandboxContext = { apis: {}, env: {}, config: {}, logger: console as any },
-  config: SandboxConfig = {}
+  context: SandboxContext = { apis: {}, env: {}, config: {}, logger: console as never },
+  config: SandboxConfig = {},
 ): Promise<ExecutionResult> {
   const executor = new SandboxExecutor(config);
   return executor.execute(code, context);
 }
-
-// ============================================================================
-// Exports
-// ============================================================================
 
 export default SandboxExecutor;

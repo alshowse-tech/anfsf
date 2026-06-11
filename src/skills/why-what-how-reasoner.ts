@@ -5,6 +5,8 @@
  * Uses DashScope LLM for single-turn structured analysis.
  */
 
+import { LLMClient, type LLMClientConfig } from '../integrations/llm-client';
+
 export interface ReasoningResult {
   why: {
     coreGoal: string;
@@ -25,32 +27,37 @@ export interface ReasoningResult {
 }
 
 export interface ReasonerConfig {
-  apiKey: string;
+  apiKey?: string;
   model?: string;
   baseUrl?: string;
+  llmClient?: LLMClient;
+  llmConfig?: Partial<LLMClientConfig>;
 }
 
 const DEFAULT_MODEL = 'qwen3.5-plus';
 
 export class WhyWhatHowReasoner {
-  private apiKey: string;
+  private llm: LLMClient;
   private model: string;
-  private baseUrl: string;
 
   constructor(config: ReasonerConfig) {
-    this.apiKey = config.apiKey;
+    if (config.llmClient) {
+      this.llm = config.llmClient;
+    } else {
+      this.llm = new LLMClient({
+        apiKey: config.apiKey || process.env.DASHSCOPE_API_KEY || '',
+        baseUrl: config.baseUrl,
+        defaultModel: config.model || DEFAULT_MODEL,
+        ...config.llmConfig,
+      });
+    }
     this.model = config.model || DEFAULT_MODEL;
-    this.baseUrl = config.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
   }
 
   /**
    * Perform Why-What-How reasoning on a PRD.
    */
   async reason(prdText: string): Promise<ReasoningResult> {
-    if (!this.apiKey) {
-      return this.fallbackResult(prdText);
-    }
-
     const systemPrompt = `你是一个需求分析专家。请对以下 PRD 进行 Why-What-How 推理分析。
 
 分析要求：
@@ -85,32 +92,21 @@ export class WhyWhatHowReasoner {
 不要输出 JSON 以外的任何内容。`;
 
     try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: prdText },
-          ],
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-        }),
+      const result = await this.llm.chat({
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prdText },
+        ],
+        temperature: 0.1,
       });
 
-      if (!response.ok) {
+      if (!result.ok) {
         return this.fallbackResult(prdText);
       }
 
-      const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-      const content = data.choices[0]?.message?.content || '';
-
       try {
-        const parsed = JSON.parse(content) as Partial<ReasoningResult>;
+        const parsed = JSON.parse(result.content) as Partial<ReasoningResult>;
         return this.normalizeResult(parsed);
       } catch {
         return this.fallbackResult(prdText);

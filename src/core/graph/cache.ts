@@ -224,6 +224,7 @@ export function throttle<T extends (...args: any[]) => any>(
  */
 export class BatchProcessor<T, R> {
   private queue: T[] = [];
+  private pendingResolves: Array<(result: R) => void> = [];
   private processor: (items: T[]) => Promise<R>;
   private delay: number;
   private maxSize: number;
@@ -242,35 +243,47 @@ export class BatchProcessor<T, R> {
     this.queue.push(item);
 
     return new Promise<R>((resolve) => {
+      this.pendingResolves.push(resolve);
+
       // Process immediately if at max size
       if (this.queue.length >= this.maxSize) {
-        this.process().then(resolve);
+        this.process();
         return;
       }
 
       // Schedule processing
       if (!this.timeoutId) {
         this.timeoutId = setTimeout(() => {
-          this.process().then(resolve);
+          this.process();
         }, this.delay);
       }
     });
   }
 
-  private async process(): Promise<R> {
+  private async process(): Promise<void> {
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
     }
 
     const batch = [...this.queue];
+    const resolves = [...this.pendingResolves];
     this.queue = [];
+    this.pendingResolves = [];
 
-    return this.processor(batch);
+    const result = await this.processor(batch);
+    for (const resolve of resolves) {
+      resolve(result);
+    }
   }
 
   flush(): Promise<R> {
-    return this.process();
+    return new Promise<R>((resolve) => {
+      if (this.queue.length > 0) {
+        this.pendingResolves.push(resolve);
+        this.process();
+      }
+    });
   }
 
   clear(): void {

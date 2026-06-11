@@ -1,13 +1,14 @@
 /**
  * ANFSF Quality — Compile Validator
  *
- * Validates generated projects by running `tsc --noEmit`.
+ * Validates generated projects by running `tsc --noEmit` via spawn
+ * (not shell exec) to prevent command injection. Output directory is
+ * validated to reject paths with shell metacharacters.
  */
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { spawn } from 'child_process';
+import * as path from 'path';
+import * as fs from 'fs';
 
 export interface CompileValidationResult {
   success: boolean;
@@ -16,55 +17,120 @@ export interface CompileValidationResult {
   duration: number;
 }
 
+const SAFE_PATH_RE = /^[a-zA-Z0-9_\-./\\:]+$/;
+
+/** Resolve the tsc binary — prefer local project's typescript, fallback to node_modules resolution */
+function getTscPath(): string {
+  const localTsc = path.resolve(__dirname, '../../../node_modules/typescript/bin/tsc');
+  if (fs.existsSync(localTsc)) return localTsc;
+  return 'tsc'; // fall back to PATH resolution
+}
+
 export class CompileValidator {
   private timeoutMs: number;
+  private tscPath: string;
 
   constructor(timeoutMs: number = 60_000) {
     this.timeoutMs = timeoutMs;
+    this.tscPath = getTscPath();
   }
 
   /**
-   * Run `npx tsc --noEmit` in the given project directory.
+   * Validate a project directory. Only safe absolute paths are accepted.
    */
   async validate(projectDir: string): Promise<CompileValidationResult> {
     const start = Date.now();
 
-    try {
-      const { stderr } = await execAsync('npx tsc --noEmit', {
+    const safeDir = this.sanitizeProjectDir(projectDir);
+    if (!safeDir) {
+      return {
+        success: false,
+        errors: ['Invalid project directory path: contains unsafe characters'],
+        warnings: [],
+        duration: Date.now() - start,
+      };
+    }
+
+    return this.runTsc(safeDir, start);
+  }
+
+  /**
+   * Ensure the project directory is a safe absolute path.
+   * Rejects paths with shell metacharacters, spaces, or relative segments.
+   */
+  private sanitizeProjectDir(dir: string): string | null {
+    if (!dir || typeof dir !== 'string') return null;
+
+    // Reject shell metacharacters
+    if (!SAFE_PATH_RE.test(dir)) return null;
+
+    // Resolve to absolute path
+    const resolved = path.resolve(dir);
+
+    // Must exist and be a directory
+    if (!fs.existsSync(resolved)) return null;
+    if (!fs.statSync(resolved).isDirectory()) return null;
+
+    return resolved;
+  }
+
+  /**
+   * Spawn tsc as a child process with arguments (not via shell).
+   */
+  private runTsc(projectDir: string, startTime: number): Promise<CompileValidationResult> {
+    return new Promise((resolve) => {
+      const child = spawn('node', [this.tscPath, '--noEmit'], {
         cwd: projectDir,
         timeout: this.timeoutMs,
-        maxBuffer: 10 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
 
-      const duration = Date.now() - start;
-      const warnings = stderr
-        .split('\n')
-        .filter(line => line.trim() && line.toLowerCase().includes('warn'))
-        .map(line => line.trim());
+      let stdout = '';
+      let stderr = '';
 
-      return { success: true, errors: [], warnings, duration };
-    } catch (error: unknown) {
-      const duration = Date.now() - start;
+      child.stdout?.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString();
+      });
 
-      if (error instanceof Error && 'code' in error && (error as { code: string }).code === 'ETIMEDOUT') {
-        return {
+      child.stderr?.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+
+      child.on('error', (err: Error) => {
+        resolve({
           success: false,
-          errors: [`Compile validation timed out after ${this.timeoutMs}ms`],
+          errors: [`Failed to spawn tsc: ${err.message}`],
           warnings: [],
-          duration,
-        };
-      }
+          duration: Date.now() - startTime,
+        });
+      });
 
-      const output = error instanceof Error && 'stderr' in error
-        ? String((error as { stderr: string }).stderr)
-        : String(error);
+      child.on('close', (code: number | null, signal: string | null) => {
+        const duration = Date.now() - startTime;
+        const output = stderr || stdout;
 
-      const errors = output
-        .split('\n')
-        .filter(line => line.trim() && !line.toLowerCase().includes('warn'))
-        .map(line => line.trim());
-
-      return { success: false, errors, warnings: [], duration };
-    }
+        if (code === 0) {
+          const warnings = output
+            .split('\n')
+            .filter(line => line.trim() && line.toLowerCase().includes('warn'))
+            .map(line => line.trim());
+          resolve({ success: true, errors: [], warnings, duration });
+        } else if (signal === 'SIGTERM') {
+          resolve({
+            success: false,
+            errors: [`Compile validation timed out after ${this.timeoutMs}ms`],
+            warnings: [],
+            duration,
+          });
+        } else {
+          const errors = output
+            .split('\n')
+            .filter(line => line.trim() && !line.toLowerCase().includes('warn'))
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+          resolve({ success: false, errors, warnings: [], duration });
+        }
+      });
+    });
   }
 }

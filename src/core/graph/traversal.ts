@@ -181,12 +181,62 @@ export function calculateUpstreamDependencies(
 
 /**
  * Internal helper to get upstream edges.
- * TODO: This should be provided by the GraphStore implementation.
+ * Scans all downstream edges from other nodes to find edges pointing to this node.
+ * An edge where `edge.to === nodeId` means `edge.from` is an upstream dependency.
  */
 function getUpstreamEdgesImpl(graph: GraphStoreLike, nodeId: string): TraceEdge[] {
-  // This is a placeholder - actual implementation depends on graph store
-  // For now, return empty array
-  return [];
+  // We need to find all edges where this node is the target (to === nodeId).
+  // Since GraphStoreLike only exposes getDownstreamEdges, we scan by iterating
+  // known nodes isn't available — instead, use the relation semantics:
+  // getDownstreamEdges returns edges from a node to its dependents.
+  // For upstream, we need edges from dependencies TO this node.
+  // Without a reverse index, we track upstream via DEPENDS_ON relation.
+
+  // Best-effort: collect all nodes that have this node as a downstream dependency.
+  // We'll need to iterate possible upstream candidates. Since we don't have a
+  // getAllNodes method, we use the GraphStoreLike interface limitations.
+  // The caller should ideally extend GraphStoreLike with getUpstreamEdges.
+
+  // Attempt to use getUpstreamEdges if the store provides it (duck typing)
+  const storeWithUpstream = graph as GraphStoreLike & { getUpstreamEdges(nodeId: string): TraceEdge[] };
+  if (typeof storeWithUpstream.getUpstreamEdges === 'function') {
+    return storeWithUpstream.getUpstreamEdges(nodeId);
+  }
+
+  // Fallback: scan downstream edges from all reachable nodes to find reverse edges.
+  // This is O(n*m) but works without schema changes.
+  const upstreamEdges: TraceEdge[] = [];
+
+  // First, collect all unique node IDs we can reach
+  const allNodeIds = new Set<string>();
+  allNodeIds.add(nodeId);
+
+  // BFS to discover all nodes via downstream edges
+  const queue: string[] = [nodeId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const edges = graph.getDownstreamEdges(current);
+    for (const edge of edges) {
+      allNodeIds.add(edge.from);
+      allNodeIds.add(edge.to);
+      if (!allNodeIds.has(edge.to)) {
+        queue.push(edge.to);
+      }
+    }
+  }
+
+  // Now scan each node's downstream edges to find edges targeting our nodeId
+  for (const candidateId of allNodeIds) {
+    if (candidateId === nodeId) continue;
+    const edges = graph.getDownstreamEdges(candidateId);
+    for (const edge of edges) {
+      if (edge.to === nodeId) {
+        upstreamEdges.push(edge);
+      }
+    }
+  }
+
+  return upstreamEdges;
 }
 
 /**

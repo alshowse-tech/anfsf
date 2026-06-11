@@ -6,6 +6,7 @@
  */
 
 import { KnowledgeBase, KnowledgeEntry } from '../storage/knowledge-base';
+import { LLMClient, type LLMClientConfig } from '../integrations/llm-client';
 
 export interface RetrospectiveInput {
   projectId: string;
@@ -71,19 +72,28 @@ export interface RetrospectiveEngineConfig {
   llmBaseUrl?: string;
   knowledgeBasePath?: string;
   timeoutMs?: number;
+  llmClient?: LLMClient;
+  llmConfig?: Partial<LLMClientConfig>;
 }
 
 export class RetrospectiveEngine {
-  private apiKey: string;
+  private llm: LLMClient;
   private model: string;
-  private llmBaseUrl: string;
   private knowledgeBase: KnowledgeBase;
   private timeoutMs: number;
 
   constructor(config: RetrospectiveEngineConfig = {}) {
-    this.apiKey = config.apiKey || process.env.DASHSCOPE_API_KEY || '';
+    if (config.llmClient) {
+      this.llm = config.llmClient;
+    } else {
+      this.llm = new LLMClient({
+        apiKey: config.apiKey || process.env.DASHSCOPE_API_KEY || '',
+        baseUrl: config.llmBaseUrl,
+        defaultModel: config.model || 'qwen3.5-plus',
+        ...config.llmConfig,
+      });
+    }
     this.model = config.model || 'qwen3.5-plus';
-    this.llmBaseUrl = config.llmBaseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     this.knowledgeBase = new KnowledgeBase(config.knowledgeBasePath || './.anfsf/knowledge.json');
     this.timeoutMs = config.timeoutMs ?? 30_000;
   }
@@ -143,8 +153,6 @@ export class RetrospectiveEngine {
   private async analyzeWithLLM(
     input: RetrospectiveInput
   ): Promise<{ summary: string; lessons: Lesson[] } | null> {
-    if (!this.apiKey) return null;
-
     const inputText = JSON.stringify({
       success: input.success,
       duration: input.duration,
@@ -158,35 +166,19 @@ export class RetrospectiveEngine {
     }, null, 2);
 
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
-      const response = await fetch(`${this.llmBaseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: inputText },
-          ],
-          temperature: 0.2,
-          response_format: { type: 'json_object' },
-        }),
-        signal: controller.signal,
+      const result = await this.llm.chat({
+        model: this.model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: inputText },
+        ],
+        temperature: 0.2,
       });
-      clearTimeout(timer);
 
-      if (!response.ok) return null;
-
-      const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-      const content = data.choices[0]?.message?.content || '';
+      if (!result.ok) return null;
 
       try {
-        const parsed = JSON.parse(content) as { summary?: string; lessons?: Array<Record<string, unknown>> };
+        const parsed = JSON.parse(result.content) as { summary?: string; lessons?: Array<Record<string, unknown>> };
         return {
           summary: parsed.summary || '',
           lessons: (parsed.lessons || []).map(l => ({

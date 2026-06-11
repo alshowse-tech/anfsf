@@ -18,6 +18,8 @@ import {
   isSkill,
   isDependencyCheckResult,
 } from './types';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // ============================================================================
 // Constants
@@ -160,12 +162,31 @@ export class SkillsRegistry {
     };
     skill.status = 'loading';
 
-    // For demo purposes, create a mock skill
-    // In production, this would load from storage or remote
-    skill.code = this.generateMockSkillCode(skillName, version);
-    
-    // Use provided dependencies or mock dependencies
-    if (options.dependencies && options.dependencies.length > 0) {
+    // Load skill code from filesystem
+    const skillPath = path.resolve(this.config.storagePath, `${skillName}.ts`);
+    const manifestPath = path.resolve(this.config.storagePath, `${skillName}.manifest.json`);
+
+    if (fs.existsSync(skillPath)) {
+      skill.code = fs.readFileSync(skillPath, 'utf-8');
+    } else if (fs.existsSync(skillPath.replace('.ts', '.js'))) {
+      skill.code = fs.readFileSync(skillPath.replace('.ts', '.js'), 'utf-8');
+    } else {
+      skill.code = `// Skill: ${skillName}@${version}\n// No source file found at ${skillPath}\nexport function main(context: any) {\n  console.log('Executing skill: ${skillName}');\n  return { success: true, name: '${skillName}', version: '${version}' };\n}\n`;
+    }
+
+    // Load dependencies from manifest if available
+    if (fs.existsSync(manifestPath)) {
+      try {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+        if (Array.isArray(manifest.dependencies)) {
+          skill.dependencies = manifest.dependencies.map((d: string | { name: string }) =>
+            typeof d === 'string' ? d : d.name
+          );
+        }
+      } catch {
+        skill.dependencies = [];
+      }
+    } else if (options.dependencies && options.dependencies.length > 0) {
       skill.dependencies = options.dependencies;
     } else {
       skill.dependencies = this.getMockDependencies(skillName);
@@ -264,8 +285,26 @@ export class SkillsRegistry {
       version: skill.version,
       dependencies: skill.dependencies.map(d => ({ name: d, version: '*' })),
       exports: [skill.entryPoint],
-      riskLevel: 10,
+      riskLevel: this.computeRiskLevel(skill),
     };
+  }
+
+  /**
+   * Compute risk level from skill properties: more dependencies and larger code = higher risk.
+   * Returns 1-10 where 1 is low risk, 10 is high risk.
+   */
+  private computeRiskLevel(skill: Skill): number {
+    let risk = 1;
+    // More dependencies = higher risk
+    risk += Math.min(skill.dependencies.length, 4);
+    // Larger code = higher risk
+    const lineCount = skill.code.split('\n').length;
+    if (lineCount > 50) risk += 1;
+    if (lineCount > 200) risk += 1;
+    // Blocked APIs in code increase risk
+    if (/\brequire\s*\(/.test(skill.code)) risk += 1;
+    if (/\beval\s*\(/.test(skill.code)) risk += 1;
+    return Math.min(risk, 10);
   }
 
   // ============================================================================
@@ -483,19 +522,8 @@ export class SkillsRegistry {
     }
   }
 
-  // Mock methods for demo
-  private generateMockSkillCode(name: string, version: string): string {
-    return `
-// Skill: ${name}@${version}
-export function main(context: any) {
-  console.log('Executing skill: ${name}');
-  return { success: true, name: '${name}', version: '${version}' };
-}
-`;
-  }
-
+  // Fallback dependency map for known skill names
   private getMockDependencies(name: string): string[] {
-    // Mock dependencies based on skill name
     const deps: Record<string, string[]> = {
       'data-processor': ['utils', 'validator'],
       'api-client': ['http-utils', 'auth'],

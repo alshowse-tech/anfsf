@@ -1,0 +1,33 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Test App API",
+    "version": "0.1.0",
+    "description": "Simple Hello World API"
+  },
+  "paths": {
+    "/api/hello": {
+      "get": {
+        "summary": "Returns a hello message",
+        "operationId": "getHello",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -6,6 +6,8 @@
  * edge-cases (null checks, boundaries), code-aesthetics (dead code, naming).
  */
 
+import { LLMClient, type LLMClientConfig } from '../integrations/llm-client';
+
 export interface PolishCategory {
   dimension: 'experience' | 'performance' | 'edge-cases' | 'code-aesthetics';
   enabled: boolean;
@@ -34,6 +36,8 @@ export interface DetailPolisherConfig {
   model?: string;
   categories?: PolishCategory[];
   timeoutMs?: number;
+  llmClient?: LLMClient;
+  llmConfig?: Partial<LLMClientConfig>;
 }
 
 const DEFAULT_CATEGORIES: PolishCategory[] = [
@@ -82,16 +86,22 @@ Output JSON only with this exact structure:
 };
 
 export class DetailPolisher {
-  private apiKey: string;
+  private llm: LLMClient;
   private model: string;
-  private baseUrl: string;
   private categories: PolishCategory[];
   private timeoutMs: number;
 
   constructor(config: DetailPolisherConfig) {
-    this.apiKey = config.apiKey;
+    if (config.llmClient) {
+      this.llm = config.llmClient;
+    } else {
+      this.llm = new LLMClient({
+        apiKey: config.apiKey || process.env.DASHSCOPE_API_KEY || '',
+        defaultModel: config.model || 'qwen3.5-plus',
+        ...config.llmConfig,
+      });
+    }
     this.model = config.model || 'qwen3.5-plus';
-    this.baseUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     this.categories = config.categories ?? DEFAULT_CATEGORIES;
     this.timeoutMs = config.timeoutMs ?? 30000;
   }
@@ -140,35 +150,20 @@ export class DetailPolisher {
     dimension: PolishCategory['dimension'],
     _prdContext?: string
   ): Promise<{ code: string; findings: PolishFinding[] }> {
-    if (!this.apiKey) {
-      return { code, findings: [] };
-    }
-
     try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPTS[dimension] },
-            { role: 'user', content: `File: ${filePath}\n\n${code}` },
-          ],
-          temperature: 0.2,
-          response_format: { type: 'json_object' },
-        }),
+      const result = await this.llm.chat({
+        model: this.model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPTS[dimension] },
+          { role: 'user', content: `File: ${filePath}\n\n${code}` },
+        ],
+        temperature: 0.2,
       });
 
-      if (!response.ok) return { code, findings: [] };
-
-      const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-      const content = data.choices[0]?.message?.content || '';
+      if (!result.ok) return { code, findings: [] };
 
       try {
-        const parsed = JSON.parse(content) as {
+        const parsed = JSON.parse(result.content) as {
           findings?: Array<Record<string, unknown>>;
           fixes?: Array<{ originalText: string; fixedText: string }>;
         };

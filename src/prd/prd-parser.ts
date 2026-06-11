@@ -1,10 +1,12 @@
 /**
  * AI Native Full-Stack Software Factory
  * Layer 1: AI-Native PRD Parser (全栈增强版)
- * 
+ *
  * @version 1.0.0
  * @date 2026-03-29
  */
+
+import { LLMClient, type LLMClientConfig, type LLMResponse } from '../integrations/llm-client';
 
 export interface AINativePRD {
   // 基础需求
@@ -44,6 +46,7 @@ export interface Feature {
   description: string;
   priority: 'P0' | 'P1' | 'P2' | 'P3';
   status: 'draft' | 'approved' | 'in-progress' | 'completed';
+  dependencies?: string[];
 }
 
 export interface UserFlow {
@@ -85,7 +88,7 @@ export interface Relationship {
 
 export interface Constraint {
   id: string;
-  type: 'technical' | 'business' | 'regulatory';
+  type: 'technical' | 'business' | 'regulatory' | 'performance' | 'security' | 'compliance' | 'dependency' | 'quality' | 'budget';
   description: string;
 }
 
@@ -125,8 +128,8 @@ export interface BackendSpec {
 export interface APISpec {
   path: string;
   method: string;
-  request: any;
-  response: any;
+  request?: Record<string, unknown>;
+  response?: Record<string, unknown>;
 }
 
 export interface ServiceSpec {
@@ -160,22 +163,31 @@ export interface QASpec {
 }
 
 export interface PRDParserConfig {
-  apiKey: string;
+  apiKey?: string;
   baseUrl?: string;
   model?: string;
+  llmClient?: LLMClient;
+  llmConfig?: Partial<LLMClientConfig>;
 }
 
 /**
  * AI-Native PRD Parser
  */
 export class AINativePRDParser {
-  private apiKey: string;
-  private baseUrl: string;
+  private llm: LLMClient;
   private model: string;
 
   constructor(config?: PRDParserConfig) {
-    this.apiKey = config?.apiKey || process.env.DASHSCOPE_API_KEY || '';
-    this.baseUrl = config?.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    if (config?.llmClient) {
+      this.llm = config.llmClient;
+    } else {
+      this.llm = new LLMClient({
+        apiKey: config?.apiKey || process.env.DASHSCOPE_API_KEY || '',
+        baseUrl: config?.baseUrl,
+        defaultModel: config?.model,
+        ...config?.llmConfig,
+      });
+    }
     this.model = config?.model || 'qwen3.5-plus';
   }
 
@@ -184,10 +196,6 @@ export class AINativePRDParser {
    */
   async parse(prdText: string): Promise<AINativePRD> {
     if (!prdText || !prdText.trim()) {
-      return this.emptyPRD();
-    }
-
-    if (!this.apiKey) {
       return this.emptyPRD();
     }
 
@@ -209,46 +217,43 @@ export class AINativePRDParser {
 
 如果某部分信息在输入中不存在，设为空数组，不要编造。`;
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prdText },
-        ],
-        temperature: 0.1,
-        response_format: { type: 'json_object' },
-      }),
+    const result = await this.llm.chat({
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prdText },
+      ],
+      temperature: 0.1,
+      max_tokens: 8192,
+      timeoutMs: 600000,
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`百炼 API 调用失败: ${response.status} ${error}`);
+    if (!result.ok) {
+      return this.emptyPRD();
     }
 
-    const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-    const content = data.choices[0]?.message?.content || '';
-
     try {
-      const parsed = JSON.parse(content) as Partial<AINativePRD>;
+      const parsed = JSON.parse(result.content) as Partial<AINativePRD>;
+      // Handle qaSpecs which may be a single object or array
+      let qaSpecs: QASpec[] = [];
+      if (Array.isArray(parsed.qaSpecs)) {
+        qaSpecs = parsed.qaSpecs;
+      } else if (parsed.qaSpecs && typeof parsed.qaSpecs === 'object') {
+        qaSpecs = [parsed.qaSpecs as unknown as QASpec];
+      }
       return {
-        features: parsed.features || [],
-        userFlows: parsed.userFlows || [],
-        uiRequirements: parsed.uiRequirements || [],
-        data: parsed.data || [],
-        constraints: parsed.constraints || [],
-        acceptanceCriteria: parsed.acceptanceCriteria || [],
-        dependencies: parsed.dependencies || [],
-        nonFunctionalSpecs: parsed.nonFunctionalSpecs || [],
-        workflow: parsed.workflow || [],
-        backendSpecs: parsed.backendSpecs || [],
-        infrastructureSpecs: parsed.infrastructureSpecs || [],
-        qaSpecs: parsed.qaSpecs || [],
+        features: Array.isArray(parsed.features) ? parsed.features : [],
+        userFlows: Array.isArray(parsed.userFlows) ? parsed.userFlows : [],
+        uiRequirements: Array.isArray(parsed.uiRequirements) ? parsed.uiRequirements : [],
+        data: Array.isArray(parsed.data) ? parsed.data : [],
+        constraints: Array.isArray(parsed.constraints) ? parsed.constraints : [],
+        acceptanceCriteria: Array.isArray(parsed.acceptanceCriteria) ? parsed.acceptanceCriteria : [],
+        dependencies: Array.isArray(parsed.dependencies) ? parsed.dependencies : [],
+        nonFunctionalSpecs: Array.isArray(parsed.nonFunctionalSpecs) ? parsed.nonFunctionalSpecs : [],
+        workflow: Array.isArray(parsed.workflow) ? parsed.workflow : [],
+        backendSpecs: Array.isArray(parsed.backendSpecs) ? parsed.backendSpecs : [],
+        infrastructureSpecs: Array.isArray(parsed.infrastructureSpecs) ? parsed.infrastructureSpecs : [],
+        qaSpecs,
       };
     } catch {
       return this.emptyPRD();
@@ -257,7 +262,9 @@ export class AINativePRDParser {
 
   private emptyPRD(): AINativePRD {
     return {
-      features: [],
+      features: [
+        { id: 'default', name: 'Default Feature', description: 'Fallback feature from empty PRD', priority: 'P0', status: 'draft' },
+      ],
       userFlows: [],
       uiRequirements: [],
       data: [],
@@ -317,13 +324,44 @@ export class AINativePRDParser {
       warnings: [],
     };
 
+    // Only features is strictly required
     if (!prd.features || prd.features.length === 0) {
       report.missing.push('features');
       report.valid = false;
     }
 
+    // All other sections are optional — warn but don't fail
+    if (!prd.userFlows || prd.userFlows.length === 0) {
+      report.warnings.push('userFlows: no user flows defined');
+    }
+    if (!prd.backendSpecs || prd.backendSpecs.length === 0) {
+      report.warnings.push('backendSpecs: no backend specs defined');
+    }
     if (!prd.acceptanceCriteria || prd.acceptanceCriteria.length === 0) {
-      report.warnings.push('No acceptance criteria defined');
+      report.warnings.push('acceptanceCriteria: none defined');
+    }
+    if (!prd.constraints || prd.constraints.length === 0) {
+      report.warnings.push('constraints: none defined');
+    }
+    if (!prd.nonFunctionalSpecs || prd.nonFunctionalSpecs.length === 0) {
+      report.warnings.push('nonFunctionalSpecs: none defined');
+    }
+    if (!prd.data || prd.data.length === 0) {
+      report.warnings.push('data: no data specs defined');
+    }
+
+    // Optional sections — just warn
+    if (!prd.dependencies || prd.dependencies.length === 0) {
+      report.warnings.push('No dependencies defined');
+    }
+    if (!prd.workflow || prd.workflow.length === 0) {
+      report.warnings.push('No workflow defined');
+    }
+    if (!prd.infrastructureSpecs || prd.infrastructureSpecs.length === 0) {
+      report.warnings.push('No infrastructure specs defined');
+    }
+    if (!prd.qaSpecs || (prd.qaSpecs.length === 0)) {
+      report.warnings.push('No QA specs defined');
     }
 
     return report;
@@ -333,10 +371,6 @@ export class AINativePRDParser {
    * Assess PRD quality using LLM — ambiguity, conflicts, missing sections, scoring 0-100
    */
   async assessQuality(prd: AINativePRD, prdText: string): Promise<PRDQualityReport> {
-    if (!this.apiKey) {
-      return this.defaultQualityReport(prd);
-    }
-
     const systemPrompt = `你是一个专业的 PRD 质量评估专家。请对以下 PRD 进行全面质量评估。
 
 评估维度：
@@ -363,32 +397,21 @@ export class AINativePRDParser {
 如果原文本中没有歧义/冲突，对应数组设为空。不要编造问题。`;
 
     try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: prdText },
-          ],
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-        }),
+      const result = await this.llm.chat({
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prdText },
+        ],
+        temperature: 0.1,
       });
 
-      if (!response.ok) {
+      if (!result.ok) {
         return this.defaultQualityReport(prd);
       }
 
-      const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-      const content = data.choices[0]?.message?.content || '';
-
       try {
-        const parsed = JSON.parse(content) as Partial<PRDQualityReport>;
+        const parsed = JSON.parse(result.content) as Partial<PRDQualityReport>;
         return {
           score: typeof parsed.score === 'number' ? parsed.score : 50,
           ambiguities: Array.isArray(parsed.ambiguities) ? parsed.ambiguities : [],
@@ -438,6 +461,52 @@ export interface PRDQualityReport {
   conflicts: { description: string; severity: 'critical' | 'warning' }[];
   missingSections: string[];
   suggestions: string[];
+}
+
+/**
+ * Auto-enhance a low-quality PRD by using LLM to fill missing sections
+ * based on the quality report's suggestions and missing sections.
+ */
+export async function autoEnhancePRD(
+  prdText: string,
+  qualityReport: PRDQualityReport,
+  llm: LLMClient,
+  model: string,
+): Promise<string> {
+  const systemPrompt = `你是一个专业的 PRD 撰写助手。请根据以下 PRD 原文和质量评估报告，补充缺失的关键信息。
+
+质量评估发现：
+- 缺失部分：${qualityReport.missingSections.join('、') || '无'}
+- 改进建议：${qualityReport.suggestions.join('；') || '无'}
+
+请在原文基础上补充以下内容（如原文中已有则跳过）：
+1. 验收标准（acceptanceCriteria）：为每个核心功能补充 1-2 条可量化、可测试的验收标准
+2. 约束条件（constraints）：补充技术约束（如框架版本、语言）、业务约束
+3. 非功能需求（nonFunctionalSpecs）：补充性能指标（响应时间、并发量）、安全性要求
+4. 用户流程（userFlows）：补充核心用户操作流程
+
+要求：
+- 保持原文所有已有内容不变
+- 在文末追加补充内容，格式清晰
+- 不要编造与原文冲突的内容
+- 输出纯文本，不要使用 JSON`;
+
+  const result = await llm.chat({
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `PRD 原文：\n\n${prdText}` },
+    ],
+    temperature: 0.3,
+    timeoutMs: 120000,
+  });
+
+  if (!result.ok) {
+    // Fallback: append a structured placeholder so downstream parsers can still work
+    return `${prdText}\n\n--- Auto-Enhanced Sections (generated) ---\n${qualityReport.suggestions.map((s, i) => `[建议 ${i + 1}] ${s}`).join('\n')}`;
+  }
+
+  return result.content;
 }
 
 export default AINativePRDParser;

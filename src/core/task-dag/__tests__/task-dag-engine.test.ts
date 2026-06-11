@@ -261,13 +261,13 @@ describe('Task DAG Engine Tests', () => {
   it('should build task DAG from RequirementGraph', () => {
     const graphEngine = new RequirementGraphEngine();
     const graph = graphEngine.build(
-      'Build a task management app',
-      [],
-      [{ id: 'f1', name: 'Task CRUD', description: 'Create, read, update, delete tasks' }],
-      [{ id: 'i1', name: 'Task Form', flow: 'fill -> submit' }],
-      [{ id: 's1', name: 'REST API', architecture: 'monolith' }],
-      [{ id: 'e1', name: 'Task Worker', type: 'background' }],
-      [{ id: 'v1', name: 'Task Validation', rules: ['required title'] }],
+      { intent: 'Build a task management app' },
+      {},
+      [{ id: 'f1', name: 'Task CRUD', description: 'Create, read, update, delete tasks', priority: 'P0' as const, status: 'draft' as const }],
+      [{ id: 'i1', name: 'Task Form', steps: [{ step: 1, action: 'fill', expected: 'filled' }] } as any],
+      { api: [], services: [{ name: 'REST API', responsibility: 'API', dependencies: [] }] } as any,
+      [{ id: 'e1', name: 'Task Worker', triggers: [], actions: [] } as any],
+      { criteria: [], constraints: [{ id: 'v1', name: 'Task Validation', rules: ['required title'] }] as any },
     );
 
     engine.buildFromRequirementGraph(graph);

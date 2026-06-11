@@ -8,6 +8,7 @@
 import { MCPBus, MessageBuilder } from '../mcp/mcp-bus';
 import type { MCPBusConfig } from '../mcp/types';
 import { TaskDAGEngine, createTaskDAGEngine, type TaskNode, type DAGExecutionPlan, type TaskInsertionResult } from '../core/task-dag/task-dag-engine';
+import type { AgentOS, AgentCapability } from '../agents';
 
 export interface OrchestrationConfig {
   mcpBusConfig: MCPBusConfig;
@@ -47,6 +48,7 @@ export class OrchestrationHarness {
   private taskDAG: TaskDAGEngine;
   private currentPlan: DAGExecutionPlan | null = null;
   private onTaskComplete?: (taskId: string, newlyReady: string[]) => void;
+  private agentOS: AgentOS | null = null;
 
   constructor(config: Partial<OrchestrationConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -74,10 +76,24 @@ export class OrchestrationHarness {
   }
 
   /**
+   * Inject AgentOS for lifecycle management.
+   */
+  setAgentOS(agentOS: AgentOS): void {
+    this.agentOS = agentOS;
+  }
+
+  /**
    * Register an agent for orchestration.
    */
-  registerAgent(agentId: string): void {
+  registerAgent(agentId: string, options?: { name?: string; capabilities?: AgentCapability[] }): void {
     this.activeAgents.add(agentId);
+    if (this.agentOS) {
+      this.agentOS.registerAgent({
+        id: agentId,
+        name: options?.name || agentId,
+        capabilities: options?.capabilities,
+      });
+    }
   }
 
   /**

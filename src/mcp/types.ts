@@ -14,13 +14,22 @@
 export type AgentId = string;
 
 /** MCP message types */
-export type MCPMessageType = 
+export type MCPMessageType =
   | 'proposal'
   | 'query'
   | 'command'
   | 'feedback'
   | 'approval'
-  | 'telemetry';
+  | 'telemetry'
+  | 'task_delegate'
+  | 'task_complete'
+  | 'task_failed'
+  | 'result_aggregate'
+  | 'heartbeat'
+  | 'health_report'
+  | 'capability_discover'
+  | 'capability_response'
+  | 'error_recover';
 
 /** MCP protocol version */
 export type MCPProtocolVersion = 'mcp/1.0';
@@ -287,7 +296,9 @@ export function isMCPMessage(obj: any): obj is MCPMessage {
     typeof obj.id === 'string' &&
     typeof obj.from === 'string' &&
     typeof obj.to === 'string' &&
-    ['proposal', 'query', 'command', 'feedback', 'approval', 'telemetry'].includes(obj.type) &&
+    ['proposal', 'query', 'command', 'feedback', 'approval', 'telemetry',
+     'task_delegate', 'task_complete', 'task_failed', 'result_aggregate',
+     'heartbeat', 'health_report', 'capability_discover', 'capability_response', 'error_recover'].includes(obj.type) &&
     typeof obj.ttl === 'number' &&
     typeof obj.correlationId === 'string' &&
     obj.schemaVersion === '2026-03' &&
