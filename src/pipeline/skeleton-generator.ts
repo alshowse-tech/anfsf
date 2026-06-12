@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ANFSF Pipeline — Skeleton Generator (T-104)
  *
  * Bridges the CodeGenerationLoop (T-002) with the pipeline's skeleton
@@ -8,7 +8,7 @@
  * Task: T-104
  */
 
-import { CodeGenerationLoop, type RequirementSpec, type AgentLoopConfig, type AgentLoopResult } from '../agents/code-generation-loop';
+import { CodeGenerationLoop, type RequirementSpec, type AgentLoopConfig, type AgentLoopResult, type GeneratedCode, type VerificationError, type AgentRoundTokenUsage } from '../agents/code-generation-loop';
 import { LLMClient } from '../integrations/llm-client';
 import type { ProjectState } from './pipeline-state-machine';
 import { TokenBudget } from './token-budget';
@@ -33,14 +33,14 @@ export interface SkeletonGenerationInput {
 export interface SkeletonGenerationOutput {
   /** Whether generation succeeded (agent loop verification passed) */
   success: boolean;
-  /** Generated code */
-  code: AgentLoopResult['code'];
+  /** Generated code files */
+  code: GeneratedCode;
   /** Number of agent loop rounds */
   rounds: number;
   /** Any remaining errors */
-  errors: AgentLoopResult['errors'];
+  errors: VerificationError[];
   /** Token usage report */
-  tokenUsage: AgentLoopResult['tokenUsage'];
+  tokenUsage: AgentRoundTokenUsage[];
   /** Summary message */
   message: string;
 }
@@ -82,7 +82,7 @@ export class SkeletonGenerator {
     };
 
     // Run the agent loop
-    const result = await this.agentLoop.generate(enrichedSpec, outputDir);
+    const result = await this.agentLoop.run(enrichedSpec, outputDir);
 
     // Track token usage in budget (if configured)
     if (this.budget) {
@@ -96,7 +96,7 @@ export class SkeletonGenerator {
         if (!allowed) {
           return {
             success: false,
-            code: result.code,
+            code: result.output,
             rounds: result.rounds,
             errors: result.errors,
             tokenUsage: result.tokenUsage,
@@ -108,7 +108,7 @@ export class SkeletonGenerator {
 
     return {
       success: result.success,
-      code: result.code,
+      code: result.output,
       rounds: result.rounds,
       errors: result.errors,
       tokenUsage: result.tokenUsage,

@@ -34,8 +34,12 @@ export type ProjectState =
   | 'stage4_testing'
   | 'stage4_fixing'
   | 'stage4_confirmed'
+  | 'stage4_released_to_test'
+  | 'stage4_uat'
+  | 'stage4_uat_fixing'
   | 'stage5_archiving'
   | 'stage5_done'
+  | 'stage5_evolving'
   | 'failed';
 
 /** Map each state to the stage number it belongs to (0-5, -1 for special states) */
@@ -52,8 +56,12 @@ export const STATE_TO_STAGE: Record<ProjectState, number> = {
   stage4_testing: 4,
   stage4_fixing: 4,
   stage4_confirmed: 4,
+  stage4_released_to_test: 4,
+  stage4_uat: 4,
+  stage4_uat_fixing: 4,
   stage5_archiving: 5,
   stage5_done: 5,
+  stage5_evolving: 5,
   failed: -1,
 };
 
@@ -77,22 +85,31 @@ const TRANSITION_TABLE: Map<ProjectState, Set<ProjectState>> = new Map([
   ['stage2_dev', new Set<ProjectState>(['stage3_verifying', 'failed'])],
 
   // Stage 3
-  ['stage3_verifying', new Set<ProjectState>(['stage3_verifying', 'stage3_passed', 'failed'])],
-  ['stage3_passed', new Set<ProjectState>(['stage4_testing', 'failed'])],
+  ['stage3_verifying', new Set<ProjectState>(['stage3_verifying', 'stage3_passed', 'stage2_dev', 'failed'])],
+  ['stage3_passed', new Set<ProjectState>(['stage4_released_to_test', 'stage4_testing', 'failed'])],
 
   // Stage 4: testing ↔ fixing loop
-  ['stage4_testing', new Set<ProjectState>(['stage4_fixing', 'stage4_confirmed', 'failed'])],
-  ['stage4_fixing', new Set<ProjectState>(['stage4_testing', 'failed'])],
+  ['stage4_testing', new Set<ProjectState>(['stage4_fixing', 'stage4_confirmed', 'stage2_dev', 'failed'])],
+  ['stage4_fixing', new Set<ProjectState>(['stage4_testing', 'stage4_confirmed', 'stage2_dev', 'failed'])],
   ['stage4_confirmed', new Set<ProjectState>(['stage5_archiving', 'failed'])],
+  ['stage4_released_to_test', new Set<ProjectState>(['stage4_uat', 'stage4_testing', 'failed'])],
+  ['stage4_uat', new Set<ProjectState>(['stage4_uat_fixing', 'stage4_confirmed', 'failed'])],
+  ['stage4_uat_fixing', new Set<ProjectState>(['stage4_uat', 'stage4_testing', 'failed'])],
 
-  // Stage 5
+  // Stage 5: archiving → done → evolving
+  // NOTE: stage5_evolving has no outgoing transitions — it is a terminal state
+  // where the external evolution harness (ComponentMiner, CompileLearningDB,
+  // retrospective-engine) runs asynchronously. Re-entry to the pipeline from
+  // this state is not supported; evolution results feed back into the knowledge
+  // base, not into the state machine.
   ['stage5_archiving', new Set<ProjectState>(['stage5_done', 'failed'])],
-  ['stage5_done', new Set<ProjectState>()], // terminal state
+  ['stage5_done', new Set<ProjectState>(['stage5_evolving'])],
 
   // Error recovery
   ['failed', new Set<ProjectState>(['stage0_knowledge', 'stage1_parsing',
     'stage1_done', 'stage2_dev', 'stage3_verifying', 'stage3_passed',
-    'stage4_testing', 'stage5_archiving'])],
+    'stage4_testing', 'stage4_released_to_test', 'stage4_uat', 'stage4_uat_fixing',
+    'stage5_archiving'])],
 ]);
 
 // ============================================================================

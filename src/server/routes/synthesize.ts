@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/v1/synthesize — Trigger pipeline run (Agent Loop)
  * POST /api/v1/synthesize/multipart — Trigger pipeline with file attachments
  */
@@ -207,6 +207,9 @@ async function runAgentPipeline(
         store.emitStep(jobId, { name: 'Agent Loop: Generating skeleton...', duration: 0, status: 'ok' });
 
         const agentLoop = new CodeGenerationLoop(llm, { maxRetries: 2, maxTokens: 32_768 });
+        // NOTE: TokenBudget is intentionally not wired here — synthesize runs are
+        // short-lived prototyping loops. Budget tracking is wired through SkeletonGenerator
+        // for production-stage pipelines when a budget is explicitly configured.
         const taskGenerator = new TaskGenerator();
 
         const spec: RequirementSpec = {
@@ -217,15 +220,15 @@ async function runAgentPipeline(
         };
 
         const t0 = Date.now();
-        const result = await agentLoop.generate(spec, outputDir);
+        const result = await agentLoop.run(spec, outputDir);
         const elapsed = Date.now() - t0;
 
-        persistedSteps.push({ name: `Generated ${result.code.files.length} files in ${result.rounds} round(s)`, duration: elapsed, status: result.success ? 'ok' : 'error' });
-        store.emitStep(jobId, { name: `Done: ${result.code.files.length} files`, duration: elapsed, status: result.success ? 'ok' : 'error' });
+        persistedSteps.push({ name: `Generated ${result.output.files.length} files in ${result.rounds} round(s)`, duration: elapsed, status: result.success ? 'ok' : 'error' });
+        store.emitStep(jobId, { name: `Done: ${result.output.files.length} files`, duration: elapsed, status: result.success ? 'ok' : 'error' });
 
         // Step 3: Generate TASK.md
-        if (result.code.files.length > 0) {
-          const pkg = taskGenerator.generate(result.code);
+        if (result.output.files.length > 0) {
+          const pkg = taskGenerator.generate(result.output);
           const md = taskGenerator.toMarkdown(pkg);
           fs.writeFileSync(path.join(outputDir, 'TASK_FRONTEND.md'), md.frontend, 'utf-8');
           fs.writeFileSync(path.join(outputDir, 'TASK_BACKEND.md'), md.backend, 'utf-8');
@@ -241,7 +244,7 @@ async function runAgentPipeline(
           });
           const repo = await gitea.createRepo(projectName, `ANFSF: ${projectName}`);
           giteaUrl = repo.html_url;
-          for (const file of result.code.files.slice(0, 50)) {
+          for (const file of result.output.files.slice(0, 50)) {
             await gitea.pushFile(projectName, file.path, file.content, 'main', `[ANFSF] Initial: ${file.path}`);
           }
         } catch {
@@ -250,10 +253,10 @@ async function runAgentPipeline(
 
         await sm.transition('stage1_done');
 
-        const ok = result.success || (result.code.files.length >= 5 && result.rounds > 0);
+        const ok = result.success || (result.output.files.length >= 5 && result.rounds > 0);
         await store.updateRun(jobId, {
           status: ok ? 'done' : 'failed',
-          result: { files: result.code.files.map(f => ({ path: f.path, size: f.content.length, type: 'code' })), rounds: result.rounds, tokenUsage: result.tokenUsage, giteaUrl, message: result.message } as any,
+          result: { files: result.output.files.map(f => ({ path: f.path, size: f.content.length, type: 'code' })), rounds: result.rounds, tokenUsage: result.tokenUsage, giteaUrl, message: result.message } as any,
           steps: persistedSteps,
           error: result.success ? null : result.message,
           completedAt: Date.now(),

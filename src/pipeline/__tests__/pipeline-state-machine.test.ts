@@ -27,8 +27,12 @@ const ALL_STATES: ProjectState[] = [
   'stage4_testing',
   'stage4_fixing',
   'stage4_confirmed',
+  'stage4_released_to_test',
+  'stage4_uat',
+  'stage4_uat_fixing',
   'stage5_archiving',
   'stage5_done',
+  'stage5_evolving',
   'failed',
 ];
 
@@ -72,8 +76,8 @@ describe('PipelineStateMachine', () => {
   // --------------------------------------------------------------------------
 
   describe('state enumeration', () => {
-    it('should define exactly 15 states', () => {
-      expect(ALL_STATES).toHaveLength(15);
+    it('should define exactly 19 states', () => {
+      expect(ALL_STATES).toHaveLength(19);
     });
 
     it('should map each state to a stage number (-1 to 5)', () => {
@@ -181,20 +185,20 @@ describe('PipelineStateMachine', () => {
       await expect(sm.transition('stage1_parsing')).rejects.toThrow(PipelineError);
     });
 
-    it('should reject transitions from terminal state', async () => {
-      // Navigate to terminal state
+    it('should reject transitions from terminal state (stage5_evolving)', async () => {
+      // Navigate to terminal state: stage5_evolving has no outgoing transitions
       const path: ProjectState[] = [
         'stage1_parsing', 'stage1_locked', 'stage1_generating',
         'stage1_done', 'stage2_dev', 'stage3_verifying',
         'stage3_passed', 'stage4_testing', 'stage4_confirmed',
-        'stage5_archiving', 'stage5_done',
+        'stage5_archiving', 'stage5_done', 'stage5_evolving',
       ];
       for (const to of path) await sm.transition(to);
 
       expect(sm.getAllowedTransitions()).toHaveLength(0);
     });
 
-    it('should not transition from stage5_done to any other state', async () => {
+    it('should allow transition from stage5_done to stage5_evolving only', async () => {
       const path: ProjectState[] = [
         'stage1_parsing', 'stage1_locked', 'stage1_generating',
         'stage1_done', 'stage2_dev', 'stage3_verifying',
@@ -203,8 +207,8 @@ describe('PipelineStateMachine', () => {
       ];
       for (const to of path) await sm.transition(to);
 
-      // Cannot go anywhere from done
-      expect(sm.getAllowedTransitions()).toEqual([]);
+      // Can transition from done to evolving
+      expect(sm.getAllowedTransitions()).toEqual(['stage5_evolving']);
     });
   });
 
@@ -363,7 +367,7 @@ describe('PipelineStateMachine', () => {
       expect(allowed).not.toContain('stage5_done');
     });
 
-    it('should return empty array from stage5_done', async () => {
+    it('should allow transition from stage5_done to stage5_evolving', async () => {
       const path: ProjectState[] = [
         'stage1_parsing', 'stage1_locked', 'stage1_generating',
         'stage1_done', 'stage2_dev', 'stage3_verifying',
@@ -371,7 +375,9 @@ describe('PipelineStateMachine', () => {
         'stage5_archiving', 'stage5_done',
       ];
       for (const to of path) await sm.transition(to);
-      expect(sm.getAllowedTransitions()).toEqual([]);
+
+      // stage5_done allows transition to stage5_evolving
+      expect(sm.getAllowedTransitions()).toEqual(['stage5_evolving']);
     });
 
     it('should allow both stage4_fixing and stage4_confirmed from stage4_testing', async () => {
