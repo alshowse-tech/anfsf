@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ANFSF Pipeline — Checkpoint & Recovery
  *
  * Each pipeline stage completion writes a checkpoint to persistent storage.
@@ -88,7 +88,6 @@ export class InMemoryCheckpointStore implements CheckpointStore {
   private checkpoints: Checkpoint[] = [];
 
   saveCheckpoint(cp: Checkpoint): void {
-    // Replace existing checkpoint for same project+stage (idempotent)
     const idx = this.checkpoints.findIndex(
       c => c.projectId === cp.projectId && c.stage === cp.stage
     );
@@ -100,10 +99,8 @@ export class InMemoryCheckpointStore implements CheckpointStore {
   }
 
   loadCheckpoint(projectId: string): Checkpoint | null {
-    const matches = this.checkpoints
-      .filter(c => c.projectId === projectId)
-      .sort((a, b) => b.timestamp - a.timestamp);
-    return matches[0] ?? null;
+    const matches = this.checkpoints.filter(c => c.projectId === projectId);
+    return matches[matches.length - 1] ?? null;
   }
 
   loadCheckpointByStage(projectId: string, stage: ProjectState): Checkpoint | null {
@@ -183,3 +180,6 @@ export class CheckpointManager {
     return latest?.stage ?? null;
   }
 }
+
+
+

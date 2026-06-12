@@ -1,18 +1,19 @@
 /**
- * ANFSF Agent ¡ª DevFixLoop (GAP-03)
+ * ANFSF Agent â€” DevFixLoop (GAP-03)
  *
  * Developer commit verification and auto-fix loop.
  * Implements AgentLoop with a 3-layer verification pipeline:
- *   compile ¡ú contract ¡ú E2E (placeholder for Phase 2)
+ *   compile â†’ contract â†’ E2E (placeholder for Phase 2)
  * and an error-driven fix cycle using FixEngine's classification matrix.
  *
- * Template method (run): generate ¡ú verify ¡ú fix (up to maxRetries rounds)
+ * Template method (run): generate â†’ verify â†’ fix (up to maxRetries rounds)
  */
 
 import { AgentLoop } from './agent-loop-base';
 import { getCompileLearningDB, verificationErrorsToNormalized } from "../pipeline/compile-learning-db";
 import { ContractWatcher } from '../pipeline/contract-watcher';
 import { FixEngine, type FixRecord, type ProblemType } from '../pipeline/fix-engine';
+import { FixExecutor } from '../pipeline/fix-executor';
 import { VerificationRunner } from './verification-runner';
 import type { CodeSource, CodeAnnotation } from '../pipeline/code-annotator';
 import * as path from 'path';
@@ -78,6 +79,7 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
   readonly maxRetries = 2;
 
   private fixEngine = new FixEngine();
+  private fixExecutor: FixExecutor | null = null;
 
   /** Stored during generate() for use in verify() and fix(). */
   private currentInput: DevCommitInput | null = null;
@@ -88,6 +90,10 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
   // ========================================================================
   // AgentLoop lifecycle
   // ========================================================================
+
+  setFixExecutor(executor: FixExecutor): void {
+    this.fixExecutor = executor;
+  }
 
   async generate(input: DevCommitInput): Promise<VerificationReport> {
     this.currentInput = input;
@@ -145,6 +151,18 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
         line: err.line,
         description: err.message,
       });
+      if (result.level === 'L1' && this.fixExecutor) {
+        try {
+          const execResult = await this.fixExecutor.executeL1(result.record);
+          if (execResult.success) {
+            result.record.fixStatus = 'auto_fixed';
+            result.record.fixedBy = 'system';
+            result.record.fixedAt = Date.now();
+          }
+        } catch (e) {
+          console.error('[DevFixLoop] L1 auto-fix failed:', e);
+        }
+      }
 
       fixRecords.push(result.record);
     }
@@ -274,7 +292,7 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
     const start = Date.now();
     const stepName = 'e2e-check';
 
-    // Placeholder ¡ª Phase 2: E2E test runner integration
+    // Placeholder â€” Phase 2: E2E test runner integration
     const msg = 'E2E tests not implemented (Phase 2)';
 
     return {
@@ -344,7 +362,7 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
       return this.mapStatusToSource(diff.status);
     }
 
-    // File in the changed file list but not in diffs ¡ª assume modified
+    // File in the changed file list but not in diffs â€” assume modified
     if (this.currentInput.files.includes(file)) {
       return 'modified';
     }
@@ -401,7 +419,7 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
       return 'conditional_flaw';
     }
 
-    // Business logic ¡ª conservative default for meaningful logic errors
+    // Business logic â€” conservative default for meaningful logic errors
     if (
       msg.includes('logic') ||
       msg.includes('business') ||
