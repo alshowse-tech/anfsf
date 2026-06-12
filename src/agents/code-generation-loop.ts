@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ANFSF Agent — Code Generation Loop
  *
  * "generate -> verify -> fix" loop for producing verified skeleton code.
@@ -11,6 +11,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
 import { LLMClient, type LLMMessage } from "../integrations/llm-client";
+import { getCompileLearningDB, verificationErrorsToNormalized } from "../pipeline/compile-learning-db";
 import {
   AgentLoop,
   type AgentRoundTokenUsage,
@@ -62,7 +63,7 @@ export type LegacyCodeGenResult = {
 
 const FILE_DELIMITER = "===FILE:";
 const FILE_END = "===END===";
-function buildSkeletonPrompt(spec: RequirementSpec): LLMMessage[] {
+function buildSkeletonPrompt(spec: RequirementSpec, historyInjection?: string): LLMMessage[] {
   const featureList = spec.features
     .map(f => "- " + f.name + " (" + f.priority + "): " + f.description)
     .join("\n");
@@ -73,6 +74,7 @@ function buildSkeletonPrompt(spec: RequirementSpec): LLMMessage[] {
         + "OUTPUT FORMAT — use EXACTLY this delimiter format (NOT JSON):\n\n"
         + FILE_DELIMITER + " package.json\n{ \"name\": \"...\", \"dependencies\": {...} }\n"
         + FILE_END + "\n\n"
+        + (historyInjection || "")
         + "Rules:\n1. Every file MUST start with: " + FILE_DELIMITER + " <relative/path>\n"
         + "2. Every file MUST end with: " + FILE_END + "\n"
         + "3. All .ts files MUST be valid TypeScript with strict mode\n"
@@ -104,6 +106,7 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
   private llm: LLMClient;
   private verifier: VerificationRunner;
   private config: AgentLoopConfig;
+  private currentProjectType: string = "web";
 
   get maxRetries(): number { return this.config.maxRetries; }
 
@@ -122,7 +125,10 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
   // ================================================================
 
   async generate(spec: RequirementSpec): Promise<GeneratedCode> {
-    const messages = buildSkeletonPrompt(spec);
+    this.currentProjectType = spec.deploymentForm || "web";
+    const db = getCompileLearningDB();
+    const history = db.getPromptInjection(this.currentProjectType);
+    const messages = buildSkeletonPrompt(spec, history);
     const response = await this.llm.chat({
       messages,
       max_tokens: this.config.maxTokens,
@@ -130,6 +136,15 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     });
     if (!response.ok) {
       throw new Error("LLM generation failed: " + (response.error || "Unknown error"));
+    }
+    // Record token usage for AgentLoop tracking
+    if (response.usage) {
+      this.roundTokenUsages.push({
+        round: 0,
+        promptTokens: response.usage.prompt_tokens || 0,
+        completionTokens: response.usage.completion_tokens || 0,
+        totalTokens: response.usage.total_tokens || 0,
+      });
     }
     const code = parseCodeFromResponse(response.content);
     if (code.files.length === 0) {
@@ -142,7 +157,18 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     if (!this.outputPath) throw new Error("outputPath not set — cannot verify");
     await installDependencies(this.outputPath);
     const results = await this.verifier.runAll(this.outputPath);
-    return collectErrors(results);
+    const errors = collectErrors(results);
+    if (errors.length > 0) {
+      const db = getCompileLearningDB();
+      const normalized = verificationErrorsToNormalized(
+        errors.map(e => ({ message: e.message, file: e.file, rule: e.rule })),
+        this.currentProjectType,
+        0,
+        "fixed",
+      );
+      db.recordErrors(normalized);
+    }
+    return errors;
   }
 
   async fix(errors: VerificationError[], code: GeneratedCode): Promise<GeneratedCode> {
@@ -154,6 +180,15 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     });
     if (!fixResponse.ok) {
       throw new Error("LLM fix failed: " + (fixResponse.error || "Unknown error"));
+    }
+    // Record token usage for fix round
+    if (fixResponse.usage) {
+      this.roundTokenUsages.push({
+        round: this.roundTokenUsages.length,
+        promptTokens: fixResponse.usage.prompt_tokens || 0,
+        completionTokens: fixResponse.usage.completion_tokens || 0,
+        totalTokens: fixResponse.usage.total_tokens || 0,
+      });
     }
     const fixedFiles = parseCodeFromResponse(fixResponse.content);
     if (fixedFiles.files.length > 0) {
@@ -178,7 +213,7 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     const result = await this.run(spec, outputPath);
     return {
       ...result,
-      code: result.output,
+      code: result.output ?? { files: [], contracts: {} },
     };
   }
 }
@@ -208,9 +243,13 @@ export function parseCodeFromResponse(content: string): GeneratedCode {
     if (filePath && fileContent) files.push({ path: filePath, content: fileContent, source: "generated" });
   }
   if (files.length > 0) return { files };
-  // Fallback: try JSON
+  // Fallback: try JSON (strip markdown code fences first)
   try {
-    const parsed = JSON.parse(content.trim());
+    let cleaned = content.trim();
+    // Strip leading/trailing markdown code fences: ```json ... ``` or ``` ... ```
+    cleaned = cleaned.replace(/^```(?:json|javascript|typescript|ts)?\s*\n?/i, "");
+    cleaned = cleaned.replace(/\n?```\s*$/i, "");
+    const parsed = JSON.parse(cleaned);
     const jsonFiles = (parsed.files || []).map((f: any) => ({ path: f.path, content: f.content, source: "generated" as const }));
     if (jsonFiles.length > 0) return { files: jsonFiles, contracts: parsed.contracts };
   } catch { /* fall through */ }

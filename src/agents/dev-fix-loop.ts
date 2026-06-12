@@ -1,15 +1,16 @@
-ï»¿/**
- * ANFSF Agent â€” DevFixLoop (GAP-03)
+/**
+ * ANFSF Agent ¡ª DevFixLoop (GAP-03)
  *
  * Developer commit verification and auto-fix loop.
  * Implements AgentLoop with a 3-layer verification pipeline:
- *   compile â†’ contract â†’ E2E (placeholder for Phase 2)
+ *   compile ¡ú contract ¡ú E2E (placeholder for Phase 2)
  * and an error-driven fix cycle using FixEngine's classification matrix.
  *
- * Template method (run): generate â†’ verify â†’ fix (up to maxRetries rounds)
+ * Template method (run): generate ¡ú verify ¡ú fix (up to maxRetries rounds)
  */
 
 import { AgentLoop } from './agent-loop-base';
+import { getCompileLearningDB, verificationErrorsToNormalized } from "../pipeline/compile-learning-db";
 import { ContractWatcher } from '../pipeline/contract-watcher';
 import { FixEngine, type FixRecord, type ProblemType } from '../pipeline/fix-engine';
 import { VerificationRunner } from './verification-runner';
@@ -189,6 +190,19 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
         }
       }
 
+      // Record compile errors in learning database
+      if (testErrors.length > 0) {
+        try {
+          const db = getCompileLearningDB();
+          const normalized = verificationErrorsToNormalized(
+            testErrors.map(e => ({ message: e.message, file: e.file })),
+            'web',
+            0,
+            'fixed',
+          );
+          db.recordErrors(normalized);
+        } catch {}
+      }
       return {
         step: { name: stepName, passed: errorStrings.length === 0, errors: errorStrings, durationMs: Date.now() - start },
         testErrors,
@@ -260,7 +274,7 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
     const start = Date.now();
     const stepName = 'e2e-check';
 
-    // Placeholder â€” Phase 2: E2E test runner integration
+    // Placeholder ¡ª Phase 2: E2E test runner integration
     const msg = 'E2E tests not implemented (Phase 2)';
 
     return {
@@ -330,7 +344,7 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
       return this.mapStatusToSource(diff.status);
     }
 
-    // File in the changed file list but not in diffs â€” assume modified
+    // File in the changed file list but not in diffs ¡ª assume modified
     if (this.currentInput.files.includes(file)) {
       return 'modified';
     }
@@ -387,7 +401,7 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
       return 'conditional_flaw';
     }
 
-    // Business logic â€” conservative default for meaningful logic errors
+    // Business logic ¡ª conservative default for meaningful logic errors
     if (
       msg.includes('logic') ||
       msg.includes('business') ||

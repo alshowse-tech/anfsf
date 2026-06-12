@@ -122,7 +122,7 @@ describe('CodeGenerationLoop', () => {
       const { client } = mockLLMClient([{ ok: true, content: validDelimiterResponse }]);
       loop = new CodeGenerationLoop(client);
 
-      const result = await loop.generate(sampleSpec, tempDir);
+      const result = await loop.generateOld(sampleSpec, tempDir);
 
       expect(result.rounds).toBeGreaterThanOrEqual(1);
       expect(result.code.files.length).toBeGreaterThan(0);
@@ -135,7 +135,7 @@ describe('CodeGenerationLoop', () => {
       const { client } = mockLLMClient([{ ok: false, content: '', error: 'API down' }]);
       loop = new CodeGenerationLoop(client);
 
-      const result = await loop.generate(sampleSpec, tempDir);
+      const result = await loop.generateOld(sampleSpec, tempDir);
 
       expect(result.success).toBe(false);
       expect(result.rounds).toBe(0);
@@ -146,7 +146,7 @@ describe('CodeGenerationLoop', () => {
       const { client } = mockLLMClient([{ ok: true, content: 'no parseable content here' }]);
       loop = new CodeGenerationLoop(client);
 
-      const result = await loop.generate(sampleSpec, tempDir);
+      const result = await loop.generateOld(sampleSpec, tempDir);
 
       expect(result.success).toBe(false);
       expect(result.code.files).toHaveLength(0);
@@ -167,7 +167,7 @@ describe('CodeGenerationLoop', () => {
       ]);
       loop = new CodeGenerationLoop(client, { maxRetries: 1 });
 
-      const result = await loop.generate(sampleSpec, tempDir);
+      const result = await loop.generateOld(sampleSpec, tempDir);
       expect(result.rounds).toBeGreaterThanOrEqual(1);
     }, 30_000);
   });
@@ -177,7 +177,7 @@ describe('CodeGenerationLoop', () => {
       const { client } = mockLLMClient([{ ok: true, content: validDelimiterResponse }]);
       loop = new CodeGenerationLoop(client);
 
-      const result = await loop.generate(sampleSpec, tempDir);
+      const result = await loop.generateOld(sampleSpec, tempDir);
 
       expect(result.tokenUsage.length).toBeGreaterThan(0);
       expect(result.tokenUsage[0].totalTokens).toBeGreaterThan(0);
@@ -189,7 +189,7 @@ describe('CodeGenerationLoop', () => {
       const { client } = mockLLMClient([{ ok: true, content: validDelimiterResponse }]);
       loop = new CodeGenerationLoop(client);
 
-      await loop.generate(sampleSpec, tempDir);
+      await loop.generateOld(sampleSpec, tempDir);
 
       const files = fs.readdirSync(tempDir, { recursive: true });
       expect(files.length).toBeGreaterThan(0);

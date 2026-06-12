@@ -45,6 +45,7 @@ projects/*/node_modules/
 # Tool state files
 .openclaw/
 .claude/
+.anfsf/
 *.js
 !jest.config.js
 !eslint.config.js
