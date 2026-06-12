@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ANFSF Server — Fastify HTTP API
  *
  * Exposes ANFSF pipeline as HTTP endpoints with SSE progress streaming
@@ -36,6 +36,7 @@ import { CodeAnnotator } from '../pipeline/code-annotator';
 import { ContractWatcher } from '../pipeline/contract-watcher';
 import { CommitVerifier } from '../pipeline/commit-verification';
 import { FaultReporter } from '../pipeline/fault-reporter';
+import { FixEngine } from '../pipeline/fix-engine';
 
 // ============================================================================
 // Global unhandled rejection / exception handlers — production FAIL fix
@@ -211,6 +212,7 @@ export async function createServer(config: ServerConfig = {}) {
   const contractWatcher = new ContractWatcher();
   const commitVerifier = new CommitVerifier();
   const faultReporter = new FaultReporter();
+  const fixEngine = new FixEngine();
 
   // Attachment processor for multi-format PRD input
   const attachmentProcessor = new AttachmentProcessor(llm);
@@ -285,7 +287,7 @@ export async function createServer(config: ServerConfig = {}) {
   registerLLMMetrics(llm);
   registerConfirmationRoutes(app);
   registerLLMPlaygroundRoutes(app, llm, resolved);
-  registerFeedbackRoutes(app);
+  registerFeedbackRoutes(app, fixEngine);
 
   // Phase 1 integrated routes (requirement confirm, feedback→fix, release→archive)
   registerPhase1Routes(app, store as PipelineRunStore);

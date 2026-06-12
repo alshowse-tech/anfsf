@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AI Native Full-Stack Software Factory
  * Layer 1: AI-Native PRD Parser (全栈增强版)
  *
@@ -229,7 +229,8 @@ export class AINativePRDParser {
     });
 
     if (!result.ok) {
-      return this.emptyPRD();
+      const errMsg = (result as any).error || 'unknown error';
+      throw new Error('PRD parse failed: LLM returned non-OK response (' + errMsg + '). Check LLM API key and connectivity.');
     }
 
     try {
@@ -256,7 +257,7 @@ export class AINativePRDParser {
         qaSpecs,
       };
     } catch {
-      return this.emptyPRD();
+      throw new Error('PRD parse failed: LLM returned invalid JSON. Response preview: ' + result.content.slice(0, 200));
     }
   }
 

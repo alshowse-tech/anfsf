@@ -238,3 +238,60 @@ Phase 4（持续）
 | 5 | 三种进化的准确定义 | 组件沉淀 / 编译学习 / 项目经验（非 L16 自省） |
 | 6 | skills/harness 适用性评估 | 三档分类（直接可用/改造可用/需新建） |
 | 7 | 开发路径图谱固化（本文档） | 锁定决策 + 实现序列 + 会话连续性协议 |
+| 8 | Phase 1 核心开发 + 代码审查 | 25 项任务完成，2 轮审查发现 14 个问题（6 已修复） |
+| 9 | Agent Loop 重构 | 解析层换回 AINativePRDParser（deepseek-chat），合并修复逻辑（mergeFixedFiles） |
+
+---
+
+## 附录B：Phase 1 最新状态快照（2026-06-09）
+
+### 测试基线
+
+```
+Test Suites: 4 failed, 105 passed, 109 total (96.3%)
+Tests: 10 failed, 1528 passed, 1538 total (99.3%)
+4 个失败 = 已知环境依赖问题（compile-validator/auth/rate-limit/server）
+```
+
+### 代码审查待修复项（按严重度排序）
+
+| # | 文件 | 问题 | 严重度 | 状态 |
+|---|------|------|--------|------|
+| 1 | gitea-client.ts:122 | pushFile 不支持更新已存在文件（缺 SHA） | 高 | 待修 |
+| 2 | synthesize.ts:253 | success \|\| files>=5 失败仍标记成功 | 高 | ✅ 已修 |
+| 3 | llm-client.ts:141 | baseUrl 空字符串穿透 ?? 运算符 | 高 | ✅ 已修 |
+| 4 | token-budget.ts:147 | 零预算导致 Infinity 静默阻塞 | 高 | ✅ 已修 |
+| 5 | code-generation-loop.ts:192 | model 死代码三元表达式 | 低 | ✅ 已修 |
+| 6 | pipeline-state-machine.ts:201 | errorHandler 抛异常吞 PipelineError | 中 | 待修 |
+| 7 | pipeline-state-machine.ts:184 | leave 回调副作用在 enter 失败时未回滚 | 中 | 待修 |
+| 8 | PipelineProgress.tsx:65 | onComplete 在 deps 中触发重复回调 | 中 | 待修 |
+| 9 | llm-client.ts:199 | 超时和 4xx 错误不触发断路器 | 中 | 待修 |
+| 10 | code-generation-loop.ts:224 | 循环条件允许多余修复调用 | 中 | 待修 |
+| 11 | pipeline.ts:7 | OUTPUT_BASE 在 import 时捕获 | 低 | 待修 |
+| 12 | start.bat | LLM_BASE_URL/ANFSF_MODEL 尾部空格 | 高 | ✅ 已修 |
+| 13 | synthesize.ts:204 | PRD 中文标点替换后分割失效 | 高 | ✅ 已修 |
+
+### 模块清单（新增/变更）
+
+| 模块 | 文件 | 状态 |
+|------|------|------|
+| 五阶段状态机 | pipeline-state-machine.ts (15 状态) | ✅ |
+| 检查点/恢复 | checkpoint.ts + InMemoryCheckpointStore | ✅ |
+| Token 预算 | token-budget.ts (70%/90%预警) | ✅ |
+| Agent Loop | code-generation-loop.ts (3 轮+合并修复) | ✅ |
+| PRD 质量预检 | prd-quality-check.ts (4 维评分) | ✅ |
+| 置信度标注 | confidence-annotator.ts (中文适配) | ✅ |
+| Gitea 客户端 | gitea-client.ts (API v1) | ✅ |
+| Webhook 路由 | webhook.ts (dedup+幂等) | ✅ |
+| 代码标注 | code-annotator.ts (generated/modified/new) | ✅ |
+| 提交验证 | commit-verification.ts (编译+契约) | ✅ |
+| 故障报告 | fault-reporter.ts (文件+行号+建议) | ✅ |
+| 任务生成 | task-generator.ts (TASK.md+优先级) | ✅ |
+| 修复引擎 | fix-engine.ts (L1/L2/L3 矩阵) | ✅ |
+| 回归测试 | regression-runner.ts (退化检测) | ✅ |
+| 发布检查 | release-check.ts (三层门禁) | ✅ |
+| 项目归档 | archiver.ts (度量+组件候选) | ✅ |
+| 角色管理 | roles.ts (PM/FE/BE/QA/DevOps) | ✅ |
+| PipelineProgress | 重写为 3 步骤+指标面板 | ✅ |
+| PRDForm | 实时质量评分反馈 | ✅ |
+| App.tsx | 导航精简 5 项+齿轮菜单 | ✅ |
