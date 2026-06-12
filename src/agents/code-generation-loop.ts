@@ -300,3 +300,4 @@ function collectErrors(results: VerificationResult[]): VerificationError[] {
   for (const r of results) errors.push(...r.errors);
   return errors;
 }
+

@@ -13,16 +13,16 @@
   *       ↓ 注入到 generate() 的 prompt
   *   buildSkeletonPrompt() / DevFixLoop
   *
-  * 正常性: GAP-03, 进化二: 编译学习
+  * 来源: GAP-03, 进化二: 编译学习
   */
- 
+
  import * as fs from "fs";
  import * as path from "path";
- 
+
  // ============================================================================
  // Types
  // ============================================================================
- 
+
  export interface NormalizedError {
    /** Normalized error code + message (e.g. "TS2322: Type X is not assignable to type Y") */
    pattern: string;
@@ -39,7 +39,7 @@
    /** Whether the error was eventually fixed or abandoned */
    outcome: "fixed" | "abandoned";
  }
- 
+
  export interface PatternStats {
    pattern: string;
    frequency: number;
@@ -49,7 +49,7 @@
    commonFixHint: string;
    projectTypes: string[];
  }
- 
+
  export interface CompiledRecord {
    id: string;
    pattern: string;
@@ -61,11 +61,11 @@
    outcome: "fixed" | "abandoned";
    timestamp: number;
  }
- 
+
  // ============================================================================
  // Error Normalization
  // ============================================================================
- 
+
  /** Normalization replacement pairs: first match wins */
  const NORMALIZATION_RULES: Array<{ regex: RegExp; replacement: string }> = [
    // Type arguments: "Type 'string[]'" -> "Type X"
@@ -78,7 +78,7 @@
    // Specific hashes and IDs
    { regex: /\b[a-f0-9]{8,}\b/g, replacement: "ID" },
  ];
- 
+
  function normalizeError(message: string): string {
    let normalized = message.trim();
    for (const rule of NORMALIZATION_RULES) {
@@ -88,7 +88,7 @@
    normalized = normalized.replace(/\s+/g, " ").trim();
    return normalized;
  }
- 
+
  /**
   * Extract a fix hint from a (raw error, outcome) pair.
   * These are heuristic; over time the DB learns better hints from actual fix rounds.
@@ -121,30 +121,30 @@
    }
    return "Review code around the error location";
  }
- 
+
  // ============================================================================
  // Compile Learning Database
  // ============================================================================
- 
+
  const DEFAULT_DB_PATH = path.join(process.cwd(), ".anfsf", "compile-learning.json");
- 
+
  export class CompileLearningDB {
    private records: CompiledRecord[] = [];
    private dbPath: string;
    private dirty = false;
    private saveTimer: ReturnType<typeof setInterval> | null = null;
- 
+
    constructor(dbPath?: string) {
      this.dbPath = dbPath || DEFAULT_DB_PATH;
      this.load();
      // Auto-save every 30 seconds if dirty
      this.saveTimer = setInterval(() => this.saveIfDirty(), 30_000);
    }
- 
+
    // ========================================================================
    // Public API
    // ========================================================================
- 
+
    /**
     * Record one or more normalized errors after a verification round.
     */
@@ -164,7 +164,7 @@
      }
      this.dirty = true;
    }
- 
+
    /**
     * Get the most frequent error patterns, grouped by project type.
     * Frequency threshold filters out noise (patterns seen fewer than N times).
@@ -175,7 +175,7 @@
   ): PatternStats[] {
     const minFreq = options.minFrequency ?? 1;
     const limit = options.limit ?? 5;
- 
+
      // Group by pattern
      const groupMap = new Map<string, CompiledRecord[]>();
      for (const r of this.records) {
@@ -184,12 +184,12 @@
        if (existing) existing.push(r);
        else groupMap.set(r.pattern, [r]);
      }
- 
+
      // Compute stats per pattern
      const stats: PatternStats[] = [];
      for (const [pattern, group] of groupMap) {
        if (group.length < minFreq) continue;
- 
+
        const fixedRounds = group
          .filter(r => r.outcome === "fixed")
          .map(r => r.resolvedAtRound);
@@ -197,7 +197,7 @@
          fixedRounds.length > 0
            ? fixedRounds.reduce((a, b) => a + b, 0) / fixedRounds.length
            : 0;
- 
+
        // Most common fix hint
        const hintCounts = new Map<string, number>();
        for (const r of group) {
@@ -208,9 +208,9 @@
        for (const [hint, count] of hintCounts) {
          if (count > maxCount) { commonFixHint = hint; maxCount = count; }
        }
- 
+
        const projectTypes = [...new Set(group.map(r => r.projectType))];
- 
+
        stats.push({
          pattern,
          frequency: group.length,
@@ -221,12 +221,12 @@
          projectTypes,
        });
      }
- 
+
      // Sort by frequency descending, take top N
      stats.sort((a, b) => b.frequency - a.frequency);
      return stats.slice(0, limit);
    }
- 
+
    /**
    * Generate a formatted prompt injection string.
    * Ready to be prepended to any generate() prompt.
@@ -234,7 +234,7 @@
   getPromptInjection(projectType?: string, limit?: number): string {
     const patterns = this.getTopPatterns(projectType, { minFrequency: 2, limit: limit ?? 5 });
      if (patterns.length === 0) return "";
- 
+
      const lines: string[] = [
        "",
        "Learn from past compilation errors in similar projects:",
@@ -249,7 +249,7 @@
      lines.push("");
      return lines.join("\n");
    }
- 
+
    /**
     * Generate a Markdown summary of all recorded patterns.
     * Useful for developer workspace and debugging.
@@ -260,12 +260,12 @@
        limit: 20,
      });
      if (patterns.length === 0) return "No compilation data recorded yet.";
- 
+
      const lines: string[] = [
        "## Compile Learning Summary",
        "",
-       `| Pattern | Freq | Avg Fix Round | First Seen | Common Fix |`,
-       `|---------|------|--------------|------------|------------|`,
+       '| Pattern | Freq | Avg Fix Round | First Seen | Common Fix |',
+       '|---------|------|--------------|------------|------------|',
      ];
      for (const p of patterns) {
        lines.push(
@@ -274,21 +274,21 @@
      }
      return lines.join("\n");
    }
- 
+
    /**
     * Total number of recorded error events.
     */
    get totalRecords(): number {
      return this.records.length;
    }
- 
+
    /**
     * Number of unique patterns observed.
     */
    get uniquePatterns(): number {
      return new Set(this.records.map(r => r.pattern)).size;
    }
- 
+
    /**
     * Clean up old records (older than N days).
     */
@@ -300,14 +300,14 @@
      if (pruned > 0) this.dirty = true;
      return pruned;
    }
- 
+
    /**
     * Persist to disk immediately.
     */
    flush(): void {
      this.save();
    }
- 
+
    /**
     * Stop the auto-save timer and persist.
     */
@@ -318,11 +318,11 @@
      }
      this.save();
    }
- 
+
    // ========================================================================
    // Persistence
    // ========================================================================
- 
+
    private load(): void {
      try {
        if (fs.existsSync(this.dbPath)) {
@@ -335,7 +335,7 @@
        this.records = [];
      }
    }
- 
+
    private save(): void {
      if (!this.dirty) return;
      try {
@@ -347,16 +347,16 @@
        console.error("[CompileLearningDB] Failed to save:", error);
      }
    }
- 
+
    private saveIfDirty(): void {
      if (this.dirty) this.save();
    }
  }
- 
+
  // ============================================================================
  // Convenience: convert VerificationError[] to NormalizedError[]
  // ============================================================================
- 
+
  /**
   * Convert from VerificationError[] (from VerificationRunner) to NormalizedError[].
   * This is the bridge between the verification layer and the learning DB.
@@ -382,13 +382,13 @@
      };
    });
  }
- 
+
  // ============================================================================
  // Singleton
  // ============================================================================
- 
+
  let defaultInstance: CompileLearningDB | null = null;
- 
+
  /**
   * Get or create the default singleton instance.
   * All modules that share the same process boundary should use this.

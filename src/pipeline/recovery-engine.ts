@@ -1,6 +1,7 @@
-﻿import type { ProjectState } from './pipeline-state-machine';
+import type { ProjectState } from './pipeline-state-machine';
 import { PipelineStateMachine, STATE_TO_STAGE } from './pipeline-state-machine';
 import { CheckpointManager } from './checkpoint';
+import { runEvolution } from './evolution-runner';
 
 export class RecoveryEngine {
   constructor(private checkpointManager: CheckpointManager) {}
@@ -12,6 +13,9 @@ export class RecoveryEngine {
         await this.checkpointManager.save(machine.projectId, from, { ts: Date.now() });
       });
     }
+    machine.onEnter("stage5_evolving", async () => {
+      await runEvolution(machine.projectId);
+    });
     return machine;
   }
 
@@ -26,4 +30,6 @@ export class RecoveryEngine {
 
   getManager(): CheckpointManager { return this.checkpointManager; }
 }
+
+
 

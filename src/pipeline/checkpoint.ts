@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ANFSF Pipeline — Checkpoint & Recovery
  *
  * Each pipeline stage completion writes a checkpoint to persistent storage.
@@ -180,6 +180,7 @@ export class CheckpointManager {
     return latest?.stage ?? null;
   }
 }
+
 
 
 
