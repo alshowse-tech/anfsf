@@ -41,6 +41,7 @@ describe("RecoveryEngine", () => {
     const m = new CheckpointManager(s);
     const engine = new RecoveryEngine(m, re);
     const machine = new PipelineStateMachine("retro-test", "stage5_done");
+    engine.setPrdText("Test PRD: build a login page");
     engine.register(machine);
     // The transition should not throw even though retrospective
     // generates fallback lessons (no LLM, empty pipeline data)

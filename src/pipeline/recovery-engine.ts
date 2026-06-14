@@ -17,6 +17,7 @@ export class RecoveryEngine {
   private retrospectiveEngine?: RetrospectiveEngine;
   private introspectionEngine?: IntrospectionEngine;
   private stepTimestamps: Array<{ state: string; ts: number }> = [];
+  private prdText: string = "";
 
   constructor(
     private checkpointManager: CheckpointManager,
@@ -25,6 +26,11 @@ export class RecoveryEngine {
   ) {
     this.retrospectiveEngine = retrospectiveEngine;
     this.introspectionEngine = introspectionEngine;
+  }
+
+  /** Set the original PRD text used for this pipeline run. */
+  setPrdText(text: string): void {
+    this.prdText = text;
   }
 
   register(machine: PipelineStateMachine): PipelineStateMachine {
@@ -52,7 +58,7 @@ export class RecoveryEngine {
       const totalDuration = steps.reduce((s, step) => s + step.duration, 0);
       const result = await engine.retrospective({
         projectId,
-        prdText: "",
+        prdText: this.prdText,
         pipelineSteps: steps,
         duration: totalDuration,
         success: true,
