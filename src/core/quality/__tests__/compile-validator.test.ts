@@ -14,7 +14,24 @@ import { CompileValidator } from '../compile-validator';
 
 const TYPESCRIPT_DIR = path.resolve(__dirname, '../../../../node_modules/typescript');
 
-describe('CompileValidator', () => {
+/** Check if the environment supports fs.symlinkSync (Windows + no admin = EPERM) */
+function supportsSymlinks(): boolean {
+  try {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'symchk-'));
+    const target = path.join(tmp, 't');
+    const link = path.join(tmp, 'l');
+    fs.writeFileSync(target, '');
+    fs.symlinkSync(target, link, 'file');
+    fs.rmSync(tmp, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const describeCompile = supportsSymlinks() ? describe : describe.skip;
+
+describeCompile('CompileValidator', () => {
   let tmpDir: string;
 
   function prepareProjectDir(dir: string): void {
