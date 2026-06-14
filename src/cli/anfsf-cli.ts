@@ -12,6 +12,8 @@ import { ChangeEvent } from '../core/graph/types';
 import { ProductPipeline, PipelineConfig } from '../pipeline/product-pipeline';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getProjectRegistry } from '../pipeline/project';
+import { MetricsCollector } from '../pipeline/metrics-collector';
 
 // ============================================================================
 // Constants
@@ -617,6 +619,9 @@ Commands:
   preview                 Preview architecture changes
   verify                  Verify architecture consistency
   role rebalance          Rebalance role assignments
+  project list            List all projects
+  project create          Create a new project (--name, --prd)
+  knowledge bottlenecks   Show pipeline bottleneck analysis
   ui gen                  Generate UI prototype
   skill load              Load a skill
   harness test            Run tests
