@@ -7,7 +7,22 @@ import * as path from 'path';
 import * as os from 'os';
 import { PipelineRunStore } from '../store';
 
-describe('PipelineRunStore (SQLite)', () => {
+/** Check if better-sqlite3 native module is usable */
+function hasSQLite(): boolean {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Database = require('better-sqlite3');
+    const db = new Database(':memory:');
+    db.close();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const describeSQLite = hasSQLite() ? describe : describe.skip;
+
+describeSQLite('PipelineRunStore (SQLite)', () => {
   let tmpDir: string;
   let dbPath: string;
   let store: PipelineRunStore;
