@@ -7,6 +7,8 @@
  */
 
 import { LLMClient, type LLMClientConfig } from '../../integrations/llm-client';
+import * as fs2 from "fs";
+import * as path2 from "path";
 
 export interface IntrospectionConfig {
   apiKey?: string;
@@ -126,9 +128,49 @@ export class IntrospectionEngine {
   }
 
   private async collectFiles(): Promise<Array<{ path: string; content: string }>> {
-    // In a real implementation, this would read files from disk.
-    // For now, we accept files as input via the analyzeFiles method.
-    return [];
+    const results: Array<{ path: string; content: string }> = [];
+    const MAX_FILES = 50;
+    const SKIP_DIRS = new Set(["node_modules", "__tests__", "dist", ".git", ".anfsf", "output"]);
+
+    for (const dir of this.sourceDirs) {
+      if (!fs2.existsSync(dir)) continue;
+      this.walkDir(dir, SKIP_DIRS, results, MAX_FILES);
+      if (results.length >= MAX_FILES) break;
+    }
+
+    results.sort((a, b) => {
+      try { return fs2.statSync(b.path).mtimeMs - fs2.statSync(a.path).mtimeMs; }
+      catch { return 0; }
+    });
+
+    return results.slice(0, MAX_FILES);
+  }
+
+  private walkDir(
+    dirPath: string,
+    skipDirs: Set<string>,
+    results: Array<{ path: string; content: string }>,
+    maxFiles: number,
+  ): void {
+    try {
+      const entries = fs2.readdirSync(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (results.length >= maxFiles) return;
+        const fullPath = path2.join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+          if (!skipDirs.has(entry.name)) {
+            this.walkDir(fullPath, skipDirs, results, maxFiles);
+          }
+        } else if (entry.isFile() && entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts")) {
+          try {
+            const data = fs2.readFileSync(fullPath, "utf-8");
+            if (data.trim().length > 0) {
+              results.push({ path: fullPath, content: data });
+            }
+          } catch { /* skip unreadable files */ }
+        }
+      }
+    } catch { /* skip unreadable dirs */ }
   }
 
   /**
