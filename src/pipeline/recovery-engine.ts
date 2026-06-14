@@ -16,6 +16,7 @@ import type { IntrospectionEngine } from "../core/evolution/introspection-engine
 export class RecoveryEngine {
   private retrospectiveEngine?: RetrospectiveEngine;
   private introspectionEngine?: IntrospectionEngine;
+  private stepTimestamps: Array<{ state: string; ts: number }> = [];
 
   constructor(
     private checkpointManager: CheckpointManager,
@@ -30,6 +31,7 @@ export class RecoveryEngine {
     const allStates = Object.keys(STATE_TO_STAGE) as ProjectState[];
     for (const st of allStates) {
       machine.onLeave(st, async (from) => {
+        this.stepTimestamps.push({ state: from, ts: Date.now() });
         await this.checkpointManager.save(machine.projectId, from, { ts: Date.now() });
       });
     }
@@ -46,11 +48,13 @@ export class RecoveryEngine {
     if (!engine) return;
     try {
       await engine.init();
+      const steps = this.buildPipelineSteps();
+      const totalDuration = steps.reduce((s, step) => s + step.duration, 0);
       const result = await engine.retrospective({
         projectId,
         prdText: "",
-        pipelineSteps: [],
-        duration: 0,
+        pipelineSteps: steps,
+        duration: totalDuration,
         success: true,
       });
       console.log(
@@ -60,6 +64,18 @@ export class RecoveryEngine {
     } catch (e) {
       console.error(`[RecoveryEngine] Retrospective failed for ${projectId}:`, e);
     }
+  }
+
+  private buildPipelineSteps(): Array<{ name: string; duration: number; status: "ok" | "error" | "skipped"; error?: string }> {
+    if (this.stepTimestamps.length === 0) return [];
+    return this.stepTimestamps.map((s, i) => {
+      const next = this.stepTimestamps[i + 1];
+      return {
+        name: s.state,
+        duration: next ? next.ts - s.ts : Date.now() - s.ts,
+        status: "ok" as const,
+      };
+    });
   }
 
   private async runIntrospection(projectId: string = "default"): Promise<void> {
