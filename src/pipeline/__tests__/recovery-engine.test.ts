@@ -2,6 +2,7 @@ import { describe, it, expect } from "@jest/globals";
 import { PipelineStateMachine } from "../pipeline-state-machine";
 import { CheckpointManager, InMemoryCheckpointStore } from "../checkpoint";
 import { RecoveryEngine } from "../recovery-engine";
+import { RetrospectiveEngine } from "../../skills/retrospective-engine";
 
 function setup(pid = "tp"): { engine: RecoveryEngine; machine: PipelineStateMachine } {
   const s = new InMemoryCheckpointStore(); const m = new CheckpointManager(s);
@@ -31,4 +32,17 @@ describe("RecoveryEngine", () => {
     expect(m2).not.toBeNull();
     expect(m2!.getState()).toBe("stage1_parsing");
   });
+
+  it("retrospective engine optional and works when provided", async () => {
+    const re = new RetrospectiveEngine({ knowledgeBasePath: ":memory:", apiKey: "test" });
+    await re.init().catch(() => {});
+    const s = new InMemoryCheckpointStore();
+    const m = new CheckpointManager(s);
+    const engine = new RecoveryEngine(m, re);
+    const machine = new PipelineStateMachine("retro-test", "stage5_done");
+    engine.register(machine);
+    // The transition should not throw even though retrospective
+    // generates fallback lessons (no LLM, empty pipeline data)
+    await expect(machine.transition("stage5_evolving")).resolves.not.toThrow();
+});
 });
