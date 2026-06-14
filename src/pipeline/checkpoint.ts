@@ -99,8 +99,17 @@ export class InMemoryCheckpointStore implements CheckpointStore {
   }
 
   loadCheckpoint(projectId: string): Checkpoint | null {
-    const matches = this.checkpoints.filter(c => c.projectId === projectId);
-    return matches[matches.length - 1] ?? null;
+    const matches = this.checkpoints
+      .filter(c => c.projectId === projectId)
+      .sort((a, b) => {
+        const d = b.timestamp - a.timestamp;
+        if (d !== 0) return d;
+        // Same timestamp: prefer later insertion (higher index)
+        const ia = this.checkpoints.indexOf(a);
+        const ib = this.checkpoints.indexOf(b);
+        return ib - ia;
+      });
+    return matches[0] ?? null;
   }
 
   loadCheckpointByStage(projectId: string, stage: ProjectState): Checkpoint | null {
@@ -180,6 +189,8 @@ export class CheckpointManager {
     return latest?.stage ?? null;
   }
 }
+
+
 
 
 

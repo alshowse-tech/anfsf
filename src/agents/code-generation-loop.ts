@@ -12,6 +12,7 @@ import * as path from "path";
 import { spawn } from "child_process";
 import { LLMClient, type LLMMessage } from "../integrations/llm-client";
 import { getCompileLearningDB, verificationErrorsToNormalized } from "../pipeline/compile-learning-db";
+import { getComponentMiner } from "../pipeline/component-miner";
 import {
   AgentLoop,
   type AgentRoundTokenUsage,
@@ -128,7 +129,10 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     this.currentProjectType = spec.deploymentForm || "web";
     const db = getCompileLearningDB();
     const history = db.getPromptInjection(this.currentProjectType);
-    const messages = buildSkeletonPrompt(spec, history);
+    const miner = getComponentMiner();
+    const componentInfo = miner.getPromptInjection(this.currentProjectType);
+    const extraContext = [history, componentInfo].filter(Boolean).join("\n");
+    const messages = buildSkeletonPrompt(spec, extraContext);
     const response = await this.llm.chat({
       messages,
       max_tokens: this.config.maxTokens,
@@ -300,4 +304,5 @@ function collectErrors(results: VerificationResult[]): VerificationError[] {
   for (const r of results) errors.push(...r.errors);
   return errors;
 }
+
 
