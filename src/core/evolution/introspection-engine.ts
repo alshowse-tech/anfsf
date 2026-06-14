@@ -118,6 +118,9 @@ export class IntrospectionEngine {
       }
     }
 
+    // Static analysis (works without LLM)
+    allFindings.push(...this.runStaticAnalysis(fileContents));
+
     return {
       analyzedAt: Date.now(),
       filesAnalyzed: fileContents.length,
@@ -203,6 +206,9 @@ export class IntrospectionEngine {
       }
     }
 
+    // Static analysis (works without LLM)
+    allFindings.push(...this.runStaticAnalysis(files));
+
     return {
       analyzedAt: Date.now(),
       filesAnalyzed: files.length,
@@ -210,6 +216,75 @@ export class IntrospectionEngine {
       summary: summary || this.generateFallbackSummary(files),
       duration: Date.now() - start,
     };
+  }
+
+
+  /**
+   * Run static analysis on files without LLM.
+   * Detects: long files, TODO/FIXME comments, console.log usage, empty catch blocks.
+   */
+  private runStaticAnalysis(files: Array<{ path: string; content: string }>): ArchitectureFinding[] {
+    const findings: ArchitectureFinding[] = [];
+    const MAX_FINDINGS = 20;
+
+    for (const f of files) {
+      if (findings.length >= MAX_FINDINGS) break;
+      const lines = f.content.split("\n");
+      const lineCount = lines.length;
+
+      // File too long
+      if (lineCount > 300 && findings.length < MAX_FINDINGS) {
+        findings.push({
+          category: "complexity",
+          severity: lineCount > 500 ? "major" : "minor",
+          file: f.path,
+          description: `File is ${lineCount} lines long`,
+          suggestion: "Consider splitting into smaller modules",
+          effort: lineCount > 500 ? "M" : "S",
+        });
+      }
+
+      // TODO/FIXME/HACK comments
+      const todos = f.content.match(/\/\/\s*(TODO|FIXME|HACK|XXX)/g);
+      if (todos && todos.length > 0 && findings.length < MAX_FINDINGS) {
+        findings.push({
+          category: "testability",
+          severity: "info",
+          file: f.path,
+          description: `${todos.length} TODO/FIXME/HACK comment(s) found`,
+          suggestion: "Resolve before considering code complete",
+          effort: "S",
+        });
+      }
+
+      // console.log/warn/error usage
+      const consoles = f.content.match(/console\.(log|warn|error)\(/g);
+      if (consoles && consoles.length > 0 && findings.length < MAX_FINDINGS) {
+        findings.push({
+          category: "error-handling",
+          severity: consoles.length > 5 ? "minor" : "info",
+          file: f.path,
+          description: `${consoles.length} console output usage(s)`,
+          suggestion: "Replace with structured logging",
+          effort: "S",
+        });
+      }
+
+      // Empty catch blocks
+      const emptyCatches = f.content.match(/catch\s*\{[\s\n]*\}/g);
+      if (emptyCatches && emptyCatches.length > 0 && findings.length < MAX_FINDINGS) {
+        findings.push({
+          category: "error-handling",
+          severity: "minor",
+          file: f.path,
+          description: `${emptyCatches.length} empty catch block(s)`,
+          suggestion: "Log or re-throw the error",
+          effort: "S",
+        });
+      }
+    }
+
+    return findings;
   }
 
   private async analyzeChunk(

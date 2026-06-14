@@ -70,4 +70,12 @@ describe('IntrospectionEngine', () => {
 
     expect(report.filesAnalyzed).toBe(1);
   });
+
+  it("detects console.log and TODO via static analysis", async () => {
+    const engine = new IntrospectionEngine({ sourceDirs: ["src"], apiKey: "" });
+    const report = await engine.analyzeFiles([
+      { path: "src/bad.ts", content: "\nfunction foo() {\n  console.log(\"debug\"); // TODO: this\n  try { doStuff(); } catch {} // empty\n}" },
+    ]);
+    expect(report.findings.length).toBeGreaterThanOrEqual(1);
+  });
 });
