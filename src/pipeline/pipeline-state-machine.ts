@@ -20,6 +20,8 @@
 // State & Transition Definitions
 // ============================================================================
 
+import { DEFAULT_TENANT_ID } from "./tenant";
+
 /** All valid project states in the five-stage pipeline */
 export type ProjectState =
   | 'created'
@@ -144,6 +146,7 @@ export class PipelineStateMachine {
   constructor(
     public readonly projectId: string,
     initialState: ProjectState = 'created',
+    public readonly tenantId: string = DEFAULT_TENANT_ID,
   ) {
     this.state = initialState;
   }
