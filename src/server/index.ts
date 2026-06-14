@@ -33,6 +33,7 @@ import { CheckpointManager, InMemoryCheckpointStore } from '../pipeline/checkpoi
 import { RoleManager } from './auth/roles';
 import { registerWebhookRoute } from './routes/webhook';
 import { registerKnowledgeRoutes } from './routes/knowledge';
+import { registerProjectRoutes } from './routes/projects';
 import { CodeAnnotator } from '../pipeline/code-annotator';
 import { ContractWatcher } from '../pipeline/contract-watcher';
 import { CommitVerifier } from '../pipeline/commit-verification';
@@ -290,6 +291,7 @@ export async function createServer(config: ServerConfig = {}) {
   registerLLMPlaygroundRoutes(app, llm, resolved);
   registerFeedbackRoutes(app, fixEngine);
   registerKnowledgeRoutes(app);
+  registerProjectRoutes(app);
 
   // Phase 1 integrated routes (requirement confirm, feedback→fix, release→archive)
   registerPhase1Routes(app, store as PipelineRunStore);
