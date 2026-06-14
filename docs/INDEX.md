@@ -58,20 +58,20 @@
 | **检查点覆盖所有阶段** | development-path §5.1 | pipeline/checkpoint.ts | T-003 | - |
 | **骨架生成定位** | development-path §1.2 | agents/code-generation-loop.ts | T-002 | development-path §1.2 |
 |  |  | pipeline/skeleton-generator.ts | T-104 |  |
-| **三类 Agent Loop** | development-path §3 | agents/code-generation-loop.ts | GAP-01 | BLUEPRINT §3-1 |
-|  |  | (需新建) dev-fix-loop.ts | GAP-04 |  |
-|  |  | (需新建) test-gen-loop.ts | GAP-05 |  |
-| **三种进化(组件/编译/经验)** | development-path §2 | (需新建) ComponentMiner | GAP-01/06 | development-path §2 |
-|  |  | (需新建) CompileLearningDB |  |  |
+| **三类 Agent Loop** | development-path §3 | agents/agent-loop-base.ts, code-generation-loop.ts | GAP-01 | BLUEPRINT §3-1 |
+|  |  | agents/dev-fix-loop.ts | GAP-04 |  |
+|  |  | agents/test-gen-loop.ts | GAP-05 |  |
+| **三种进化(组件/编译/经验)** | development-path §2 | pipeline/component-miner.ts | GAP-01/06 | development-path §2 |
+|  |  | pipeline/compile-learning-db.ts |  |  |
 |  |  | pipeline/retrospective-engine.ts |  |  |
 | **Skill/Harness 可用性** | development-path §2(各段) | skills/hybrid-retriever-skill.ts | - | development-path §2 |
 |  |  | storage/knowledge-base.ts |  |  |
 |  |  | integrations/graphrag.ts |  |  |
 | **17 层理论** | 根目录 17层分析.md | (全部 src/) | - | BLUEPRINT 附录B |
 | **17 层 vs 实际对比** | 根目录 17层对比.md | - | - | development-path 附录B |
-| **Phase 2 计划** | BLUEPRINT §4-Phase2 | agents/agent-loop-base.ts (需新建) | GAP-03~10 | - |
-| **Phase 3 计划** | BLUEPRINT §4-Phase3 | - | GAP-11~14 | - |
-| **Phase 4 计划** | BLUEPRINT §4-Phase4 | - | GAP-15~18 | - |
+| **Phase 2 计划** | BLUEPRINT §4-Phase2 | agents/ | GAP-03~10 | 完成 |
+| **Phase 3 计划** | BLUEPRINT 짧4-Phase3 | pipeline/component-miner.ts, knowledge-bridge.ts | GAP-11~14 | 完成 |
+| **Phase 4 计划** | BLUEPRINT 짧4-Phase4 | pipeline/metrics-collector.ts, introspection-engine.ts | GAP-15~18 | 进行中 |
 | **17 层认知内核 L4** | 17层分析.md L4 | req-graph/graph-engine.ts | - | BLUEPRINT §3 |
 |  |  | memory/temporal_kg.ts |  |  |
 | **输入治理 L3** | 17层分析.md L3 | input-governance/governance.ts | - | - |
@@ -179,21 +179,21 @@
 
 ---
 
-## 三、任务索引
-
-| 任务 | 名称 | 文档 | 代码 | 状态 |
-|------|------|------|------|------|
-| T-001 | Pipeline 状态机 | PHASE1-SPECS T-001, BLUEPRINT §3-2 | pipeline-state-machine.ts | 完成 |
-| T-002 | Agent 循环实现 | PHASE1-SPECS T-002, BLUEPRINT §3-1 | code-generation-loop.ts | 完成 |
+| GAP-01 | AgentLoop 变体不足 | BLUEPRINT §3-1 | agents/agent-loop-base.ts, code-generation-loop.ts, dev-fix-loop.ts, test-gen-loop.ts | 完成 |
+| GAP-02 | 状态机拓扑 | BLUEPRINT §3-2 | pipeline-state-machine.ts (19 states) | 完成 |
+| GAP-03 | 进化引擎接入 | BLUEPRINT §3-3 | evolution-runner.ts, recovery-engine.ts | 完成 |
+| GAP-04 | DevFixLoop | BLUEPRINT §3-1 | dev-fix-loop.ts | 完成 |
+| GAP-05 | TestGenLoop | BLUEPRINT §3-1 | test-gen-loop.ts | 完成 |
+| GAP-06 | L1 FixExecutor | BLUEPRINT §2-Step7 | fix-executor.ts | 完成 |
 | T-003 | 检查点与恢复 | PHASE1-SPECS T-003 | checkpoint.ts | 完成 |
 | T-004 | Token 预算 | PHASE1-SPECS T-004 | token-budget.ts | 完成 |
-| T-101 | PRD 质量预检 | PHASE1-SPECS T-101, BLUEPRINT §2-Step2 | prd-quality-check.ts | 完成 |
-| T-102 | 置信度标注 | PHASE1-SPECS T-102, BLUEPRINT §2-Step3 | confidence-annotator.ts | 完成 |
-| T-103 | PM 确认界面 | PHASE1-SPECS T-103 | RequirementReview.tsx | 完成 |
-| T-104 | Agent Loop 接入骨架 | PHASE1-SPECS T-104 | skeleton-generator.ts | 完成 |
+| GAP-09 | CompileLearningDB | development-path §2(进化二) | compile-learning-db.ts | 完成 |
+| GAP-10 | ComponentMiner | development-path §2(进化一) | component-miner.ts | 完成 |
+| GAP-11 | PromptInjectionEngine | development-path §2(进化二) | knowledge-bridge.ts | 完成 |
+| GAP-12 | 知识库增量更新 | development-path §2(进化三) | knowledge-bridge.ts, routes/knowledge.ts | 完成 |
 | T-105 | 部署形态确认 | PHASE1-SPECS T-105 | - | 完成 |
 | T-201 | Gitea 对接 | PHASE1-SPECS T-201 | gitea-client.ts | 完成 |
-| T-202 | 代码变动标注 | PHASE1-SPECS T-202, development-path §2 | code-annotator.ts | 完成 |
+| GAP-15 | 架构自省 | BLUEPRINT §4-Phase4 | introspection-engine.ts, metrics-collector.ts, routes/knowledge.ts | 完成 |
 | T-203 | 契约检查触发 | PHASE1-SPECS T-203 | contract-watcher.ts | 完成 |
 | T-204 | 提交验证流水线 | PHASE1-SPECS T-204 | commit-verification.ts | 完成 |
 | T-205 | 故障报告 | PHASE1-SPECS T-205 | fault-reporter.ts | 完成 |
@@ -223,7 +223,6 @@
 | GAP-12 | 知识库增量更新 | development-path §2(进化三) | knowledge-base.ts(扩展) | Phase 3 |
 | GAP-13 | 多形态输出 | IMPLEMENTATION-PLAN §3 | skeleton-generator.ts(扩展) | Phase 3 |
 | GAP-14 | 工单系统 | IMPLEMENTATION-PLAN §3 | (需新建) | Phase 3 |
-| GAP-15 | 架构自省 | BLUEPRINT §4-Phase4 | introspection-engine.ts(接入) | Phase 4 |
 | GAP-16 | 多租户 | IMPLEMENTATION-PLAN §3 | (需新建) | Phase 4 |
 | GAP-17 | 多项目管理 | IMPLEMENTATION-PLAN §3 | (需新建) | Phase 4 |
 | GAP-18 | 健康度看板 | IMPLEMENTATION-PLAN §3 | (需新建) | Phase 4 |
