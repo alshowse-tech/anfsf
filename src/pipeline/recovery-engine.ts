@@ -8,6 +8,7 @@ import type { ProjectState } from "./pipeline-state-machine";
 import { PipelineStateMachine, STATE_TO_STAGE } from "./pipeline-state-machine";
 import { CheckpointManager } from "./checkpoint";
 import { runEvolution } from "./evolution-runner";
+import { syncIntrospectionFindings } from "./knowledge-bridge";
 
 import type { RetrospectiveEngine } from "../skills/retrospective-engine";
 import type { IntrospectionEngine } from "../core/evolution/introspection-engine";
@@ -35,7 +36,7 @@ export class RecoveryEngine {
     machine.onEnter("stage5_evolving", async () => {
       await runEvolution(machine.projectId);
       await this.runRetrospective(machine.projectId);
-      await this.runIntrospection();
+      await this.runIntrospection(machine.projectId);
     });
     return machine;
   }
@@ -61,14 +62,17 @@ export class RecoveryEngine {
     }
   }
 
-  private async runIntrospection(): Promise<void> {
+  private async runIntrospection(projectId: string = "default"): Promise<void> {
     const engine = this.introspectionEngine;
     if (!engine) return;
     try {
+      const start = Date.now();
       const report = await engine.analyze();
+      const stored = await syncIntrospectionFindings(report, projectId);
       console.log(
         `[RecoveryEngine] Introspection: ${report.filesAnalyzed} files, ` +
-        `${report.findings.length} findings`,
+        `${report.findings.length} findings, ${stored} stored ` +
+        `(${Date.now() - start}ms)`,
       );
     } catch (e) {
       console.error(`[RecoveryEngine] Introspection failed:`, e);

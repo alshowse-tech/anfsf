@@ -5,10 +5,12 @@
 import { getCompileLearningDB } from "./compile-learning-db";
 import { getComponentMiner } from "./component-miner";
 import { KnowledgeBase, type KnowledgeEntry } from "../storage/knowledge-base";
+import type { IntrospectionReport } from "../core/evolution/introspection-engine";
 
 const KB_PATH = ".anfsf/knowledge-base.json";
 const CAT_COMPILE = "compile-pattern";
 const CAT_COMPONENT = "component-pattern";
+const CAT_INTROSPECTION = "introspection";
 
 let _kb: KnowledgeBase | null = null;
 function getKB(): KnowledgeBase {
@@ -30,6 +32,31 @@ export async function syncToKnowledgeBase(projectId: string): Promise<number> {
   for (const c of components) {
     const id = "n_" + Math.random().toString(36).slice(2, 10) + "_" + ts;
     await kb.add({ id, projectId, category: CAT_COMPONENT, content: JSON.stringify(c), createdAt: ts });
+    count++;
+  }
+  return count;
+}
+
+export async function syncIntrospectionFindings(
+  report: IntrospectionReport,
+  projectId: string,
+): Promise<number> {
+  if (report.findings.length === 0) return 0;
+  const kb = getKB();
+  const ts = Date.now();
+  let count = 0;
+
+  // Store each finding as an individual knowledge entry
+  for (const finding of report.findings) {
+    const id = "intr_" + Math.random().toString(36).slice(2, 10) + "_" + ts;
+    await kb.add({
+      id,
+      projectId,
+      category: CAT_INTROSPECTION,
+      content: JSON.stringify(finding),
+      metadata: { summary: report.summary, severity: finding.severity, effort: finding.effort },
+      createdAt: ts,
+    });
     count++;
   }
   return count;
