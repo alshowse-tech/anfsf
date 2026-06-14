@@ -223,9 +223,9 @@
 | GAP-12 | 知识库增量更新 | development-path §2(进化三) | knowledge-base.ts(扩展) | Phase 3 |
 | GAP-13 | 多形态输出 | IMPLEMENTATION-PLAN §3 | skeleton-generator.ts(扩展) | Phase 3 |
 | GAP-14 | 工单系统 | IMPLEMENTATION-PLAN §3 | (需新建) | Phase 3 |
-| GAP-16 | 多租户 | IMPLEMENTATION-PLAN §3 | (需新建) | Phase 4 |
-| GAP-17 | 多项目管理 | IMPLEMENTATION-PLAN §3 | (需新建) | Phase 4 |
-| GAP-18 | 健康度看板 | IMPLEMENTATION-PLAN §3 | (需新建) | Phase 4 |
+| GAP-16 | 多租户 | tenant.ts, pipeline-state-machine.ts | 完成 |
+| GAP-17 | 多项目管理 | project.ts, routes/projects.ts | 完成 |
+| GAP-18 | 健康度看板 | health-dashboard.ts, routes/dashboard.ts | 完成 |
 
 ---
 
