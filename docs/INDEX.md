@@ -1,4 +1,4 @@
-﻿# ANFSF 文档索引（Document Index）
+# ANFSF 文档索引（Document Index）
 
 > 版本: 1.0 | 日期: 2026-06-12 | 用途: 快速定位文档/代码/任务/决策
 
@@ -117,7 +117,9 @@
 | fault-reporter.ts | BLUEPRINT §2-Step6 | T-205 |
 | fix-engine.ts | BLUEPRINT §2-Step7, development-path §1.5 | T-301 |
 | task-generator.ts | BLUEPRINT §2-Step4, technical-design §2-3 | T-206 |
+| knowledge-bridge.ts | development-path ?2(???) | GAP-12 |
 | release-check.ts | PHASE1-SPECS T-304 | T-304 |
+| metrics-collector.ts | BLUEPRINT ?4-Phase4 | GAP-15 |
 | archiver.ts | PHASE1-SPECS T-305 | T-305 |
 
 ### src/prd/
@@ -134,6 +136,7 @@
 |------|---------|---------|
 | index.ts | ARCHITECTURE.md, BLUEPRINT §2 | - |
 | routes/feedback.ts | BLUEPRINT §2-Step9 | T-303 |
+| routes/knowledge.ts | BLUEPRINT ?4-Phase4 | GAP-12/15 |
 | routes/synthesize.ts | API-SPEC.md | - |
 | store.ts | DATABASE-SCHEMA.md | - |
 | auth/roles.ts | PHASE1-SPECS T-401 | T-401 |
@@ -248,6 +251,9 @@
 | RUNBOOK.md | 部署/监控/备份/故障处理 | ~8KB | DevOps |
 | UI-REFACTOR-PLAN.md | 前端重构计划 | ~5KB | 前端 |
 | DEVELOPMENT-STANDARDS.md | 编码规范 | ~3KB | 所有开发者 |
+
+
+
 
 
 

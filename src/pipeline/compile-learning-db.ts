@@ -1,19 +1,18 @@
- /**
-  * ANFSF Pipeline — Compile Learning Database
+﻿ /**
+  * ANFSF Pipeline 鈥?Compile Learning Database
   *
   * Accumulates compilation error patterns across projects.
   * Provides query methods for prompt injection into CodeGenLoop/DevFixLoop.
   *
   * Architecture:
   *   CodeGenLoop/DevFixLoop.verify()
-  *       ↓ 记录错误模式
+  *       鈫?璁板綍閿欒妯″紡
   *   CompileLearningDB.recordErrors()
-  *       ↓ 跨项目聚合统计
-  *   CompileLearningDB.getTopPatterns()
-  *       ↓ 注入到 generate() 的 prompt
+  *       鈫?璺ㄩ」鐩仛鍚堢粺璁?  *   CompileLearningDB.getTopPatterns()
+  *       鈫?娉ㄥ叆鍒?generate() 鐨?prompt
   *   buildSkeletonPrompt() / DevFixLoop
   *
-  * 来源: GAP-03, 进化二: 编译学习
+  * 鏉ユ簮: GAP-03, 杩涘寲浜? 缂栬瘧瀛︿範
   */
 
  import * as fs from "fs";
@@ -117,7 +116,7 @@
      return "Check function signature and call-site parameter count";
    }
    if (resolvedAtRound <= 1) {
-     return "Simple fix — check type annotations";
+     return "Simple fix 鈥?check type annotations";
    }
    return "Review code around the error location";
  }
@@ -148,7 +147,10 @@
    /**
     * Record one or more normalized errors after a verification round.
     */
-   recordErrors(errors: NormalizedError[]): void {
+   /** Remove all records. For testing isolation. */
+  clear(): void { this.records = []; this.dirty = true; }
+
+  recordErrors(errors: NormalizedError[]): void {
      for (const err of errors) {
        this.records.push({
          id: `err_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -243,7 +245,7 @@
      for (const p of patterns) {
        lines.push(
          `- ${p.pattern}` +
-         (p.commonFixHint ? ` → ${p.commonFixHint}` : ""),
+         (p.commonFixHint ? ` 鈫?${p.commonFixHint}` : ""),
        );
      }
      lines.push("");
@@ -399,3 +401,4 @@
    }
    return defaultInstance;
  }
+

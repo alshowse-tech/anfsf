@@ -1,5 +1,5 @@
-/**
- * ANFSF Agent — Code Generation Loop
+﻿/**
+ * ANFSF Agent 鈥?Code Generation Loop
  *
  * "generate -> verify -> fix" loop for producing verified skeleton code.
  * Extends AgentLoop<RequirementSpec, GeneratedCode, VerificationError>.
@@ -12,7 +12,7 @@ import * as path from "path";
 import { spawn } from "child_process";
 import { LLMClient, type LLMMessage } from "../integrations/llm-client";
 import { getCompileLearningDB, verificationErrorsToNormalized } from "../pipeline/compile-learning-db";
-import { getComponentMiner } from "../pipeline/component-miner";
+import { getKnowledgeInjection } from "../pipeline/knowledge-bridge";
 import {
   AgentLoop,
   type AgentRoundTokenUsage,
@@ -72,7 +72,7 @@ function buildSkeletonPrompt(spec: RequirementSpec, historyInjection?: string): 
     {
       role: "system",
       content: "You are a project skeleton generator. Generate a minimal, compilable TypeScript project.\n\n"
-        + "OUTPUT FORMAT — use EXACTLY this delimiter format (NOT JSON):\n\n"
+        + "OUTPUT FORMAT 鈥?use EXACTLY this delimiter format (NOT JSON):\n\n"
         + FILE_DELIMITER + " package.json\n{ \"name\": \"...\", \"dependencies\": {...} }\n"
         + FILE_END + "\n\n"
         + (historyInjection || "")
@@ -129,9 +129,8 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     this.currentProjectType = spec.deploymentForm || "web";
     const db = getCompileLearningDB();
     const history = db.getPromptInjection(this.currentProjectType);
-    const miner = getComponentMiner();
-    const componentInfo = miner.getPromptInjection(this.currentProjectType);
-    const extraContext = [history, componentInfo].filter(Boolean).join("\n");
+
+    const extraContext = [history, await getKnowledgeInjection(this.currentProjectType)].filter(Boolean).join("\n");
     const messages = buildSkeletonPrompt(spec, extraContext);
     const response = await this.llm.chat({
       messages,
@@ -158,7 +157,7 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
   }
 
   async verify(code: GeneratedCode): Promise<VerificationError[]> {
-    if (!this.outputPath) throw new Error("outputPath not set — cannot verify");
+    if (!this.outputPath) throw new Error("outputPath not set 鈥?cannot verify");
     await installDependencies(this.outputPath);
     const results = await this.verifier.runAll(this.outputPath);
     const errors = collectErrors(results);
@@ -204,7 +203,7 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
 
   async writeOutput(code: GeneratedCode): Promise<void> {
     if (!this.outputPath) {
-      throw new Error("outputPath not set — cannot write output");
+      throw new Error("outputPath not set 鈥?cannot write output");
     }
     writeCodeToDisk(code, this.outputPath);
   }
@@ -304,5 +303,10 @@ function collectErrors(results: VerificationResult[]): VerificationError[] {
   for (const r of results) errors.push(...r.errors);
   return errors;
 }
+
+
+
+
+
 
 
