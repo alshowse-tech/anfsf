@@ -9,11 +9,13 @@
  */
 
 import { getCompileLearningDB } from './compile-learning-db';
+import { getComponentMiner } from './component-miner';
 
 export interface EvolutionResult {
   compileRecords: number;
   uniquePatterns: number;
   pruned: number;
+  componentPatterns: number;
   timestamp: number;
 }
 
@@ -25,6 +27,7 @@ export async function runEvolution(projectId: string): Promise<EvolutionResult> 
     compileRecords: db.totalRecords,
     uniquePatterns: db.uniquePatterns,
     pruned,
+    componentPatterns: 0,
     timestamp: Date.now(),
   };
   console.log(
@@ -33,3 +36,28 @@ export async function runEvolution(projectId: string): Promise<EvolutionResult> 
   );
   return result;
 }
+
+export async function runProjectEvolution(
+  projectId: string,
+  projectPath: string,
+  projectType: string,
+  modifiedFiles?: string[],
+): Promise<EvolutionResult> {
+  const result = await runEvolution(projectId);
+  // Scan for UI component patterns if [modified] files are provided
+  if (modifiedFiles && modifiedFiles.length > 0) {
+    try {
+      const miner = getComponentMiner();
+      const discovered = miner.scan(projectPath, projectType, modifiedFiles);
+      miner.flush();
+      result.componentPatterns = discovered.length;
+      console.log(
+        `[Evolution] Component miner: ${discovered.length} patterns found in ${projectId}`
+      );
+    } catch (e) {
+      console.error(`[Evolution] Component miner failed for ${projectId}:`, e);
+    }
+  }
+  return result;
+}
+

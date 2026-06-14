@@ -1,8 +1,14 @@
 ﻿import { describe, it, expect } from "@jest/globals";
-import { getCompileLearningDB } from "../compile-learning-db";
 import { runEvolution } from "../evolution-runner";
+import { getCompileLearningDB } from "../compile-learning-db";
 
 describe("EvolutionRunner", () => {
+  beforeEach(() => {
+    // Reset singleton state for test isolation
+    const db = getCompileLearningDB();
+    db.pruneOlderThan(0);
+  });
+
   it("returns result with compile records", async () => {
     const db = getCompileLearningDB();
     db.recordErrors([
@@ -13,11 +19,9 @@ describe("EvolutionRunner", () => {
     expect(result.timestamp).toBeGreaterThan(0);
   });
 
-  it("prunes old records", async () => {
-    const db = getCompileLearningDB();
-    db.pruneOlderThan(0); // prunes everything older than 0 days
-    // result should be valid even if no records remain
+  it("returns non-negative values", async () => {
     const result = await runEvolution("test-proj-2");
     expect(result.pruned).toBeGreaterThanOrEqual(0);
+    expect(result.componentPatterns).toBeGreaterThanOrEqual(0);
   });
 });
