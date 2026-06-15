@@ -139,6 +139,99 @@ ANFSF 现在可以:
 
 ---
 
+## GAP-08 / GAP-13 / GAP-14 / T-303 审查 (2026-06-15 08:00)
+
+### 审查范围
+
+对 Phase 1-4 结束后仍标记为"延后"或"未完成"的 4 项进行现状评估，确认它们的实际完成度，以及是否应该重新分级。
+
+---
+
+### GAP-08: 版本发布状态新增
+
+**原定义** (BLUEPRINT: `状态扩展`, Phase 2 P1):
+> 在 pipeline-state-machine 中新增 test/demo 发布状态
+
+**现状**:
+- ✅ `stage4_released_to_test` 已存在于 [pipeline-state-machine.ts](src/pipeline/pipeline-state-machine.ts) 的 `ProjectState` 类型和 `TRANSITION_TABLE` 中
+- ✅ `stage4_uat` + `stage4_uat_fixing` UAT 循环已实现
+- ✅ `stage5_evolving` 进化状态已实现
+- ✅ `release-check.ts` 三层发布门禁已存在
+- ✅ `checkpoint.ts` 支持 re-entry
+
+**结论**: **实际已完成**。状态数从原始 15 扩展到 19，覆盖了 test/demo/uat/evolution 全部阶段。GAP-08 应该标记为完成，INDEX.md 中标注为 Phase 2 是因为当时尚未实现，现在应该更新。
+
+**建议**: 在 INDEX.md 中更新 GAP-08 状态为"完成"。
+
+---
+
+### T-303: PM 测试审查界面
+
+**原定义** (PHASE1-SPECS, 4d):
+> PM 在 Web 前端查看测试结果、审查失败用例、补充遗漏场景、确认修复
+
+**现状**:
+- ✅ [TestFeedback.tsx](web/src/components/TestFeedback.tsx) 已存在 (524 行) — **但有 BOM 编码问题**
+- ✅ [feedback.ts](src/server/routes/feedback.ts) 9 个 API 端点完整
+- ✅ PM 可提交结构化反馈、查看 lessons/fixes/snapshots、发起 rollback
+- ✅ UAT Review API 已实现 ([uat-review.ts](src/pipeline/uat-review.ts) + [routes/uat-review.ts](src/server/routes/uat-review.ts))
+- ✅ Index.md 中仍标记为"延后"，但 `TestFeedback.tsx` 实际已存在并接入
+
+**结论**: **大部分已完成**。T-303 在 INDEX.md 中标记为"延后"是错误的——前端组件和后端 API 都已存在并工作。唯一未完成的是 BOM 修复。
+
+**建议**: T-303 标记为完成，修复 BOM。
+
+---
+
+### GAP-13: 多形态输出 H5/小程序
+
+**原定义** (IMPLEMENTATION-PLAN, Phase 3 P2):
+> SkeletonGenerator 扩展，支持 web/h5/miniprogram 三种输出形态
+
+**现状**:
+- ✅ `SkeletonGenerationInput.deploymentForm` 已定义 `'web' | 'h5' | 'miniprogram'`
+- ✅ `RequirementSpec.deploymentForm` 已定义相同枚举
+- ❌ `SkeletonGenerator.generate()` 将 `deploymentForm` 注入 spec.context，但实际代码生成逻辑**未针对 h5/miniprogram 产生差异化输出**
+- ❌ `ComponentMiner.scan()` 接受 `projectType` 参数但扫描逻辑对 h5/miniprogram 与 web 无区别
+- ❌ `buildSkeletonPrompt()` 未根据 deploymentForm 调整 prompt（不要求 mobile-first 布局，不要求小程序 WXML 格式）
+
+**结论**: **未完成，但基础已就绪**。类型系统支持三种形态，实际生成逻辑仍是 web-only。H5 差异不大（同一套 React 代码），小程序需要模板差异（WXML/WXSS 替代 HTML/CSS）。
+
+**工作量评估**:
+- H5: 1d — 仅需在 prompt 中加入 viewport/mobile-first 指令
+- 小程序: 5d — 需要新的模板系统（WXML 骨架）
+
+**建议**: 保留在 Phase 3 待办。
+
+---
+
+### GAP-14: 工单系统对接
+
+**原定义** (IMPLEMENTATION-PLAN, Phase 3 P3):
+> 对外部工单系统（Jira/飞书/钉钉等）的对接能力
+
+**现状**:
+- ❌ 整个代码库中**没有任何外部工单系统的 import 或引用**
+- ❌ 无 webhook 发送模块、无 ticket 创建逻辑
+- ✅ 内部已有 `FixRecord` + `fault-reporter.ts` 作为内部"工单"概念，但不对外对接
+
+**结论**: **完全未开始**。P3 优先级，属于"有最好但没有也能工作"的功能。
+
+**建议**: 保持延后，或降级为 Phase 5（post-launch）。
+
+---
+
+### 审查结论汇总
+
+| 编号 | 名称 | 原状态 | 实际状态 | 行动 |
+|------|------|--------|---------|------|
+| GAP-08 | 版本发布状态新增 | Phase 2 P1 / INDEX:Phase 2 | **✅ 已完成** | 更新 INDEX.md |
+| T-303 | PM 测试审查界面 | 延后 / 已延 | **✅ 基本完成** | 修复 BOM，更新 INDEX.md |
+| GAP-13 | 多形态输出 | Phase 3 P2 | **⚠️ 类型就绪，生成未实现** | 保留 Phase 3 待办 |
+| GAP-14 | 工单系统对接 | Phase 3 P3 | **❌ 未开始** | 保持延后/降级 |
+
+---
+
 ## 历史审查: Phase 3 (2026-06-12 19:00-20:00)
 
 Phase 3 分三批交付，共新增 6 个模块。
@@ -203,28 +296,3 @@ Tests: 1607 total (42 failed — 全部来自预存 jest globals 问题, 17 skip
 - `server.test.ts`
 - `pipeline-stream.test.ts`
 - `synthesize-multipart.test.ts`
-
-
-## ???? (2026-06-15 08:00)
-
-Phase 4 review ????????????????
-
-### ????
-| # | ?? | ?? |
-|---|------|------|
-| 1-4 | uat-review.ts, health-dashboard.ts, routes/uat-review.ts, routes/dashboard.ts | `var` ? `const`/`let`, ????, ???? (?????) |
-| 5 | compile-learning-db.ts, component-miner.ts, recovery-engine.ts, skeleton-generator.ts, feedback.ts, synthesize.ts | BOM ?? (6 ? pre-existing ??) |
-
-### ????
-- `var` ??: **0 ?** (src/pipeline/*.ts + src/server/routes/*.ts)
-- BOM ??: **0 ?** (?????)
-- `tsc --noEmit`: **0 ??**
-- ????: **0 ?**
-
-### ????????
-- `const`/`let` ?? `var` ?
-- ?????? `function(){}` ?
-- ????? key: value ??? ?
-- ?????????? ?
-- return ???? ?
-- UTF-8 without BOM ?
