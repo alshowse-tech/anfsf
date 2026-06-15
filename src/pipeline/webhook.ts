@@ -1,5 +1,5 @@
 /**
- * ANFSF Pipeline ? Webhook Registry (??????)
+ * ANFSF Pipeline — Webhook Registry (工单外部对接)
  *
  * Allows external systems to register for ticket event notifications.
  */
