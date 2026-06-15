@@ -1,0 +1,14 @@
+{
+  "name": "final-test",
+  "version": "1.0.0",
+  "description": "Task tracking and reporting project",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
