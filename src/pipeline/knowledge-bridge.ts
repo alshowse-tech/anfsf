@@ -1,5 +1,5 @@
 /**
- * ANFSF Pipeline 鈥?Knowledge Bridge (GAP-12)
+ * ANFSF Pipeline — Knowledge Bridge (GAP-12)
  * Bridges CompileLearningDB + ComponentMiner into KnowledgeBase.
  */
 import { getCompileLearningDB } from "./compile-learning-db";
