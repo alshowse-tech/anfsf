@@ -234,7 +234,11 @@ export class AINativePRDParser {
     }
 
     try {
-      const parsed = JSON.parse(result.content) as Partial<AINativePRD>;
+      // Strip markdown code fences if present (LLM may wrap JSON in ```json ... ```)
+      let cleaned = result.content.trim();
+      cleaned = cleaned.replace(/^```(?:json|javascript|typescript|ts)?\s*\n?/i, "");
+      cleaned = cleaned.replace(/\n?```\s*$/i, "");
+      const parsed = JSON.parse(cleaned) as Partial<AINativePRD>;
       // Handle qaSpecs which may be a single object or array
       let qaSpecs: QASpec[] = [];
       if (Array.isArray(parsed.qaSpecs)) {
@@ -257,7 +261,9 @@ export class AINativePRDParser {
         qaSpecs,
       };
     } catch {
-      throw new Error('PRD parse failed: LLM returned invalid JSON. Response preview: ' + result.content.slice(0, 200));
+      // Show a useful preview of what LLM returned for debugging
+      const preview = result.content.slice(0, 300).replace(/\n/g, '\\n');
+      throw new Error('PRD parse failed: LLM returned invalid JSON. Response preview: ' + preview);
     }
   }
 
