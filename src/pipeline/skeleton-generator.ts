@@ -12,6 +12,7 @@ import { CodeGenerationLoop, type RequirementSpec, type AgentLoopConfig, type Ag
 import { LLMClient } from '../integrations/llm-client';
 import type { ProjectState } from './pipeline-state-machine';
 import { TokenBudget } from './token-budget';
+import { getDeploymentTemplate } from '../templates/deployment-templates';
 
 // ============================================================================
 // Types
@@ -83,6 +84,23 @@ export class SkeletonGenerator {
 
     // Run the agent loop
     const result = await this.agentLoop.run(enrichedSpec, outputDir);
+// Inject deployment template files and dependencies (GAP-13)
+    const tpl = getDeploymentTemplate(deploymentForm);
+    if (tpl.staticFiles.length > 0) {
+      result.output.files.push(...tpl.staticFiles.map(f => ({ ...f, source: "generated" as const })));
+    }
+    // Add template extra deps to package.json if it exists
+    const pkgIdx = result.output.files.findIndex(f => f.path === "package.json");
+    if (pkgIdx >= 0 && (tpl.extraDeps.length > 0 || tpl.extraDevDeps.length > 0)) {
+      try {
+        const pkg = JSON.parse(result.output.files[pkgIdx].content);
+        pkg.dependencies = pkg.dependencies || {};
+        pkg.devDependencies = pkg.devDependencies || {};
+        tpl.extraDeps.forEach(d => { pkg.dependencies[d] = "latest"; });
+        tpl.extraDevDeps.forEach(d => { pkg.devDependencies[d] = "latest"; });
+        result.output.files[pkgIdx].content = JSON.stringify(pkg, null, 2);
+      } catch (e) { console.error("[SkeletonGenerator] Failed to inject deps:", e); }
+    }
 
     // Track token usage in budget (if configured)
     if (this.budget) {

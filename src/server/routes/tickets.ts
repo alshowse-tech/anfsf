@@ -1,11 +1,13 @@
 import { FastifyInstance } from "fastify";
 import { createTicket, getTicket, listTickets, updateTicket, removeTicket } from "../../pipeline/ticket";
+import { notifyWebhooks } from "../../pipeline/webhook";
 
 export function registerTicketRoutes(app: FastifyInstance): void {
   app.post("/api/v1/tickets", async (req) => {
     const body=req.body as any;
     if(!body.title||!body.projectId) return {status:"error",error:{code:"MISSING_FIELDS",message:"title, projectId required"}};
     const t=createTicket(body.title,body.description||"",body.projectId,{priority:body.priority,assignee:body.assignee,tags:body.tags});
+    notifyWebhooks("ticket.created", t);
     return {status:"ok",ticket:t};
   });
 
