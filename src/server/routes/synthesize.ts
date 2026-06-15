@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/v1/synthesize — Trigger pipeline run (Agent Loop)
  * POST /api/v1/synthesize/multipart — Trigger pipeline with file attachments
  */

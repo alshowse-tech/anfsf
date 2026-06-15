@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ANFSF Pipeline — Skeleton Generator (T-104)
  *
  * Bridges the CodeGenerationLoop (T-002) with the pipeline's skeleton

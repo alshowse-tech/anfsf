@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ANFSF Pipeline — Recovery Engine
  *
  * Integrates checkpoint manager with the pipeline state machine.

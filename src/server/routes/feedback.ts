@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ANFSF Feedback & Optimization API (T-303)
  *
  * GET    /api/v1/feedback/lessons       — List retrospective lessons

@@ -1,4 +1,4 @@
-﻿ /**
+ /**
   * ANFSF Pipeline 鈥?Compile Learning Database
   *
   * Accumulates compilation error patterns across projects.

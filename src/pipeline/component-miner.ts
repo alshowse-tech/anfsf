@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ANFSF Pipeline — Component Miner (进化一: 前端组件沉淀)
  *
  * Extracts React/TSX component patterns from [modified] developer code.
