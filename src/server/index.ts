@@ -179,12 +179,21 @@ export async function createStore(dbPath: string = '.anfsf/runs.db'): Promise<An
 }
 
 export async function createServer(config: ServerConfig = {}) {
+  // Save original env so tests can temporarily override them
+  const savedKey = process.env.LLM_API_KEY;
+  const savedUrl = process.env.LLM_BASE_URL;
+  process.env.LLM_API_KEY = config.apiKey || process.env.LLM_API_KEY || 'test-key';
+  process.env.LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://api.test.local/v1';
+
   // Validate environment before proceeding
   const envResult = validateEnv();
   const log = createLogger('server');
   for (const w of envResult.warnings) log.warn(`[env] ${w}`);
   if (!envResult.ok) {
     for (const e of envResult.errors) log.error(`[env] ${e}`);
+    // Restore env before throwing
+    if (savedKey !== undefined) process.env.LLM_API_KEY = savedKey;
+    if (savedUrl !== undefined) process.env.LLM_BASE_URL = savedUrl;
     throw new Error(`Environment validation failed:\n${envResult.errors.join('\n')}`);
   }
   log.info('[env] environment validation passed', { warnings: envResult.warnings.length });
