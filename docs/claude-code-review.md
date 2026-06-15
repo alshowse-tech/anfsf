@@ -6,7 +6,45 @@
 
 ---
 
-## 最新审查: 3 项拓展开发结果 (2026-06-15 10:30)
+## CODEX 任务: ANFSF OS 前端重构 (Phase A-C)
+
+### 执行计划
+
+完整计划在 [docs/ANFSF-OS-UI-REFACTOR.md](docs/ANFSF-OS-UI-REFACTOR.md)。按 Phase 逐批交付，**每完成一个 Phase 提交一次**。
+
+### 规范提醒
+
+```
+1. const/let 替代 var (禁止 var)
+2. 箭头函数替代 function 表达式
+3. key: value (冒号后有空格)
+4. if (!x) (运算符两侧有空格)
+5. UTF-8 without BOM (xxd <file> | head -1 不应看到 "efbb bf")
+```
+
+```bash
+# 提交前自检:
+grep -rn 'var ' web/src/ --include="*.tsx" --include="*.ts"
+xxd web/src/App.tsx | head -1 | grep -q "efbb bf" && echo "BOM!" || echo "OK"
+npx tsc --noEmit
+npx jest --no-coverage --forceExit
+```
+
+### 添加新路由时需更新 server/index.ts
+
+新路由的注册函数需要在 `src/server/index.ts` 的 `createServer()` 中调用 `registerXxxRoutes(app)`。
+
+### 后端需新增的 API
+
+| 文件 | 端点 | 对接模块 |
+|------|------|---------|
+| `src/server/routes/tenants.ts` (新建) | `GET/POST /api/v1/tenants` | `tenant.ts` |
+| `src/server/routes/tenants.ts` | `GET/POST/DELETE /api/v1/tenants/:id/members` | `auth/roles.ts` |
+| `src/server/routes/config.ts` (新建) | `GET/PUT /api/v1/config/gitea` | `.anfsf/config.json` |
+
+---
+
+## 历史审查 (2026-06-15 10:30)
 
 CODEX 提交 1 个 commit，覆盖剩余 3 个 P2/P3 扩展项。
 
