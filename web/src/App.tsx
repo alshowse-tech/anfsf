@@ -11,6 +11,10 @@ import ApiTokenSettings from "./components/ApiTokenSettings";
 import ErrorBoundary from "./components/ErrorBoundary";
 import TestFeedback from "./components/TestFeedback";
 import { LLMPlayground } from "./components/LLMPlayground";
+import DevWorkspaceV2 from "./components/DevWorkspaceV2";
+import VerifyPanel from "./components/VerifyPanel";
+import ReleaseGate from "./components/ReleaseGate";
+import EvolutionPanel from "./components/EvolutionPanel";
 
 const AGENT_LOOP_DIAGRAM = "graph TD\n  A[PRD Input] --> B{Quality Check}\n  B -->|pass| C[Agent Loop]\n  B -->|fail| D[Guided Mode]\n  C --> E[Verify + Fix]\n  E --> F[Write Files]\n  F --> G[Push Gitea]\n  G --> H[Done]\n";
 
@@ -80,31 +84,11 @@ function Layout() {
                   <PRDForm onSubmit={handleRunStarted} />
                 )
               } />
-              <Route path="/dev" element={
-                <div className="text-center py-12 text-gray-500">
-                  <p className="text-lg mb-2">Development Workspace</p>
-                  <p className="text-sm text-gray-400">Coming in Phase B</p>
-                </div>
-              } />
-              <Route path="/verify" element={
-                <div className="text-center py-12 text-gray-500">
-                  <p className="text-lg mb-2">Verification Panel</p>
-                  <p className="text-sm text-gray-400">Coming in Phase B</p>
-                </div>
-              } />
+              <Route path="/dev" element={<DevWorkspaceV2 />} />
+              <Route path="/verify" element={<VerifyPanel />} />
               <Route path="/test" element={<TestFeedback />} />
-              <Route path="/release" element={
-                <div className="text-center py-12 text-gray-500">
-                  <p className="text-lg mb-2">Release Gate</p>
-                  <p className="text-sm text-gray-400">Coming in Phase B</p>
-                </div>
-              } />
-              <Route path="/evolve" element={
-                <div className="text-center py-12 text-gray-500">
-                  <p className="text-lg mb-2">Evolution Dashboard</p>
-                  <p className="text-sm text-gray-400">Coming in Phase C</p>
-                </div>
-              } />
+              <Route path="/release" element={<ReleaseGate />} />
+              <Route path="/evolve" element={<EvolutionPanel />} />
               <Route path="/history" element={<RunList />} />
               <Route path="/result" element={<ResultView />} />
               <Route path="/diagram" element={
