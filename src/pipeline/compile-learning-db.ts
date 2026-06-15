@@ -1,5 +1,5 @@
  /**
-  * ANFSF Pipeline 鈥?Compile Learning Database
+  * ANFSF Pipeline — Compile Learning Database
   *
   * Accumulates compilation error patterns across projects.
   * Provides query methods for prompt injection into CodeGenLoop/DevFixLoop.
@@ -116,7 +116,7 @@
      return "Check function signature and call-site parameter count";
    }
    if (resolvedAtRound <= 1) {
-     return "Simple fix 鈥?check type annotations";
+     return "Simple fix — check type annotations";
    }
    return "Review code around the error location";
  }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ANFSF Test Feedback & Optimization Page (T-303)
  *
  * Tabs: Lessons / Fixes / Snapshots / Freeze
