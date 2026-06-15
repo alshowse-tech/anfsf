@@ -1,0 +1,14 @@
+{
+  "name": "test-csv",
+  "version": "1.0.0",
+  "description": "Sample PRD content for testing the multipart endpoint with a CSV attachment",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
