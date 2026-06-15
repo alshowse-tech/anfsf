@@ -11,6 +11,7 @@ import ApiTokenSettings from "./components/ApiTokenSettings";
 import ErrorBoundary from "./components/ErrorBoundary";
 import TestFeedback from "./components/TestFeedback";
 import { LLMPlayground } from "./components/LLMPlayground";
+import SettingsModal from "./components/SettingsModal";
 import DevWorkspaceV2 from "./components/DevWorkspaceV2";
 import VerifyPanel from "./components/VerifyPanel";
 import ReleaseGate from "./components/ReleaseGate";
@@ -44,18 +45,7 @@ function Layout() {
                 className="text-gray-500 hover:text-gray-700 p-1 text-lg">
                 {String.fromCharCode(0x2699)}
               </button>
-              {showSettings && (
-                <div className="absolute right-0 top-8 w-48 bg-white border rounded-lg shadow-lg p-2 z-50">
-                  <NavLink to="/dev" className="block px-3 py-1.5 text-sm hover:bg-gray-100 rounded no-underline text-gray-700"
-                    onClick={() => setShowSettings(false)}>Dev Workspace</NavLink>
-                  <NavLink to="/test" className="block px-3 py-1.5 text-sm hover:bg-gray-100 rounded no-underline text-gray-700"
-                    onClick={() => setShowSettings(false)}>Test Feedback</NavLink>
-                  <Link to="/?llm=1" className="block px-3 py-1.5 text-sm hover:bg-gray-100 rounded no-underline text-gray-700"
-                    onClick={() => setShowSettings(false)}>LLM Playground</Link>
-                  <div className="border-t my-1"></div>
-                  <ApiTokenSettings />
-                </div>
-              )}
+              {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
             </div>
           </div>
           <StageTabs />
