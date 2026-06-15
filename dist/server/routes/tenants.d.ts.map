@@ -1,0 +1,1 @@
+{"version":3,"file":"tenants.d.ts","sourceRoot":"","sources":["../../../src/server/routes/tenants.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,eAAe,EAAE,MAAM,SAAS,CAAC;AAE1C,OAAO,EAAE,WAAW,EAAoB,MAAM,eAAe,CAAC;AAE9D,wBAAgB,oBAAoB,CAAC,GAAG,EAAE,eAAe,EAAE,WAAW,EAAE,WAAW,GAAG,IAAI,CA4EzF"}

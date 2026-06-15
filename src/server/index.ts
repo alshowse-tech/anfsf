@@ -37,7 +37,9 @@ import { registerDashboardRoutes } from './routes/dashboard';
 import { registerUATRoutes } from './routes/uat-review';
 import { registerTicketRoutes } from './routes/tickets';
 import { registerWebhookRoutes } from './routes/webhooks';
-import { registerProjectRoutes } from './routes/projects';\nimport { registerTenantRoutes } from './routes/tenants';\nimport { registerGiteaConfigRoutes } from './routes/gitea-config';
+import { registerProjectRoutes } from './routes/projects';
+import { registerTenantRoutes } from './routes/tenants';
+import { registerGiteaConfigRoutes } from './routes/gitea-config';
 import { CodeAnnotator } from '../pipeline/code-annotator';
 import { ContractWatcher } from '../pipeline/contract-watcher';
 import { CommitVerifier } from '../pipeline/commit-verification';
@@ -308,7 +310,9 @@ export async function createServer(config: ServerConfig = {}) {
   registerUATRoutes(app);
   registerTicketRoutes(app);
   registerWebhookRoutes(app);
-  registerProjectRoutes(app);\n  registerTenantRoutes(app, roleManager);\n  registerGiteaConfigRoutes(app);
+  registerProjectRoutes(app);
+  registerTenantRoutes(app, roleMgr);
+  registerGiteaConfigRoutes(app);
 
   // Phase 1 integrated routes (requirement confirm, feedback→fix, release→archive)
   registerPhase1Routes(app, store as PipelineRunStore);
