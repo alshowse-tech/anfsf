@@ -48,9 +48,10 @@ interface TestFeedbackProps {
 }
 
 type TabKey = 'fixes' | 'lessons' | 'snapshots' | 'freeze';
+type TabKeyAll = TabKey | 'uat';
 
 export default function TestFeedback(props: TestFeedbackProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>('fixes');
+  const [activeTab, setActiveTab] = useState<TabKeyAll>('fixes');
   const pid = props.projectId || '';
 
   return (
@@ -58,7 +59,7 @@ export default function TestFeedback(props: TestFeedbackProps) {
       <h2 className="text-xl font-semibold text-gray-900">Test Feedback & Optimization</h2>
 
       <div className="flex gap-2 border-b overflow-x-auto">
-        {([['fixes', 'Fixes'], ['lessons', 'Lessons'], ['snapshots', 'Snapshots'], ['freeze', 'Freeze']] as [TabKey, string][]).map(([key, label]) => (
+        {([['fixes', 'Fixes'], ['lessons', 'Lessons'], ['uat', 'UAT Review'], ['snapshots', 'Snapshots'], ['freeze', 'Freeze']] as [TabKeyAll, string][]).map(([key, label]) => (
           <button key={key} onClick={() => setActiveTab(key)}
             className={'px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ' + (activeTab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700')}>
             {label}
@@ -70,6 +71,7 @@ export default function TestFeedback(props: TestFeedbackProps) {
       {activeTab === 'lessons' && <LessonsTab />}
       {activeTab === 'snapshots' && <SnapshotsTab />}
       {activeTab === 'freeze' && <FreezeTab />}
+      {activeTab === 'uat' && <UATReviewTab projectId={pid} />}
     </div>
   );
 }
@@ -427,3 +429,96 @@ function FreezeTab() {
     </div>
   );
 }
+// ============================================================================
+// UAT Review Tab (T-303)
+// ============================================================================
+
+function UATReviewTab({ projectId }: { projectId: string }) {
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [comment, setComment] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [projectInput, setProjectInput] = useState(projectId);
+
+  const effectiveProject = projectId || projectInput;
+
+  const fetchReviews = async () => {
+    if (!effectiveProject) return;
+    try {
+      const res = await fetch(API_BASE + '/api/v1/uat/reviews?projectId=' + encodeURIComponent(effectiveProject));
+      const data = await res.json();
+      setReviews(data.reviews || []);
+    } catch { /* ignore */ }
+  };
+
+  useEffect(() => { fetchReviews(); }, [effectiveProject]);
+
+  const submitReview = async (decision: string) => {
+    if (!effectiveProject || !comment.trim()) { setMessage('Comment required'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(API_BASE + '/api/v1/uat/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ projectId: effectiveProject, reviewer: 'PM', decision, comments: comment.trim() }),
+      });
+      if (res.ok) { setComment(''); setMessage('Review submitted'); fetchReviews(); }
+      else { const err = await res.json(); setMessage('Error: ' + (err.error?.message || 'Failed')); }
+    } catch (e) { setMessage('Error: ' + String(e)); }
+    setLoading(false);
+  };
+
+  const lastDecision = reviews.length > 0 ? reviews[0].decision : null;
+  const DECISION_COLORS: Record<string, string> = { approved: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700', changes_requested: 'bg-yellow-100 text-yellow-700' };
+
+  return (
+    <div className="space-y-4">
+      {!projectId && (
+        <div className="flex gap-2">
+          <input value={projectInput} onChange={e => setProjectInput(e.target.value)} placeholder="Enter Project ID..."
+            className="flex-1 px-2 py-1.5 border border-gray-300 rounded-md text-sm" />
+          <button onClick={fetchReviews} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200">Load</button>
+        </div>
+      )}
+
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Submit UAT Review</h3>
+        {lastDecision && (
+          <p className="text-xs text-gray-500 mb-2">Last decision: <span className={'px-1.5 py-0.5 rounded text-xs font-medium ' + (DECISION_COLORS[lastDecision] || '')}>{lastDecision}</span></p>
+        )}
+        <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
+          className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm mb-2" placeholder="Review comments..." />
+        <div className="flex gap-2">
+          {['approved', 'changes_requested', 'rejected'].map(d => (
+            <button key={d} onClick={() => submitReview(d)} disabled={loading || !comment.trim()}
+              className={'px-3 py-1.5 rounded-md text-sm text-white disabled:opacity-50 ' + (d === 'approved' ? 'bg-green-600 hover:bg-green-700' : d === 'rejected' ? 'bg-red-600 hover:bg-red-700' : 'bg-yellow-600 hover:bg-yellow-700')}>
+              {d === 'approved' ? 'Approve' : d === 'rejected' ? 'Reject' : 'Request Changes'}
+            </button>
+          ))}
+        </div>
+        {message && <p className="text-xs text-gray-500 mt-2">{message}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-gray-700">Review History ({reviews.length})</h3>
+        {reviews.length === 0 ? (
+          <p className="text-sm text-gray-500 py-4 text-center">No reviews yet</p>
+        ) : (
+          reviews.map((r, i) => (
+            <div key={r.id || i} className="bg-white rounded-lg shadow p-3">
+              <div className="flex items-start gap-2">
+                <span className={'px-1.5 py-0.5 rounded text-xs font-medium ' + (DECISION_COLORS[r.decision] || '')}>{r.decision}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500">{r.reviewer} · {new Date(r.createdAt).toLocaleString()}</p>
+                  {r.comments && <p className="text-sm text-gray-700 mt-1">{r.comments}</p>}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================

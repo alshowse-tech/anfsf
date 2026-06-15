@@ -35,6 +35,7 @@ import { registerWebhookRoute } from './routes/webhook';
 import { registerKnowledgeRoutes } from './routes/knowledge';
 import { registerDashboardRoutes } from './routes/dashboard';
 import { registerUATRoutes } from './routes/uat-review';
+import { registerTicketRoutes } from './routes/tickets';
 import { registerProjectRoutes } from './routes/projects';
 import { CodeAnnotator } from '../pipeline/code-annotator';
 import { ContractWatcher } from '../pipeline/contract-watcher';
@@ -295,6 +296,7 @@ export async function createServer(config: ServerConfig = {}) {
   registerKnowledgeRoutes(app);
   registerDashboardRoutes(app);
   registerUATRoutes(app);
+  registerTicketRoutes(app);
   registerProjectRoutes(app);
 
   // Phase 1 integrated routes (requirement confirm, feedback→fix, release→archive)
