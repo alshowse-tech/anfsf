@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { t } from "../i18n";
 
 const API_BASE = import.meta.env.VITE_ANFSF_API || "";
 
@@ -55,22 +56,22 @@ export default function DevWorkspaceV2() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <input value={projectId} onChange={e => setProjectId(e.target.value)}
-          placeholder="Enter Project ID"
+          placeholder={t("Enter Project ID")}
           className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm" />
         <button onClick={fetchData}
-          className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200">Load</button>
+          className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200">{t("Load")}</button>
       </div>
 
       {projectId && (
         <>
           <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Verification Feedback</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">{t("Verification Feedback")}</h3>
             <div className="flex gap-4 text-sm">
               <span>L1 Auto: <strong>{fixes.filter(f => f.level === "L1").length}</strong></span>
               <span>L2 Suggest: <strong>{fixes.filter(f => f.level === "L2").length}</strong></span>
               <span>L3 Manual: <strong>{fixes.filter(f => f.level === "L3").length}</strong></span>
-              <span>Confirmed: <strong className="text-green-600">{confirmedCount}</strong></span>
-              <span>Pending: <strong className="text-orange-600">{pendingFixes.length}</strong></span>
+              <span>{t("Confirm")}: <strong className="text-green-600">{confirmedCount}</strong></span>
+              <span>{t("Pending Fixes")}: <strong className="text-orange-600">{pendingFixes.length}</strong></span>
             </div>
           </div>
 
@@ -81,12 +82,12 @@ export default function DevWorkspaceV2() {
                   activeTab === tab
                     ? "border-blue-600 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700"
-                )}>{tab === "fixes" ? "Fix Records" : "Tickets"} ({tab === "fixes" ? fixes.length : tickets.length})</button>
+                )}>{tab === "fixes" ? t("Fix Records") : t("Tickets")} ({tab === "fixes" ? fixes.length : tickets.length})</button>
             ))}
           </div>
 
           {activeTab === "fixes" && fixes.length === 0 && (
-            <p className="text-sm text-gray-500 py-8 text-center">No fix records for this project</p>
+            <p className="text-sm text-gray-500 py-8 text-center">{t("No fix records for this project")}</p>
           )}
           {activeTab === "fixes" && fixes.map(f => (
             <div key={f.id} className="bg-white rounded-lg shadow p-3 flex items-start justify-between">
@@ -102,18 +103,18 @@ export default function DevWorkspaceV2() {
               <div className="flex gap-1 ml-2 shrink-0">
                 {(f.fixStatus === "suggestion_ready" || f.fixStatus === "located_only") && (
                   <button onClick={() => updateFixStatus(f.id, "dev_fixed")}
-                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Fix Done</button>
+                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">{t("Fix Done")}</button>
                 )}
                 {f.fixStatus === "dev_fixed" && (
                   <button onClick={() => updateFixStatus(f.id, "confirmed")}
-                    className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Confirm</button>
+                    className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">{t("Confirm")}</button>
                 )}
               </div>
             </div>
           ))}
 
           {activeTab === "tickets" && tickets.length === 0 && (
-            <p className="text-sm text-gray-500 py-8 text-center">No tickets for this project</p>
+            <p className="text-sm text-gray-500 py-8 text-center">{t("No tickets for this project")}</p>
           )}
           {activeTab === "tickets" && tickets.map(t => (
             <div key={t.id} className="bg-white rounded-lg shadow p-3 flex items-center justify-between">

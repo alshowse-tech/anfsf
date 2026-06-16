@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { t } from "../i18n";
 
 const API_BASE = import.meta.env.VITE_ANFSF_API || "";
 
@@ -24,10 +25,10 @@ export default function EvolutionPanel() {
     <div className="space-y-4">
       {dashboard && (
         <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">System Overview</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">{t("System Overview")}</h3>
           <div className="grid grid-cols-3 gap-4 text-center">
-            <div><p className="text-2xl font-bold text-blue-600">{dashboard.projects.total}</p><p className="text-xs text-gray-500">Projects</p></div>
-            <div><p className="text-2xl font-bold text-green-600">{dashboard.pipeline.totalRecords}</p><p className="text-xs text-gray-500">Runs</p></div>
+            <div><p className="text-2xl font-bold text-blue-600">{dashboard.projects.total}</p><p className="text-xs text-gray-500">{t("Projects")}</p></div>
+            <div><p className="text-2xl font-bold text-green-600">{dashboard.pipeline.totalRecords}</p><p className="text-xs text-gray-500">{t("Pipeline Runs")}</p></div>
             <div><p className="text-2xl font-bold text-purple-600">{dashboard.compile.uniquePatterns}</p><p className="text-xs text-gray-500">Patterns</p></div>
           </div>
         </div>
@@ -35,7 +36,7 @@ export default function EvolutionPanel() {
 
       {bottlenecks.length > 0 && (
         <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Bottleneck Analysis</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">{t("Bottleneck Analysis")}</h3>
           <div className="space-y-2">
             {bottlenecks.map((b, i) => (
               <div key={i} className="flex items-center justify-between border-b pb-2">
@@ -43,7 +44,7 @@ export default function EvolutionPanel() {
                 <div className="text-xs text-gray-500">
                   <span className="mr-3">Avg: {(b.avgDurationMs / 1000).toFixed(1)}s</span>
                   <span className="mr-3">P95: {(b.p95DurationMs / 1000).toFixed(1)}s</span>
-                  <span>{b.totalRuns} runs</span>
+                  <span>{b.totalRuns} {t("runs")}</span>
                 </div>
               </div>
             ))}
@@ -53,7 +54,7 @@ export default function EvolutionPanel() {
 
       {stages.length > 0 && (
         <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Stage Metrics</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">{t("Stage Metrics")}</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead><tr className="text-gray-500 border-b">
@@ -78,7 +79,7 @@ export default function EvolutionPanel() {
       )}
 
       {bottlenecks.length === 0 && stages.length === 0 && !dashboard && (
-        <p className="text-sm text-gray-500 py-8 text-center">No metrics available yet. Run some pipelines first.</p>
+        <p className="text-sm text-gray-500 py-8 text-center">{t("No metrics available yet. Run some pipelines first.")}</p>
       )}
     </div>
   );

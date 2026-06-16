@@ -12,6 +12,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import TestFeedback from "./components/TestFeedback";
 import { LLMPlayground } from "./components/LLMPlayground";
 import SettingsModal from "./components/SettingsModal";
+import { t } from "./i18n";
 import DevWorkspaceV2 from "./components/DevWorkspaceV2";
 import VerifyPanel from "./components/VerifyPanel";
 import ReleaseGate from "./components/ReleaseGate";
@@ -63,10 +64,10 @@ function Layout() {
                       onComplete={handlePipelineComplete} />
                     {completedRunId && (
                       <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                        <p className="font-medium text-green-700 mb-2">Pipeline Complete</p>
+                        <p className="font-medium text-green-700 mb-2">{t("Pipeline Complete")}</p>
                         <Link to={"/result?runId=" + completedRunId}
                           className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium no-underline">
-                          View Output</Link>
+                          {t("View Output")}</Link>
                       </div>
                     )}
                   </>
@@ -89,7 +90,7 @@ function Layout() {
         <div className="text-center mt-6">
           <Link to="/require" onClick={handleNewRun}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium no-underline inline-block">
-            + New Project</Link>
+            {t("+ New Project")}</Link>
         </div>
       </main>
     </div>

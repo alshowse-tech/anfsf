@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { t } from "../i18n";
 
 const API_BASE = import.meta.env.VITE_ANFSF_API || "";
 
@@ -31,22 +32,22 @@ export default function HomeDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
+        <h2 className="text-xl font-semibold text-gray-900">{t("Projects")}</h2>
         <button onClick={() => navigate("/require")}
           className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
-          + New Project
+          {t("+ New Project")}
         </button>
       </div>
 
       {projects.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
-          <p className="text-lg mb-2">No projects yet</p>
+          <p className="text-lg mb-2">{t("No projects yet")}</p>
           <p className="text-sm text-gray-400 mb-4">
-            Create your first project to start the pipeline
+            {t("Create your first project to start the pipeline")}
           </p>
           <button onClick={() => navigate("/require")}
             className="px-6 py-3 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
-            Create Project
+            {t("Create Project")}
           </button>
         </div>
       ) : (
@@ -67,26 +68,26 @@ export default function HomeDashboard() {
       {dashboard && (
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-sm font-medium text-gray-700 mb-2">
-            System Health
+            {t("System Health")}
           </h3>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-blue-600">
                 {dashboard.projects.total}
               </p>
-              <p className="text-xs text-gray-500">Projects</p>
+              <p className="text-xs text-gray-500">{t("Projects")}</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-green-600">
                 {dashboard.pipeline.totalRecords}
               </p>
-              <p className="text-xs text-gray-500">Pipeline Runs</p>
+              <p className="text-xs text-gray-500">{t("Pipeline Runs")}</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-600">
                 {Object.keys(dashboard.projects.byState).length}
               </p>
-              <p className="text-xs text-gray-500">Active Stages</p>
+              <p className="text-xs text-gray-500">{t("Active Stages")}</p>
             </div>
           </div>
         </div>
