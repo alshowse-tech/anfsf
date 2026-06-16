@@ -1,7 +1,9 @@
-# ANFSF UI/UX 重构计划
+# ANFSF UI/UX 重构计划 — ⚠️ 已被 ANFSF-OS-UI-REFACTOR 取代
 
-> **版本**: 1.0 | **日期**: 2026-06-08 | **关联**: 后端已从 17 层 Pipeline 切换为 Agent Loop
-> **目标**: 前端与新的 Agent Loop 运行逻辑对齐，修复死链，化简导航
+> **状态**: ⚠️️ 已过时 | 本文档描述的 UI 重构计划已由 [ANFSF-OS-UI-REFACTOR.md](ANFSF-OS-UI-REFACTOR.md) 执行完成（Phase A-C）。
+> 请以 ANFSF-OS-UI-REFACTOR 为准。本文档保留供参考。
+>
+> **原版本**: 1.0 | **原日期**: 2026-06-08
 
 ---
 

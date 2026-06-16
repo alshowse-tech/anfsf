@@ -141,8 +141,20 @@ curl http://localhost:3000/ready  # includes LLM, DB, disk checks
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) — Complete system architecture, data flow, security model
-- [Runbook](docs/RUNBOOK.md) — Deployment, monitoring, backup, troubleshooting procedures
+- [Architecture](docs/ARCHITECTURE.md) — System architecture (five-stage state machine + Agent Loop)
+- [REFACTOR-FIX](docs/ANFSF-REFACTOR-FIX.md) — **Current system status audit (start here)**
+- [INDEX](docs/INDEX.md) — Complete document and code index with runtime status
+- [Blueprint](docs/ANFSF-BLUEPRINT.md) — 13-step workflow and gap analysis
+- [Development Path](docs/ANFSF-DEVELOPMENT-PATH.md) — Locked architecture decisions
+- [Technical Design](docs/TECHNICAL-DESIGN.md) — State machine, Agent Loop, LLM provider design
+- [Implementation Plan](docs/IMPLEMENTATION-PLAN.md) — Phase 1 task specifications
+- [API Spec](docs/API-SPEC.md) — REST API endpoint definitions
+- [Database Schema](docs/DATABASE-SCHEMA.md) — Database table definitions
+- [Runbook](docs/RUNBOOK.md) — Deployment, monitoring, backup, troubleshooting
+- [Interlayer Protocol](docs/INTERLAYER-PROTOCOL.md) — 17-layer protocol definitions (⚠️ theoretical, not fully in runtime)
+
+> ⚠️ The old 17-layer architecture description has been replaced by the five-stage state machine.
+> See [REFACTOR-FIX](docs/ANFSF-REFACTOR-FIX.md) for the current runtime status.
 
 ## Project Structure
 

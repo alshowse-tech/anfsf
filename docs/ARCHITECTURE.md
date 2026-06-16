@@ -1,201 +1,161 @@
 # ANFSF Architecture Documentation
 
+> **版本**: 2.0 | **日期**: 2026-06-16 | **状态基准**: [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md)
+> **重要变更**: 本文档已从 17 层架构描述更新为当前实际运行的五阶段状态机 + Agent Loop 架构。
+> 17 层理论架构文档保留在 [17层分析](ANFSF%2017%20层理论架构%20—%20逐层详细设计分析.md) 供参考，但不再反映当前系统。
+
 ## Overview
 
-ANFSF (Autonomous N-Factor Software Factory) is a 17-layer autonomous software generation system that transforms product requirement documents (PRDs) into production-ready code. It features a Fastify backend with React frontend, supports multiple LLM providers, and includes full observability, security hardening, and multi-format PRD input (text, images, CSV, PDF).
+ANFSF (Autonomous Non-Fungible Software Factory) is a PRD-to-code platform that transforms Product Requirements Documents into production-ready project skeletons through a five-stage state machine with an Agent Loop for code generation and verification.
+
+**Current runtime coverage**: ~35% of written code is active in the runtime pipeline. See [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) for details.
 
 ## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Client Layer (Browser)                       │
-│  React 18 + React Router + TailwindCSS + Mermaid.js + SSE Client   │
-│  ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌──────────┐ ┌─────────┐ │
-│  │ PRDForm  │ │FileUpload│ │Progress   │ │ RunList  │ │ Mermaid │ │
-│  │(text+files)│(drag+drop)│ │(SSE stream)│ │(paginated)│ │Diagram  │ │
-│  └──────────┘ └──────────┘ └───────────┘ └──────────┘ └─────────┘ │
+│  React 18 + Vite + TailwindCSS + SSE Client                       │
+│  ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌──────────┐            │
+│  │ PRDForm  │ │StageTabs │ │Settings   │ │HomeDash  │            │
+│  │(text+files)│ │(6 stages)│ │(Modal)   │ │(Board)   │            │
+│  └──────────┘ └──────────┘ └───────────┘ └──────────┘            │
+│  ┌──────────┐ ┌──────────┐ ┌───────────┐ ┌──────────┐            │
+│  │Require   │ │DevWork   │ │Verify     │ │Release   │            │
+│  │Review    │ │space V2  │ │Panel      │ │Gate      │            │
+│  └──────────┘ └──────────┘ └───────────┘ └──────────┘            │
 └───────────────────────────┬─────────────────────────────────────────┘
-                            │ HTTPS / SSE (Server-Sent Events)
-                            │ Auth: Bearer Token (ANFSF_API_TOKEN)
-                            │ Rate Limit: per-route differentiated
+                            │ HTTPS / SSE
+                            │ Auth: Bearer Token
 ┌───────────────────────────▼─────────────────────────────────────────┐
 │                        API Layer (Fastify)                          │
-│  Port 3000 | Non-root user | Helmet CSP | CORS | Multipart          │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ Middleware Stack:                                           │    │
-│  │  1. CORS → 2. Sensible → 3. Multipart → 4. Helmet (CSP)    │    │
-│  │  5. Auth (Bearer) → 6. Rate Limit → 7. Tracing             │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│  ┌──────────┐ ┌────────────┐ ┌─────────┐ ┌────────────────────┐    │
-│  │POST /api/│ │GET /api/   │ │GET /    │ │GET /health          │    │
-│  │v1/synth. │ │v1/pipeline │ │metrics  │ │GET /ready           │    │
-│  │POST /api/│ │GET /api/   │ │         │ │                     │    │
-│  │v1/synth. │ │v1/pipeline │ │         │ │                     │    │
-│  │/multipart│ │/:id/status │ │         │ │                     │    │
-│  └──────────┘ └────────────┘ └─────────┘ └────────────────────┘    │
-└───────────────────────────┬─────────────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────────────┐
-│                     Input Governance Layer                          │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
-│  │AttachmentProcessor│  │Merger            │  │Sanitization      │  │
-│  │• Image → Vision   │  │• Merge PRD text  │  │• Injection detect│  │
-│  │• CSV → Markdown   │  │• + extractions   │  │• HTML strip      │  │
-│  │• PDF → Text       │  │• Section markers │  │• NFC normalize   │  │
-│  │• TXT/MD → Read    │  │                  │  │• Length limit    │  │
-│  └──────────────────┘  └──────────────────┘  └──────────────────┘  │
-└───────────────────────────┬─────────────────────────────────────────┘
-                            │ enrichedText: string
-┌───────────────────────────▼─────────────────────────────────────────┐
-│                   17-Layer Cognitive Pipeline                       │
+│  POST /api/v1/synthesize  |  GET /api/v1/pipeline  |  /health     │
+│  POST /api/v1/synthesize/multipart  |  /:id/status (SSE) | /ready│
+│  + /api/v1/tenants  |  /api/v1/config/gitea  |  /metrics           │
+├───────────────────────────┬─────────────────────────────────────────┤
+│                     Input Governance                                 │
+│  AttachmentProcessor → Merger → Sanitization → Injection Detection │
+├───────────────────────────▼─────────────────────────────────────────┤
+│                Five-Stage State Machine                              │
 │                                                                     │
-│  Layer 1-3:   PRD Parser → Quality Gate → Why-What-How Reasoner    │
-│  Layer 4-6:   Graph IR → Architecture → UI Synthesis               │
-│  Layer 7-9:   Code Gen → Compile Check → Code Quality Gate         │
-│  Layer 10-12: Detail Polish → Retrospective → Safe Trend Scanner    │
-│  Layer 13-15: Security Audit → Hybrid Retriever → Deep Reasoning    │
-│  Layer 16-17: CD Pipeline → Human Confirmation                     │
+│  Stage 0        Stage 1          Stage 2       Stage 3     Stage 4-5  │
+│  Knowledge  →   Parse/Lock   →   Dev      →   Verify  →  Test/Archive│
+│  (optional)     (Agent Loop)     (black box)  (commit     (PM review │
+│                                  developer)    triggers)    + release) │
+│       │              │               │           │           │        │
+│       ▼              ▼               ▼           ▼           ▼        │
+│   Checkpoint    Checkpoint      (Gitea)     Checkpoint   Checkpoint   │
+├───────────────────────────────────────────────────────────────────────┤
+│                     Agent Loop (Code Generation)                     │
+│  Generate → Verify (tsc + quality + hallucination + security)       │
+│           → Fix (max 3 rounds) → Annotate → Return                  │
 │                                                                     │
-│  Each layer:                                                        │
-│    ┌─────────────────────────────────────────────────────────┐     │
-│    │ Skill (LLM call) → Sandbox Execute → Quality Validate    │     │
-│    │ On failure → Fix Loop → Retry (max N) → Escalate        │     │
-│    └─────────────────────────────────────────────────────────┘     │
-│                                                                     │
-│  Skills Registry:                                                   │
-│    HallucinationGuard, PolicyGuard, SecurityAuditor,               │
-│    CodeQualityGuard, CD-Pipeline, MemoryConsolidation,             │
-│    ContextCompressor, CitationTracer, RequirementRefiner,          │
-│    RequirementCompiler, DeepReasoning, HybridRetriever             │
-└───────────────────────────┬─────────────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────────────┐
-│                      Integrations & Infrastructure                  │
-│                                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐      │
-│  │ LLM Client   │  │ GraphRAG     │  │ MCP Bus              │      │
-│  │• Multi-provider│ │ Knowledge    │  │• Tool protocol       │      │
-│  │• Circuit breaker│ │ retrieval    │  │• Cross-agent comm    │      │
-│  │• Retry+backoff │ │ embeddings   │  │                      │      │
-│  │• Token/cost   │ │ vector search│  │                      │      │
-│  │  tracking     │ │              │  │                      │      │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘      │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────┐      │
-│  │ Observability (Prometheus)                               │      │
-│  │ • anfsf_pipeline_total (counter, by status)              │      │
-│  │ • anfsf_pipeline_run_duration_seconds (histogram)        │      │
-│  │ • anfsf_http_errors_total (counter, by type)             │      │
-│  │ • anfsf_llm_tokens_total (counter, by type)              │      │
-│  │ • anfsf_llm_cost_total (counter, currency)               │      │
-│  │ • anfsf_circuit_breaker_state (gauge)                    │      │
-│  │ • anfsf_process_memory_bytes (gauge, by type)            │      │
-│  │ • anfsf_http_request_duration_seconds (histogram)        │      │
-│  └──────────────────────────────────────────────────────────┘      │
-│                                                                     │
-│  ┌────────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
-│  │ SQLite     │  │PostgreSQL│  │ Redis    │  │ Prometheus│        │
-│  │ (default)  │  │(optional)│  │(rate lim)│  │ :9090    │        │
-│  └────────────┘  └──────────┘  └──────────┘  └──────────┘        │
-│                                        ┌──────────┐              │
-│                                        │ Grafana  │              │
-│                                        │ :3001    │              │
-│                                        └──────────┘              │
-└─────────────────────────────────────────────────────────────────────┘
+│  ⚠️ Currently only CompileValidator is active in verification.     │
+│    3 additional skills exist but are not registered.                 │
+├───────────────────────────────────────────────────────────────────────┤
+│                     Capability Providers (mostly standby)             │
+│  Skills Registry (18 skills, ⚠️ registration is no-op)            │
+│  Contract Engine ✅ | Graph Engine ✅ | Quality Gates ✅             │
+│  Evolution Engine ⚠️ | LLM Client ✅ | GraphRAG ⚠️                │
+├───────────────────────────────────────────────────────────────────────┤
+│                     Storage & External                               │
+│  SQLite (default) | PostgreSQL (optional) | Gitea (code repos)    │
+│  Prometheus (:9090) | Grafana (:3001)                                │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
-## Component Details
+## Active Runtime Path
 
-### Frontend (`web/`)
+The actual path a request takes through the running system:
 
-| Component | Purpose |
-|-----------|---------|
-| `App.tsx` | React Router layout: `/`, `/progress`, `/history`, `/diagram` |
-| `PRDForm.tsx` | PRD text input + FileUpload integration, FormData submission |
-| `FileUpload.tsx` | Drag-and-drop, MIME filter, image/CSV preview, progress bar |
-| `PipelineProgress.tsx` | SSE progress stream with exponential backoff reconnect |
-| `RunList.tsx` | Paginated run history with Previous/Next |
-| `RunResult.tsx` | Generated code display with download |
-| `MermaidDiagram.tsx` | Pipeline architecture visualization |
-| `ApiTokenSettings.tsx` | Nav dropdown for API token (localStorage) |
-| `ErrorBoundary.tsx` | React Error Boundary with fallback UI |
-| `useSSE.ts` | Custom hook: SSE with jitter backoff, idle timeout |
-| `useRuns.ts` | Custom hook: paginated run queries |
-| `api/client.ts` | Typed API client with auth headers, error class |
+```
+POST /api/v1/synthesize
+  → InputGovernance (sanitization, injection detection)
+  → PipelineStateMachine (stage1_parsing → stage1_done)  ⚠️ only 2 transitions active
+  → AINativePRDParser (LLM: deepseek-chat)
+  → PRDQualityCheck (4-dimension scoring)
+  → ConfidenceAnnotator (🟢🟡🔴 markers)
+  → CodeGenerationLoop (generate → verify → fix, max 3 rounds)
+    → VerificationRunner → CompileValidator (only active verifier)
+  → TaskGenerator (TASK.md generation)
+  → GiteaClient.pushFile (best effort, ⚠️ has SHA bug)
+  → SSE progress events to frontend
+```
 
-### Backend (`src/`)
+Modules that exist but are **not** on this path (standby):
+- CodeQualityGuardSkill, HallucinationGuardSkill, SecurityAuditorSkill
+- GovernanceHarness, InputGovernance (not called from synthesize)
+- FixEngine, CommitVerifier, ContractWatcher (need webhook integration)
+- ReleaseCheck, Archiver (need stage 4-5 integration)
+- All 7 evolution modules
+- SkillsRegistry (18 skills, registration function is no-op)
 
-| Module | Purpose |
-|--------|---------|
-| `server/index.ts` | Fastify app, plugin registration, config, lifecycle |
-| `server/routes/synthesize.ts` | POST /synthesize (JSON) + /synthesize/multipart (file upload) |
-| `server/routes/pipeline.ts` | GET /pipeline (list) + /:id/status (SSE stream) |
-| `server/routes/metrics.ts` | GET /metrics (Prometheus format) |
-| `server/routes/health.ts` | GET /health + /ready (LLM, DB, disk checks) |
-| `server/middleware/auth.ts` | Bearer token validation for /api/v1/* |
-| `server/middleware/rate-limit.ts` | Per-route token bucket with X-RateLimit-* headers |
-| `server/middleware/tracing.ts` | Request trace IDs (X-Request-ID) |
-| `server/store.ts` | SQLite-backed pipeline run store with SSE subscriptions |
-| `server/store-postgres.ts` | PostgreSQL-backed store with connection pooling |
-| `server/migrations.ts` | Schema migration runner for PostgreSQL |
+See [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) Appendix A for the full standby module list.
 
-### Input Layer (`src/input/`)
+## Frontend Components (`web/`)
 
-| Module | Purpose |
-|--------|---------|
-| `attachment-processor.ts` | Routes attachments by MIME: image→Vision OCR, CSV→Markdown, PDF→text, TXT→read |
-| `attachment-types.ts` | Type definitions, allowed MIME types, limits (5MB, 10 files) |
-| `sanitization-attachments.ts` | Magic bytes MIME sniffing, size validation, path traversal protection |
-| `merger.ts` | Merges PRD text + all extractions with section markers |
+**Active (23 components)**:
 
-### Input Governance (`src/input-governance/`)
+| Component | Purpose | Status |
+|-----------|---------|--------|
+| `App.tsx` | React Router layout with 6-stage navigation | ✅ |
+| `PRDForm.tsx` | PRD text input + quality scoring + file upload | ✅ |
+| `StageTabs.tsx` | 6-stage workflow navigation bar | ✅ |
+| `HomeDashboard.tsx` | Project list + health overview | ✅ |
+| `PipelineProgress.tsx` | 3-step Agent Loop progress + token/Gitea info | ✅ |
+| `ResultView.tsx` | Code display with file tree + preview | ✅ |
+| `SettingsModal.tsx` | System settings: tenants, members, Gitea | ✅ |
+| `GiteaConfig.tsx` | Gitea URL/token configuration | ✅ |
+| `MemberManager.tsx` | Member CRUD with 7 role types | ✅ |
+| `RequirementReview.tsx` | PM requirement confirmation with confidence | ⚠️ not routed |
+| `ProjectDashboard.tsx` | Five-stage progress dashboard | ⚠️ not routed |
+| `DevWorkspaceV2.tsx` | Developer task workspace | ✅ |
+| `VerifyPanel.tsx` | Verification result summary | ✅ |
+| `ReleaseGate.tsx` | Three-layer release checks | ✅ |
+| `EvolutionPanel.tsx` | Evolution analysis + knowledge base | ✅ |
 
-| Module | Purpose |
-|--------|---------|
-| `sanitization.ts` | HTML tag stripping, entity decoding, NFC normalization, length limiting |
-| `governance.ts` | Prompt injection detection and blocking |
+## Backend Modules (`src/`)
 
-### Pipeline (`src/pipeline/`)
-
-| Module | Purpose |
-|--------|---------|
-| `product-pipeline.ts` | 17-layer orchestrator with quality gates, fix loops, and error escalation |
-
-### Skills (`src/skills/`)
-
-| Skill | Purpose |
-|-------|---------|
-| `why-what-how-reasoner.ts` | First-principles reasoning on PRD analysis |
-| `hallucination-guard-skill.ts` | LLM output fact-checking |
-| `security-auditor-skill.ts` | Generated code vulnerability scanning |
-| `code-quality-guard-skill.ts` | Code style and quality validation |
-| `policy-guard-skill.ts` | Compliance and policy enforcement |
-| `detail-polisher.ts` | Generated code refinement and optimization |
-| `sandbox-executor.ts` | Isolated code execution in sandbox |
-| `skills-registry.ts` | Skill registration and dispatch |
-
-### Core (`src/core/`)
+### Active in Runtime
 
 | Module | Purpose |
 |--------|---------|
-| `graph/` | Graph IR types, traversal, caching, heatmap scoring |
-| `evolution/` | Self-evolution: rollback, introspection, change budget, freeze |
-| `quality/` | Compile validation, quality scoring |
-| `guard-pipeline.ts` | Guard-enhanced pipeline with safety checks |
+| `server/index.ts` | Fastify app, plugin registration |
+| `server/routes/synthesize.ts` | POST /synthesize — main pipeline entry |
+| `server/routes/pipeline.ts` | GET /pipeline — status and SSE |
+| `server/routes/health.ts` | Health and readiness checks |
+| `server/routes/metrics.ts` | Prometheus metrics |
+| `server/routes/tenants.ts` | Tenant CRUD (7 endpoints) |
+| `server/routes/gitea-config.ts` | Gitea configuration |
+| `server/middleware/auth.ts` | Bearer token validation |
+| `server/middleware/rate-limit.ts` | Per-route rate limiting |
+| `server/middleware/tracing.ts` | Request trace IDs |
+| `server/store.ts` | SQLite-backed run store |
+| `pipeline/pipeline-state-machine.ts` | Five-stage state machine |
+| `agents/code-generation-loop.ts` | Agent Loop for code generation |
+| `agents/verification-runner.ts` | Verification tool orchestration |
+| `prd/prd-parser.ts` | LLM-based PRD parsing |
+| `prd/prd-quality-check.ts` | Four-dimension quality scoring |
+| `prd/confidence-annotator.ts` | Confidence annotation (🟢🟡🔴) |
+| `pipeline/skeleton-generator.ts` | Skeleton code generation |
+| `pipeline/task-generator.ts` | TASK.md generation |
+| `pipeline/token-budget.ts` | Token budget tracking |
+| `pipeline/checkpoint.ts` | Checkpoint and recovery |
+| `pipeline/code-annotator.ts` | Code source annotation |
+| `pipeline/fix-engine.ts` | L1/L2/L3 fix matrix |
+| `pipeline/release-check.ts` | Three-layer release checks |
+| `pipeline/archiver.ts` | Project archiving |
+| `integrations/llm-client.ts` | Multi-provider LLM client |
+| `integrations/gitea-client.ts` | Gitea API client |
+| `input/attachment-processor.ts` | Multi-format file processing |
+| `input-governance/sanitization.ts` | HTML stripping, NFC normalization |
+| `input-governance/governance.ts` | Prompt injection detection |
+| `observability/logger.ts` | Structured logging |
+| `observability/metrics.ts` | Prometheus metrics |
 
-### Integrations (`src/integrations/`)
+### Standby (written, tested, not in runtime)
 
-| Module | Purpose |
-|--------|---------|
-| `llm-client.ts` | Multi-provider LLM client with circuit breaker, retry, cost tracking, vision support |
-| `graphrag.ts` | Knowledge graph retrieval with embeddings |
-
-### Agents (`src/agents/`)
-
-| Module | Purpose |
-|--------|---------|
-| `agent-os.ts` | Agent operating system with state machine, memory, health monitoring |
-| `coordination-protocol.ts` | Multi-agent coordination and handoff |
+Full list: see [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) Appendix A (P1: 5 modules, P2: 7 modules, P3: 9 modules, Standby: 6 modules).
 
 ## Data Flow
 
@@ -206,30 +166,19 @@ ANFSF (Autonomous N-Factor Software Factory) is a 17-layer autonomous software g
 5. Merger combines original text + all extractions → `enrichedText`
 6. Sanitization: HTML stripping, NFC normalization, prompt injection detection
 7. Run created in store (SQLite/PostgreSQL), run ID returned as `202 Accepted`
-8. Pipeline runs asynchronously in background
-9. Frontend connects via SSE to `GET /api/v1/pipeline/:id/status`
-10. Each pipeline step emits progress events via SSE
-11. Pipeline completes → result saved, SSE stream closes
-12. User views generated code via RunResult component
+8. PipelineStateMachine: `stage1_parsing` → quality check → confidence annotation → `stage1_locked`
+9. CodeGenerationLoop: generate → verify (CompileValidator) → fix (max 3 rounds) → `stage1_done`
+10. TaskGenerator creates TASK.md, GiteaClient pushes skeleton (best effort)
+11. Frontend connects via SSE to track progress
+12. **Stages 2-5 are reserved but not yet integrated in the runtime pipeline**
 
 ## Security Model
-
-```
-Request → CORS check → Auth (Bearer token) → Rate Limit (per-route) → Tracing
-                                                                    ↓
-                                                          Helmet CSP headers
-                                                          Input sanitization
-                                                          Prompt injection filter
-                                                          File MIME validation
-                                                          Magic bytes verification
-                                                          Path traversal prevention
-```
 
 - **Authentication**: Bearer token via `ANFSF_API_TOKEN` env var
 - **Authorization**: All `/api/v1/*` routes require valid token; `/health`, `/ready`, `/metrics` are public
 - **Rate Limiting**: Per-route token bucket — synthesize (2 QPS, burst 3), pipeline (10 QPS, burst 20)
-- **Content Security**: Helmet with CSP (defaultSrc 'self', no frames, no objects)
-- **File Upload**: MIME whitelist (png/jpeg/webp/csv/plain/markdown/pdf), 5MB max, 10 files max, magic bytes verification
+- **Content Security**: Helmet with CSP
+- **File Upload**: MIME whitelist, 5MB max, 10 files max, magic bytes verification
 - **Input Sanitization**: HTML tag removal, entity decoding, Unicode NFC normalization, prompt injection detection
 - **Circuit Breaker**: LLM failures ≥ 5 → open circuit → auto-recovery after 30s
 
@@ -242,30 +191,12 @@ Request → CORS check → Auth (Bearer token) → Rate Limit (per-route) → Tr
 
 Auto-detection based on API key prefix; can be overridden via `LLM_BASE_URL`.
 
-## Deployment Architecture
-
-```
-docker-compose.yml services:
-┌─────────────────┐  ┌──────────┐  ┌──────────┐
-│ anfsf-backend   │  │postgres  │  │ redis    │
-│ Port 3000 (host)│  │(internal)│  │(internal)│
-│ HEALTHCHECK     │  │healthcheck│ │healthcheck│
-└─────────────────┘  └──────────┘  └──────────┘
-
-┌─────────────────┐  ┌──────────┐  ┌──────────┐
-│ anfsf-frontend  │  │prometheus│  │ grafana  │
-│ Port 8080 (host)│  │(internal)│  │Port 3001 │
-│ HEALTHCHECK     │  │          │  │healthcheck│
-└─────────────────┘  └──────────┘  └──────────┘
-```
+## Deployment
 
 - **Backend**: Multi-stage Docker build (node:20.20.2-alpine, non-root user)
-- **Frontend**: React build + nginx, port 8080, cache-busting for index.html
+- **Frontend**: React build + nginx, port 8080
 - **Database**: SQLite (default) or PostgreSQL (set DATABASE_URL)
-- **Cache**: Redis (internal port, for rate limiting)
 - **Monitoring**: Prometheus (scrape 15s), Grafana (dashboards pre-provisioned)
-
-## Configuration
 
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
@@ -280,6 +211,18 @@ docker-compose.yml services:
 | `ANFSF_BLOCK_INJECTIONS` | true | Block prompt injection |
 | `DATABASE_URL` | (empty) | PostgreSQL connection string |
 | `ANFSF_DATA_RETENTION_DAYS` | 30 | Auto-cleanup old runs |
-| `PG_POOL_MAX` | 5 | PostgreSQL max connections |
-| `PG_STATEMENT_TIMEOUT` | 30000 | PostgreSQL statement timeout (ms) |
 | `LOG_LEVEL` | info | Log level |
+
+## Documentation Index
+
+- [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) — **Current system status audit** (start here)
+- [ANFSF-OS-UI-REFACTOR](ANFSF-OS-UI-REFACTOR.md) — Frontend restructuring record
+- [BLUEPRINT](ANFSF-BLUEPRINT.md) — 13-step workflow and gap analysis
+- [DEVELOPMENT-PATH](ANFSF-DEVELOPMENT-PATH.md) — Locked architecture decisions
+- [TECHNICAL-DESIGN](TECHNICAL-DESIGN.md) — State machine and Agent Loop design
+- [IMPLEMENTATION-PLAN](IMPLEMENTATION-PLAN.md) — Phase 1 task specifications
+- [INDEX](INDEX.md) — Full document and code index with runtime status
+- [RUNBOOK](RUNBOOK.md) — Deployment and operations manual
+- [API-SPEC](API-SPEC.md) — REST API endpoint definitions
+- [DATABASE-SCHEMA](DATABASE-SCHEMA.md) — Database table definitions
+- [17-Layer Analysis](../ANFSF%2017%20层理论架构%20—%20逐层详细设计分析.md) — Theoretical 17-layer architecture (⚠️ outdated, see note at top)

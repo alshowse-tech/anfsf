@@ -1,7 +1,9 @@
 # ANFSF 技术架构设计文档
 
-> **版本**: 1.0 | **日期**: 2026-05-31 | **状态**: Phase 1 开发依据
-> **关联文档**: [产品蓝图](product-discussion-2026-05-28.md) | [实施计划](IMPLEMENTATION-PLAN.md)
+> **版本**: 1.1 | **日期**: 2026-06-16 | **状态**: Phase 1 开发依据
+> ⚠️ **注意**: 七（目录结构）中的文件布局与实际代码不完全对齐。新增模块（Pipeline State Machine 等）已实现但目录结构需参考实际 `src/` 目录。
+> 已废弃的 `product-pipeline.ts`（703行）将在 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) Phase 3 中删除。
+> 关联文档: [产品蓝图](product-discussion-2026-05-28.md) | [实施计划](IMPLEMENTATION-PLAN.md) | [**真实状态审计**](ANFSF-REFACTOR-FIX.md)
 
 ---
 

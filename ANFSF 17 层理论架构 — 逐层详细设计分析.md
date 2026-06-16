@@ -1,5 +1,11 @@
 # ANFSF 17 层理论架构 — 逐层详细设计分析
 
+> ⚠️ **过时警告**: 本文档描述的是 ANFSF 的理论 17 层架构设计。当前系统实际运行架构为**五阶段状态机 + Agent Loop**，运行时接入率约 35%。
+> 17 层架构作为设计参考保留，但不应作为理解当前系统的出发点。
+> 当前系统真实状态请参阅 [docs/ANFSF-REFACTOR-FIX.md](docs/ANFSF-REFACTOR-FIX.md)。
+>
+> **路径问题**: 本文档原在 Linux 环境编写，引用路径 `/root/.openclaw/workspace-main/src/` 与当前 Windows 路径 `src/` 不匹配，请自行调整。
+
 > 基于 `/root/.openclaw/workspace-main/src/` 目录下所有 .ts 源文件的深度分析
 
 ---

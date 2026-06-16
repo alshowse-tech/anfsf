@@ -1,9 +1,9 @@
-# ANFSH Phase 1 模块集成计划（B 部分）
+# ANFSF 集成计划 — ⚠️ 已被 REFACTOR-FIX 取代
 
-> **前置条件**: Phase 1 核心开发完成（24 个模块，153 测试用例）
-> **目标**: 将独立模块接入 Fastify 服务器，使系统可通过 Web 界面完成"PRD→骨架"全流程
-> **预估工期**: 2-3 周（1 名后端开发 + 1 名前端开发）
-> **依赖文档**: [技术架构设计](TECHNICAL-DESIGN.md) | [API 设计规范](API-SPEC.md) | [数据库 Schema](DATABASE-SCHEMA.md)
+> **状态**: ⚠️ 已过时 | 本文档的 I-001~I-008 集成任务已并入 [ANFSF-REFACTOR-FIX.md](ANFSF-REFACTOR-FIX.md) Phase 0-2。
+> 请以 REFACTOR-FIX 为准。本文档保留供参考，不再更新。
+>
+> **原编制日期**: 2026-06-15 | **原基准**: IMPLEMENTATION-PLAN.md
 
 ---
 

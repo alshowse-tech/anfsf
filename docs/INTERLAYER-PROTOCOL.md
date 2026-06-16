@@ -1,5 +1,10 @@
 # ANFSF 层间协议（Interlayer Protocol）
 
+> ⚠️ **重要**: 本文档定义 17 层架构的完整协议，但当前系统以五阶段状态机 + Agent Loop 架构运行。
+> 运行时接入率约 35%。L1 (PRD 解析)、部分 L6 (代码生成)、L10 (CompileValidator) 已接入。
+> 其余层的协议描述的是"设计目标"，代码模块存在但未在运行时调用。
+> 详见 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) 和 [INDEX](INDEX.md) 的文件状态索引。
+>
 > 定义 17 层架构中每层的输入/输出格式、前置条件、后置条件。
 > 所有类型引用自 `src/` 下实际源文件。
 

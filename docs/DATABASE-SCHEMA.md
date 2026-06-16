@@ -1,6 +1,9 @@
 # ANFSF 数据库 Schema 设计
 
-> **版本**: 1.0 | **数据库**: SQLite 3 (Phase 1-2) → PostgreSQL 17 (Phase 3+)
+> **版本**: 1.1 | **日期**: 2026-06-16 | **数据库**: SQLite 3 (Phase 1-2) → PostgreSQL 17 (Phase 3+)
+> ⚠️ **实现状态**: 仅有 `pipeline_runs` 和 `run_steps` 表在运行时活跃使用。
+> Phase 1 新增的 `checkpoints` 等表已定义但运行时写入不完整。
+> 详见 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md)。
 
 ---
 

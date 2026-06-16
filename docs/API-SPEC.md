@@ -1,6 +1,9 @@
 # ANFSF API 设计规范
 
-> **版本**: 1.0 | **Phase 1 范围** | **Base URL**: `http://localhost:3000`
+> **版本**: 1.1 | **日期**: 2026-06-16 | **Phase 1 范围** | **Base URL**: `http://localhost:3000`
+> ⚠️ **实现状态标注**: 每个端点右侧标注了运行时实现状态。
+> ✅ 已实现并接入 | ⚠️ 代码存在但未接入运行时 | ❌ 未实现
+> 详细审计见 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md)
 
 ---
 
@@ -57,7 +60,7 @@
 
 ## 二、核心 API 端点
 
-### 2.1 提交 PRD（JSON）
+### 2.1 提交 PRD（JSON） ✅ 已实现
 
 ```
 POST /api/v1/synthesize
@@ -92,7 +95,7 @@ POST /api/v1/synthesize
 
 ---
 
-### 2.2 提交 PRD（Multipart，含附件）
+### 2.2 提交 PRD（Multipart，含附件） ✅ 已实现
 
 ```
 POST /api/v1/synthesize/multipart
@@ -106,7 +109,7 @@ POST /api/v1/synthesize/multipart
 
 ---
 
-### 2.3 需求确认
+### 2.3 需求确认 ⚠️ 路由存在但未接入 Agent Loop
 
 ```
 PUT /api/v1/pipeline/:jobId/requirements/confirm
@@ -141,7 +144,7 @@ PUT /api/v1/pipeline/:jobId/requirements/confirm
 
 ---
 
-### 2.4 获取项目状态
+### 2.4 获取项目状态 ✅ 已实现
 
 ```
 GET /api/v1/pipeline/:jobId
@@ -174,7 +177,7 @@ GET /api/v1/pipeline/:jobId
 
 ---
 
-### 2.5 获取项目列表
+### 2.5 获取项目列表 ✅ 已实现
 
 ```
 GET /api/v1/pipeline?limit=20&offset=0
@@ -201,7 +204,7 @@ GET /api/v1/pipeline?limit=20&offset=0
 
 ---
 
-### 2.6 SSE 实时进度流
+### 2.6 SSE 实时进度流 ✅ 已实现
 
 ```
 GET /api/v1/pipeline/:jobId/stream
@@ -226,7 +229,7 @@ data: {"stage":5,"state":"completed"}
 
 ---
 
-### 2.7 提交测试反馈
+### 2.7 提交测试反馈 ❌ 未实现（FixEngine 存在但未接入此路由）
 
 ```
 POST /api/v1/pipeline/:jobId/feedback
@@ -259,7 +262,7 @@ POST /api/v1/pipeline/:jobId/feedback
 
 ---
 
-### 2.8 提交需求变更
+### 2.8 提交需求变更 ❌ 未实现
 
 ```
 POST /api/v1/pipeline/:jobId/changes
@@ -295,7 +298,7 @@ POST /api/v1/pipeline/:jobId/changes
 
 ---
 
-### 2.9 确认/拒绝变更
+### 2.9 确认/拒绝变更 ❌ 未实现
 
 ```
 PUT /api/v1/pipeline/:jobId/changes/:changeId
@@ -311,7 +314,7 @@ PUT /api/v1/pipeline/:jobId/changes/:changeId
 
 ---
 
-### 2.10 发布确认
+### 2.10 发布确认 ⚠️ ReleaseCheck 模块存在但未接入此路由
 
 ```
 POST /api/v1/pipeline/:jobId/release
@@ -343,7 +346,7 @@ POST /api/v1/pipeline/:jobId/release
 
 ---
 
-### 2.11 获取度量报告
+### 2.11 获取度量报告 ⚠️ Archiver 模块存在但未接入此路由
 
 ```
 GET /api/v1/pipeline/:jobId/metrics
@@ -365,7 +368,7 @@ GET /api/v1/pipeline/:jobId/metrics
 
 ---
 
-### 2.12 健康检查
+### 2.12 健康检查 ✅ 已实现
 
 ```
 GET /health
@@ -388,7 +391,7 @@ Response (200): Prometheus 格式指标
 
 ---
 
-## 三、Gitea Webhook 端点
+## 三、Gitea Webhook 端点 ⚠️ 路由存在但未与 Webhook 触发完整对接
 
 ```
 POST /api/webhook/gitea
@@ -404,7 +407,7 @@ POST /api/webhook/gitea
 
 ---
 
-## 四、Token 预算 API
+## 四、Token 预算 API ⚠️ TokenBudget 模块存在但未完全暴露为此 API
 
 ### 4.1 获取预算状态
 

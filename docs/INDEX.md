@@ -1,258 +1,150 @@
 # ANFSF 文档索引（Document Index）
 
-> 版本: 1.0 | 日期: 2026-06-12 | 用途: 快速定位文档/代码/任务/决策
+> **版本**: 2.0 | **日期**: 2026-06-16 | **状态基准**: [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md)
+> **重要**: 本索引以 ANFSF-REFACTOR-FIX.md 的审计结论为基准。模块"代码已写+测试通过"不等于"已接入运行时"。运行时接入率约 35%。
 
 ---
 
 ## 使用方式
 
-本文档提供三种查询路径：
-
-**1. 按概念查** — 主表格（§2），从概念名出发，找到对应文档、代码、任务和决策
-**2. 按文件查** — 反向索引（§3），从代码文件出发，找到相关文档
-**3. 按任务查** — 任务索引（§4），从 T-xxx 出发，找到文档和代码
+1. **按概念查** — §1，从概念名出发找到文档和真实状态
+2. **按文件查** — §2，从代码文件出发找到运行时状态
+3. **按任务查** — §3，从 T-xxx/GAP 出发找到文档和代码
+4. **按文档查** — §4，文档清单及推荐度
 
 ---
 
 ## 一、概念索引（主表）
 
-| 概念 | 主文档(节) | 相关代码文件 | 关联任务 | 关联决策 |
-|------|-----------|------------|---------|---------|
-| **13 步端到端工作流** | BLUEPRINT §2 | pipeline-state-machine.ts | - | development-path §1.3 |
-|  |  | server/routes/synthesize.ts |  |  |
-| **GAP-01: AgentLoop 变体不足** | BLUEPRINT §3-1 | agents/code-generation-loop.ts | T-002 | development-path §1.1 |
-|  |  | agents/verification-runner.ts |  |  |
-| **GAP-02: 状态机线性拓扑** | BLUEPRINT §3-2 | pipeline/pipeline-state-machine.ts | T-001 | - |
-|  |  | pipeline/checkpoint.ts | T-003 |  |
-| **GAP-03: 进化引擎未接入** | BLUEPRINT §3-3 | core/evolution/offline-optimizer.ts | - | development-path §2 |
-|  |  | harness/evolution-harness.ts |  |  |
-|  |  | harness/ab-test-runner.ts |  |  |
-| **Phase 1 地基组** | PHASE1-SPECS T-001~T-004 | pipeline/pipeline-state-machine.ts | T-001 | technical-design §3 |
-|  |  | agents/code-generation-loop.ts | T-002 | technical-design §4 |
-|  |  | pipeline/checkpoint.ts | T-003 | technical-design §3-3 |
-|  |  | pipeline/token-budget.ts | T-004 | technical-design §3-4 |
-| **Phase 1 阶段一组** | PHASE1-SPECS T-101~T-105 | prd/prd-quality-check.ts | T-101 | technical-design §2-3 |
-|  |  | prd/confidence-annotator.ts | T-102 |  |
-|  |  | pipeline/skeleton-generator.ts | T-104 |  |
-| **Phase 1 阶段二/三组** | PHASE1-SPECS T-201~T-206 | integrations/gitea-client.ts | T-201 | - |
-|  |  | pipeline/code-annotator.ts | T-202 |  |
-|  |  | pipeline/contract-watcher.ts | T-203 |  |
-|  |  | pipeline/commit-verification.ts | T-204 |  |
-|  |  | pipeline/fault-reporter.ts | T-205 |  |
-|  |  | pipeline/task-generator.ts | T-206 |  |
-| **Phase 1 阶段四/五组** | PHASE1-SPECS T-301~T-305 | pipeline/fix-engine.ts | T-301 | development-path §1.5 |
-|  |  | pipeline/release-check.ts | T-304 |  |
-|  |  | pipeline/archiver.ts | T-305 |  |
-| **Phase 1 权限组(延后)** | PHASE1-SPECS T-401~T-403 | server/auth/roles.ts | T-401 | - |
-|  |  | web/src/components/ProjectDashboard.tsx | T-402 |  |
-|  |  | web/src/components/DeveloperWorkspace.tsx | T-403 |  |
-| **Phase 1 联调组(延后)** | PHASE1-SPECS T-501~T-503 | (全流程) | T-501 | - |
-|  |  | (Bug 修复) | T-502 |  |
-| **T-303 PM 测试审查(已延)** | PHASE1-SPECS T-303 | web/src/components/TestFeedback.tsx | T-303 | BLUEPRINT §2-Step9 |
-|  |  | server/routes/feedback.ts |  |  |
-| **FixEngine 三级修复矩阵** | PHASE1-SPECS T-301 | pipeline/fix-engine.ts | T-301 | development-path §1.5 |
-|  |  | pipeline/code-annotator.ts | T-202 |  |
-| **Agent Loop 不生成业务逻辑** | development-path §5.1 | agents/code-generation-loop.ts | - | technical-design §1.1 |
-|  |  | core/evolution/backend-architect.ts |  |  |
-| **Stage 2 保持黑盒** | development-path §5.1 | (无代码) | - | development-path §5.1 |
-| **检查点覆盖所有阶段** | development-path §5.1 | pipeline/checkpoint.ts | T-003 | - |
-| **骨架生成定位** | development-path §1.2 | agents/code-generation-loop.ts | T-002 | development-path §1.2 |
-|  |  | pipeline/skeleton-generator.ts | T-104 |  |
-| **三类 Agent Loop** | development-path §3 | agents/agent-loop-base.ts, code-generation-loop.ts | GAP-01 | BLUEPRINT §3-1 |
-|  |  | agents/dev-fix-loop.ts | GAP-04 |  |
-|  |  | agents/test-gen-loop.ts | GAP-05 |  |
-| **三种进化(组件/编译/经验)** | development-path §2 | pipeline/component-miner.ts | GAP-01/06 | development-path §2 |
-|  |  | pipeline/compile-learning-db.ts |  |  |
-|  |  | pipeline/retrospective-engine.ts |  |  |
-| **Skill/Harness 可用性** | development-path §2(各段) | skills/hybrid-retriever-skill.ts | - | development-path §2 |
-|  |  | storage/knowledge-base.ts |  |  |
-|  |  | integrations/graphrag.ts |  |  |
-| **17 层理论** | 根目录 17层分析.md | (全部 src/) | - | BLUEPRINT 附录B |
-| **17 层 vs 实际对比** | 根目录 17层对比.md | - | - | development-path 附录B |
-| **Phase 2 计划** | BLUEPRINT §4-Phase2 | agents/ | GAP-03~10 | 完成 |
-| **Phase 3 计划** | BLUEPRINT 짧4-Phase3 | pipeline/component-miner.ts, knowledge-bridge.ts | GAP-11~14 | 完成 |
-| **Phase 4 计划** | BLUEPRINT 짧4-Phase4 | pipeline/metrics-collector.ts, introspection-engine.ts | GAP-15~18 | 进行中 |
-| **17 层认知内核 L4** | 17层分析.md L4 | req-graph/graph-engine.ts | - | BLUEPRINT §3 |
-|  |  | memory/temporal_kg.ts |  |  |
-| **输入治理 L3** | 17层分析.md L3 | input-governance/governance.ts | - | - |
-|  |  | core/synthesizer/veto/veto-enforcer.ts |  |  |
-| **部署 L15** | 17层分析.md L15 | harness/canary-deployer.ts | - | - |
-|  |  | harness/canary-health-check.ts |  |  |
-|  |  | integrations/github-ci.ts |  |  |
-| **运行时智能 L16** | 17层分析.md L16 | core/role/kpi-engine.ts | - | - |
-|  |  | harness/kpi-dashboard.ts |  |  |
-| **进化护栏 L17** | 17层分析.md L17 | harness/evolution-harness.ts | - | - |
-|  |  | agents/external-review-agent.ts |  |  |
-| **安全与审计** | audit-report.md §2 | .env / prd-parser.ts | T-502 | - |
-|  |  | server/middleware/auth.ts |  |  |
+> 状态说明：✅ 已接入运行时 | ⚠️ 代码存在但未接入 | ❌ 未实现 | ⏸ 已延后
+
+| 概念 | 主文档 | 运行时状态 | 说明 |
+|------|--------|-----------|------|
+| **13 步端到端工作流** | [BLUEPRINT](ANFSF-BLUEPRINT.md) §2 | ⚠️ 部分 | 仅 Step 1-4 部分跑通，Step 5-13 未接入 |
+| **五阶段状态机** | [TECHNICAL-DESIGN](TECHNICAL-DESIGN.md) §3 | ⚠️ 部分 | 仅 stage1_parsing→stage1_done 两个状态转换在运行 |
+| **Agent Loop** | [TECHNICAL-DESIGN](TECHNICAL-DESIGN.md) §4 | ✅ 已接入 | CodeGenerationLoop 运行中 |
+| **验证链** | [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) §1-1 | ⚠️ 部分 | 仅 CompileValidator 活跃，3 个 Skill 未接入 |
+| **PRD 质量预检** | [PHASE1-SPECS](PHASE1-TASK-SPECS.md) T-101 | ✅ 已接入 | prd-quality-check.ts 在 synthesize 路由中调用 |
+| **置信度标注** | [PHASE1-SPECS](PHASE1-TASK-SPECS.md) T-102 | ✅ 已接入 | confidence-annotator.ts 在 synthesize 路由中调用 |
+| **骨架生成** | [TECHNICAL-DESIGN](TECHNICAL-DESIGN.md) §4 | ✅ 已接入 | 通过 Agent Loop 生成骨架代码 |
+| **Gitea 集成** | [TECHNICAL-DESIGN](TECHNICAL-DESIGN.md) §6 | ⚠️ 部分 | gitea-client.ts 存在但 push 功能有 bug（缺 SHA） |
+| **代码标注** | [PHASE1-SPECS](PHASE1-TASK-SPECS.md) T-202 | ✅ 已接入 | code-annotator.ts 存在 |
+| **提交验证** | [PHASE1-SPECS](PHASE1-TASK-SPECS.md) T-204 | ⚠️ 未触发 | commit-verification.ts 存在但 webhook 未接入运行时 |
+| **FixEngine** | [PHASE1-SPECS](PHASE1-TASK-SPECS.md) T-301 | ✅ 已接入 | fix-engine.ts 存在 |
+| **发布检查** | [PHASE1-SPECS](PHASE1-TASK-SPECS.md) T-304 | ✅ 已接入 | release-check.ts 存在 |
+| **项目归档** | [PHASE1-SPECS](PHASE1-TASK-SPECS.md) T-305 | ✅ 已接入 | archiver.ts 存在 |
+| **PM 需求确认** | [BLUEPRINT](ANFSF-BLUEPRINT.md) §2-Step3 | ❌ 未接入 | RequirementReview 组件存在但路由未有效使用 |
+| **PM 测试审查** | [PHASE1-SPECS](PHASE1-TASK-SPECS.md) T-303 | ⏸ 延后 | 延至全流程联调 |
+| **角色管理** | [PHASE1-SPECS](PHASE1-TASK-SPECS.md) T-401 | ⏸ 延后 | 单用户模式先行 |
+| **Skills 注册** | [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) §2-1 | ❌ no-op | 18 个 Skill 从未在运行时注册 |
+| **17 层流水线** | [17层分析](ANFSF%2017%20层理论架构%20—%20逐层详细设计分析.md) | ❌ 已废弃 | 已被五阶段状态机取代 |
+| **进化引擎** | [DEVELOPMENT-PATH](ANFSF-DEVELOPMENT-PATH.md) §2 | ❌ 未接入 | 7 个进化模块存在但未接入 Pipeline |
 
 ---
 
-## 二、文件反向索引
+## 二、文件状态索引
 
-以代码文件为主键，反向查找相关文档和任务。
+### 运行时活跃的代码文件
 
-### src/agents/
+| 文件 | 活跃角色 | 说明 |
+|------|---------|------|
+| `src/server/index.ts` | 入口 | Fastify 启动 |
+| `src/server/routes/synthesize.ts` | 主 API | POST /api/v1/synthesize |
+| `src/server/routes/pipeline.ts` | 状态 API | GET /api/v1/pipeline/:id/status |
+| `src/pipeline/pipeline-state-machine.ts` | 状态机 | 仅 2 个状态转换 |
+| `src/agents/code-generation-loop.ts` | Agent Loop | 生成→验证→修复循环 |
+| `src/agents/verification-runner.ts` | 验证调度 | 仅 CompileValidator |
+| `src/prd/prd-parser.ts` | PRD 解析 | LLM 解析 |
+| `src/prd/prd-quality-check.ts` | 质量预检 | 四维评分 |
+| `src/prd/confidence-annotator.ts` | 置信度 | 🟢🟡🔴 标注 |
+| `src/pipeline/skeleton-generator.ts` | 骨架生成 | Agent Loop 集成 |
+| `src/pipeline/task-generator.ts` | 任务生成 | TASK.md 生成 |
+| `src/integrations/llm-client.ts` | LLM 客户端 | 多 Provider |
+| `src/integrations/gitea-client.ts` | Gitea | push 功能有 bug |
 
-| 文件 | 相关文档 | 关联任务 |
-|------|---------|---------|
-| code-generation-loop.ts | BLUEPRINT §3-1, development-path §1.1, technical-design §4 | T-002 |
-| verification-runner.ts | BLUEPRINT §3-1 | T-002 |
-| agent-os.ts | 17层分析.md L9 | - |
-| coordination-protocol.ts | 17层分析.md L9 | - |
-| external-review-agent.ts | 17层分析.md L17 | - |
+### 代码存在但未接入运行时的文件
 
-### src/pipeline/
+| 文件 | 模块类别 | 接入优先级(REF努力) |
+|------|---------|-----------------|
+| `src/skills/code-quality-guard-skill.ts` | 验证链 | P1 — Phase 1 接入 |
+| `src/skills/hallucination-guard-skill.ts` | 验证链 | P1 — Phase 1 接入 |
+| `src/skills/security-auditor-skill.ts` | 验证链 | P1 — Phase 1 接入 |
+| `src/harness/skills-registration.ts` | 编排 | P2 — Phase 2 注册 |
+| `src/harness/governance-harness.ts` | 治理 | P2 — Phase 2 接入 |
+| `src/input-governance/governance.ts` | 输入安全 | P2 — Phase 2 接入 |
+| `src/core/evolution/*.ts` (7个) | 进化 | P3 — Phase 3 |
+| `src/harness/agent-harness.ts` | 部署 | P3 — Phase 3 |
+| `src/core/contract/*.ts` (4个) | 契约引擎 | P3 — Phase 3 |
+| `src/core/graph/graph-engine.ts` | 需求图 | P3 — Phase 3 |
 
-| 文件 | 相关文档 | 关联任务 |
-|------|---------|---------|
-| pipeline-state-machine.ts | BLUEPRINT §3-2, technical-design §3 | T-001 |
-| checkpoint.ts | development-path §5.1, technical-design §3-3 | T-003 |
-| token-budget.ts | technical-design §3-4 | T-004 |
-| product-pipeline.ts | BLUEPRINT §1(旧架构) | - |
-| skeleton-generator.ts | BLUEPRINT §2-Step4 | T-104 |
-| code-annotator.ts | BLUEPRINT §2-Step5/6, development-path §2 | T-202 |
-| commit-verification.ts | BLUEPRINT §2-Step6 | T-204 |
-| contract-watcher.ts | BLUEPRINT §2-Step6 | T-203 |
-| fault-reporter.ts | BLUEPRINT §2-Step6 | T-205 |
-| fix-engine.ts | BLUEPRINT §2-Step7, development-path §1.5 | T-301 |
-| task-generator.ts | BLUEPRINT §2-Step4, technical-design §2-3 | T-206 |
-| knowledge-bridge.ts | development-path ?2(???) | GAP-12 |
-| release-check.ts | PHASE1-SPECS T-304 | T-304 |
-| metrics-collector.ts | BLUEPRINT ?4-Phase4 | GAP-15 |
-| archiver.ts | PHASE1-SPECS T-305 | T-305 |
-
-### src/prd/
-
-| 文件 | 相关文档 | 关联任务 |
-|------|---------|---------|
-| prd-parser.ts | 17层分析.md L1 | - |
-| prd-quality-check.ts | BLUEPRINT §2-Step2, PHASE1-SPECS T-101 | T-101 |
-| confidence-annotator.ts | BLUEPRINT §2-Step3, PHASE1-SPECS T-102 | T-102 |
-
-### src/server/
-
-| 文件 | 相关文档 | 关联任务 |
-|------|---------|---------|
-| index.ts | ARCHITECTURE.md, BLUEPRINT §2 | - |
-| routes/feedback.ts | BLUEPRINT §2-Step9 | T-303 |
-| routes/knowledge.ts | BLUEPRINT ?4-Phase4 | GAP-12/15 |
-| routes/synthesize.ts | API-SPEC.md | - |
-| store.ts | DATABASE-SCHEMA.md | - |
-| auth/roles.ts | PHASE1-SPECS T-401 | T-401 |
-| middleware/auth.ts | audit-report.md | - |
-
-### src/core/
-
-| 文件 | 相关文档 | 关联任务 |
-|------|---------|---------|
-| evolution/ | 17层分析.md L16/L17 | - |
-| contract/ | 17层分析.md L7 | - |
-| quality/ | 17层分析.md L10 | - |
-
-### src/skills/
-
-| 文件 | 相关文档 | 关联任务 |
-|------|---------|---------|
-| retrospective-engine.ts | development-path §2(进化三) | - |
-| hybrid-retriever-skill.ts | development-path §2(进化一) | - |
-| all others | 17层分析.md §四(技能库) | - |
-
-### src/harness/
-
-| 文件 | 相关文档 | 关联任务 |
-|------|---------|---------|
-| evolution-harness.ts | 17层分析.md L17 | - |
-| canary-deployer.ts | 17层分析.md L15 | - |
-| canary-health-check.ts | 17层分析.md L15 | - |
-| ab-test-runner.ts | 17层分析.md L16 | - |
-
-### web/src/components/
-
-| 文件 | 相关文档 | 关联任务 |
-|------|---------|---------|
-| TestFeedback.tsx | BLUEPRINT §2-Step9 | T-303(已延) |
-| ProjectDashboard.tsx | PHASE1-SPECS T-402 | T-402 |
-| DeveloperWorkspace.tsx | PHASE1-SPECS T-403 | T-403 |
-| RequirementReview.tsx | BLUEPRINT §2-Step3 | T-103 |
-| PRDForm.tsx | BLUEPRINT §2-Step1 | - |
+> 完整未接入模块清单见 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) 附录 A
 
 ---
 
-| GAP-01 | AgentLoop 变体不足 | BLUEPRINT §3-1 | agents/agent-loop-base.ts, code-generation-loop.ts, dev-fix-loop.ts, test-gen-loop.ts | 完成 |
-| GAP-02 | 状态机拓扑 | BLUEPRINT §3-2 | pipeline-state-machine.ts (19 states) | 完成 |
-| GAP-03 | 进化引擎接入 | BLUEPRINT §3-3 | evolution-runner.ts, recovery-engine.ts | 完成 |
-| GAP-04 | DevFixLoop | BLUEPRINT §3-1 | dev-fix-loop.ts | 完成 |
-| GAP-05 | TestGenLoop | BLUEPRINT §3-1 | test-gen-loop.ts | 完成 |
-| GAP-06 | L1 FixExecutor | BLUEPRINT §2-Step7 | fix-executor.ts | 完成 |
-| T-003 | 检查点与恢复 | PHASE1-SPECS T-003 | checkpoint.ts | 完成 |
-| T-004 | Token 预算 | PHASE1-SPECS T-004 | token-budget.ts | 完成 |
-| GAP-09 | CompileLearningDB | development-path §2(进化二) | compile-learning-db.ts | 完成 |
-| GAP-10 | ComponentMiner | development-path §2(进化一) | component-miner.ts | 完成 |
-| GAP-11 | PromptInjectionEngine | development-path §2(进化二) | knowledge-bridge.ts | 完成 |
-| GAP-12 | 知识库增量更新 | development-path §2(进化三) | knowledge-bridge.ts, routes/knowledge.ts | 完成 |
-| T-105 | 部署形态确认 | PHASE1-SPECS T-105 | - | 完成 |
-| T-201 | Gitea 对接 | PHASE1-SPECS T-201 | gitea-client.ts | 完成 |
-| GAP-15 | 架构自省 | BLUEPRINT §4-Phase4 | introspection-engine.ts, metrics-collector.ts, routes/knowledge.ts | 完成 |
-| T-203 | 契约检查触发 | PHASE1-SPECS T-203 | contract-watcher.ts | 完成 |
-| T-204 | 提交验证流水线 | PHASE1-SPECS T-204 | commit-verification.ts | 完成 |
-| T-205 | 故障报告 | PHASE1-SPECS T-205 | fault-reporter.ts | 完成 |
-| T-206 | 任务包生成 | PHASE1-SPECS T-206 | task-generator.ts | 完成 |
-| T-301 | 分级修复引擎 | PHASE1-SPECS T-301, development-path §1.5 | fix-engine.ts | 完成 |
-| T-302 | 回归测试触发 | PHASE1-SPECS T-302 | regression-runner.ts | 完成 |
-| T-303 | PM 测试审查界面 | PHASE1-SPECS T-303, BLUEPRINT §2-Step9 | TestFeedback.tsx | 延后 |
-| T-304 | 发布检查清单 | PHASE1-SPECS T-304 | release-check.ts | 完成 |
-| T-305 | 项目归档 | PHASE1-SPECS T-305 | archiver.ts | 完成 |
-| T-401 | 角色模型 | PHASE1-SPECS T-401 | roles.ts | 延后 |
-| T-402 | 项目看板前端 | PHASE1-SPECS T-402 | ProjectDashboard.tsx | 延后 |
-| T-403 | 开发工作台 | PHASE1-SPECS T-403 | DeveloperWorkspace.tsx | 延后 |
-| T-501 | 全流程联调 | PHASE1-SPECS T-501 | (全流程) | 延后 |
-| T-502 | Bug 修复 | PHASE1-SPECS T-502 | (多处) | 延后 |
-| T-503 | 测试套件保持 | PHASE1-SPECS T-503 | __tests__/ | 持续 |
-| GAP-01 | AgentLoop 变体不足 | BLUEPRINT §3-1 | (需新建) agent-loop-base.ts | Phase 2 |
-| GAP-02 | 状态机拓扑 | BLUEPRINT §3-2 | pipeline-state-machine.ts(改造) | Phase 2 |
-| GAP-03 | 进化引擎接入 | BLUEPRINT §3-3 | (多文件) | Phase 3 |
-| GAP-04 | DevFixLoop | BLUEPRINT §3-1 | (需新建) dev-fix-loop.ts | Phase 2 |
-| GAP-05 | TestGenLoop | BLUEPRINT §3-1 | (需新建) test-gen-loop.ts | Phase 2 |
-| GAP-06 | L1 FixExecutor | BLUEPRINT §2-Step7 | fix-engine.ts(扩展) | Phase 2 |
-| GAP-07 | PM UAT 串联 | BLUEPRINT §2-Step9 | TestFeedback.tsx(扩展) | Phase 2 |
-| GAP-08 | PRDQualityCheckV2 | BLUEPRINT §2-Step2 | prd-quality-check.ts(扩展) | Phase 2 |
-| GAP-09 | CompileLearningDB | development-path §2(进化二) | (需新建) | Phase 2 |
-| GAP-10 | ComponentMiner | development-path §2(进化一) | (需新建) | Phase 3 |
-| GAP-11 | PromptInjectionEngine | development-path §2(进化二) | code-generation-loop.ts(扩展) | Phase 2 |
-| GAP-12 | 知识库增量更新 | development-path §2(进化三) | knowledge-base.ts(扩展) | Phase 3 |
-| GAP-13 | 多形态输出 | IMPLEMENTATION-PLAN §3 | skeleton-generator.ts(扩展) | Phase 3 |
-| GAP-14 | 工单系统 | IMPLEMENTATION-PLAN §3 | (需新建) | Phase 3 |
-| GAP-16 | 多租户 | tenant.ts, pipeline-state-machine.ts | 完成 |
-| GAP-17 | 多项目管理 | project.ts, routes/projects.ts | 完成 |
-| GAP-18 | 健康度看板 | health-dashboard.ts, routes/dashboard.ts | 完成 |
+## 三、GAP 与任务索引
+
+> 统一来源：以 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) 为基准，标注运行时接入状态
+
+| 编号 | 名称 | 代码状态 | 运行时状态 | 阶段 |
+|------|------|---------|-----------|------|
+| GAP-01 | AgentLoop 抽象基类 | ✅ agent-loop-base.ts 已创建 | ⚠️ DevFixLoop/TestGenLoop 未接入 | Phase 2 |
+| GAP-02 | 状态机拓扑 | ✅ 19 状态已实现 | ⚠️ 仅 2 个状态转换活跃 | Phase 2 |
+| GAP-03 | 进化引擎接入 | ✅ evolution-runner.ts 存在 | ❌ 未接入 Pipeline | Phase 3 |
+| GAP-04 | DevFixLoop | ✅ dev-fix-loop.ts 存在 | ❌ 未接入运行时 | Phase 2 |
+| GAP-05 | TestGenLoop | ✅ test-gen-loop.ts 存在 | ❌ 未接入运行时 | Phase 2 |
+| GAP-06 | L1 FixExecutor | ✅ fix-executor.ts 存在 | ⚠️ 已接入但触发条件未激活 | Phase 2 |
+| GAP-09 | CompileLearningDB | ✅ 存在 | ❌ 未接入 | Phase 2 |
+| GAP-10 | ComponentMiner | ✅ 存在 | ❌ 未接入 | Phase 2 |
+| GAP-11 | PromptInjectionEngine | ✅ 存在 | ❌ 未接入 | Phase 2 |
+| GAP-12 | 知识库增量更新 | ✅ 存在 | ❌ 未接入 | Phase 3 |
+| GAP-15 | 架构自省 | ✅ 存在 | ❌ 未接入 | Phase 4 |
+| T-001~T-004 | 地基组 | ✅ 完成 | ⚠️ 仅部分接入运行时 | 完成 |
+| T-101~T-105 | 阶段一组 | ✅ 完成 | ⚠️ 仅部分接入运行时 | 完成 |
+| T-201~T-206 | 阶段二/三组 | ✅ 完成 | ⚠️ 仅部分接入运行时 | 完成 |
+| T-301~T-305 | 阶段四/五组 | ✅ 完成 | ⚠️ 仅部分接入运行时 | 完成 |
+| T-401~T-403 | 权限+前端组 | ⏸ 延后 | ❌ 未开始 | 延后 |
+| T-501~T-503 | 联调组 | ⏸ 延后 | ❌ 未开始 | 延后 |
+| I-001~I-008 | 集成任务 | ❌ 未开始 | ❌ 未开始 | 见 REFACTOR-FIX |
 
 ---
 
-## 四、文档一览
+## 四、文档清单与推荐度
 
-| 文档 | 主题 | 篇幅 | 核心读者 |
-|------|------|------|---------|
-| ANFSF-BLUEPRINT.md | 宏观蓝图(13步/3缺口/路线图) | ~12KB | 架构师/PM |
-| ANFSF-DEVELOPMENT-PATH.md | 执行路径(锁定决策/进化/序列) | ~11KB | 所有开发者 |
-| IMPLEMENTATION-PLAN.md | Phase 1 25项任务完整记录 | ~15KB | PM/开发者 |
-| PHASE1-TASK-SPECS.md | 每项任务的详细规格 | ~30KB | 实施者 |
-| TECHNICAL-DESIGN.md | 架构设计(状态机/Agent/LLM) | ~20KB | 架构师/后端 |
-| ARCHITECTURE.md | 系统架构图/部署图/组件表 | ~15KB | 入门阅读 |
-| API-SPEC.md | REST API 端点定义 | ~5KB | 前端/后端 |
-| DATABASE-SCHEMA.md | 11张表 DDL | ~5KB | 后端 |
-| 17层理论分析.md | 逐层详细设计 | ~25KB | 架构师(备查) |
-| 17层 vs 实际.md | 理论/实际对比表 | ~10KB | 架构师(备查) |
-| audit-report.md | ANFSF vs Claude Code + P0/P1 问题 | ~15KB | 架构师(备查) |
-| product-discussion.md | 产品方向讨论(55条共识) | ~20KB | PM/决策者 |
-| INTEGRATION-PLAN.md | 外部系统集成计划 | ~5KB | 后端 |
-| INTERLAYER-PROTOCOL.md | 层间通信协议 | ~5KB | 架构师 |
-| RUNBOOK.md | 部署/监控/备份/故障处理 | ~8KB | DevOps |
-| UI-REFACTOR-PLAN.md | 前端重构计划 | ~5KB | 前端 |
-| DEVELOPMENT-STANDARDS.md | 编码规范 | ~3KB | 所有开发者 |
+| 文档 | 主题 | 推荐度 | 说明 |
+|------|------|--------|------|
+| [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) | **当前真实状态审计** | ⭐⭐⭐ 必读 | 唯一准确反映系统运行时状态的文档 |
+| [ANFSF-OS-UI-REFACTOR](ANFSF-OS-UI-REFACTOR.md) | 前端重构执行记录 | ⭐⭐⭐ 必读 | Phase A-C 全部完成，含变更清单 |
+| [claude-code-review](claude-code-review.md) | 代码审查记录 | ⭐⭐ 推荐 | 最新审查结果（2026-06-15） |
+| [ANFSF-DEVELOPMENT-PATH](ANFSF-DEVELOPMENT-PATH.md) | 执行路径与锁定决策 | ⭐⭐ 推荐 | 架构决策仍有效，但状态标记需以 REFACTOR-FIX 为准 |
+| [ANFSF-BLUEPRINT](ANFSF-BLUEPRINT.md) | 宏观蓝图 | ⭐⭐ 推荐 | 13步流程和3缺口分析有效，完成状态需以 REFACTOR-FIX 为准 |
+| [TECHNICAL-DESIGN](TECHNICAL-DESIGN.md) | 技术架构设计 | ⭐⭐ 推荐 | 五阶段状态机和Agent Loop设计有效，目录结构需对齐实际代码 |
+| [IMPLEMENTATION-PLAN](IMPLEMENTATION-PLAN.md) | Phase 1 任务规格 | ⭐ 参考 | 25项任务代码已完成但接入率约35%，状态描述需以 REFACTOR-FIX 为准 |
+| [PHASE1-TASK-SPECS](PHASE1-TASK-SPECS.md) | 任务详细规格 | ⭐ 参考 | 任务输入/输出/验收标准仍有效 |
+| [API-SPEC](API-SPEC.md) | REST API 端点定义 | ⭐ 参考 | 端点定义有效，需标注实现状态（见本文§二） |
+| [DATABASE-SCHEMA](DATABASE-SCHEMA.md) | 数据库 Schema | ⭐ 参考 | 表结构有效 |
+| [development-discussion](product-discussion-2026-05-28.md) | 产品方向讨论 | ⭐ 参考 | 55条共识仍有效 |
+| [INTERLAYER-PROTOCOL](INTERLAYER-PROTOCOL.md) | 17层协议定义 | ⚠️ 过时 | 描述17层理论架构，已被五阶段状态机取代，仅作参考 |
+| [17层分析](ANFSF%2017%20层理论架构%20—%20逐层详细设计分析.md) | 理论架构详解 | ⚠️ 过时 | 路径引用过时，实现率描述与实际不符 |
+| [17层对比](ANFSF%2017%20层理论架构%20vs%20实际实现对比分析.md) | 理论vs实际对比 | ⚠️ 过时 | 引用路径为Linux，实现率统计方式需注意 |
+| [UI-REFACTOR-PLAN](UI-REFACTOR-PLAN.md) | 前端重构计划 | ⚠️ 已被取代 | 已被 ANFSF-OS-UI-REFACTOR 取代 |
+| [INTEGRATION-PLAN](INTEGRATION-PLAN.md) | 集成计划 | ⚠️ 已被取代 | I-001~I-008 已并入 REFACTOR-FIX Phase 0-2 |
+| [audit-report](audit-report.md) | 安全审计 | ⚠️ 部分过时 | 2026-05-21 审计，部分P0/P1标记已修复但需验证 |
+| [DEVELOPMENT-STANDARDS](DEVELOPMENT-STANDARDS.md) | 编码规范 | ✅ 有效 | 规范本身有效，但实际执行需加强 |
+| [ARCHITECTURE](ARCHITECTURE.md) | 系统架构 | ⚠️ 需更新 | 仍描述17层架构，需更新为五阶段+Agent Loop |
+| [RUNBOOK](RUNBOOK.md) | 运维手册 | ✅ 有效 | 部署和运维信息有效，需补充文档链接 |
+| [SECURITY](../SECURITY.md) | 安全策略 | ⚠️ 需更新 | 缺少联系邮箱 |
 
+---
 
+## 五、状态定义说明
 
+本文档使用以下状态标记：
 
+| 标记 | 含义 |
+|------|------|
+| ✅ 已接入运行时 | 代码在 synthesize 路由或其他活跃路径中被调用 |
+| ⚠️ 代码存在但未接入 | 文件存在、测试通过，但运行时不调用 |
+| ❌ 未实现/未接入 | 代码不存在或完全为空壳 |
+| ⏸ 已延后 | 计划延后执行 |
 
-
+**核心区分**："代码已写+测试通过" ≠ "已接入运行时"。详见 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) §1.1。

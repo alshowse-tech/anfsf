@@ -1,8 +1,11 @@
 # ANFSF 落地实施计划
 
 > **基准文档**: [产品蓝图](product-discussion-2026-05-28.md)（十四章，55 条共识）
-> **编制日期**: 2026-05-31
-> **状态**: ✅ Phase 1 完成 — 25/25 任务全部交付
+> **编制日期**: 2026-05-31 | **最后更新**: 2026-06-16
+> **状态**: ⚠️ Phase 1 代码完成 25/25，但运行时接入率约 35%。详见 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md)。
+
+> **重要澄清**: "25/25 任务全部交付"意味着代码已编写且单元测试通过，**不代表**代码已接入运行时流水线。
+> 实际活跃路径仅有 `synthesize → PRDQualityCheck → AgentLoop → TaskGenerator → GiteaClient`。
 
 ---
 
@@ -699,17 +702,26 @@ Tests:       10 failed, 1375 passed, 1385 total (99.3%)
 | T-501 | 全流程联调测试 | 5d | 端到端跑通 |
 | T-502 | Bug 修复与边缘场景 | 3d | 收尾 |
 
+> ⚠️ **运行时接入状态**: 以上收尾组任务尚未开始。更重要的是，已完成任务的代码**测试通过但不等于运行时已接入**。
+> 详细审计见 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md)。
+>
+> **当前活跃运行时路径**:
+> `synthesize → PRDQualityCheck → ConfidenceAnnotator → CodeGenerationLoop(CompileValidator) → TaskGenerator → GiteaClient`
+>
+> **未接入的关键模块**: SkillsRegistry(18个Skill未注册)、Stage 2-5状态转换、Webhook触发验证、FixEngine触发、进化引擎(7个模块全部standby)
+
 [详细规格](PHASE1-TASK-SPECS.md)
 
 ---
 
 ## 十一、参考文档索引
 
-| # | 文档 | 内容 | 读者 |
-|---|------|------|------|
-| 1 | [产品蓝图](product-discussion-2026-05-28.md) | WHAT——产品功能与设计 | 全员 |
-| 2 | [技术架构设计](TECHNICAL-DESIGN.md) | HOW——系统架构、组件交互、数据流 | 后端必读 |
-| 3 | [Phase 1 任务规格](PHASE1-TASK-SPECS.md) | TASK——25 项任务的输入/输出/验收标准 | 开发必读 |
-| 4 | [API 设计规范](API-SPEC.md) | API——所有 REST 端点定义 | 后端 + 前端 |
-| 5 | [数据库 Schema](DATABASE-SCHEMA.md) | DB——11 张表结构、索引、ER 关系 | 后端 |
-| 6 | [开发规范](DEVELOPMENT-STANDARDS.md) | RULE——代码风格、Git 流程、测试要求 | 全员 |
+| # | 文档 | 内容 | 读者 | 状态基准 |
+|---|------|------|------|---------|
+| 0 | [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) | **当前系统真实状态审计** | 全员必读 | ⭐ 基准 |
+| 1 | [产品蓝图](product-discussion-2026-05-28.md) | WHAT——产品功能与设计 | 全员 | 有效 |
+| 2 | [技术架构设计](TECHNICAL-DESIGN.md) | HOW——状态机、Agent Loop、数据流 | 后端必读 | 有效（目录结构需对齐） |
+| 3 | [Phase 1 任务规格](PHASE1-TASK-SPECS.md) | TASK——25 项任务规格 | 开发必读 | 参考（状态以 REFACTOR-FIX 为准） |
+| 4 | [API 设计规范](API-SPEC.md) | API——REST 端点定义 | 后端 + 前端 | 参考（需标注实现状态） |
+| 5 | [数据库 Schema](DATABASE-SCHEMA.md) | DB——11 张表结构 | 后端 | 参考 |
+| 6 | [开发规范](DEVELOPMENT-STANDARDS.md) | RULE——代码风格、Git 流程 | 全员 | 有效 |

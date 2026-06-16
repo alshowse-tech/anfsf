@@ -11,7 +11,7 @@
 We take security seriously. If you discover a vulnerability in ANFSF, please follow these steps:
 
 1. **Do NOT open a public issue** for security vulnerabilities
-2. Email your findings to the project maintainers
+2. Email your findings to the project maintainers at **security@anfsf.dev** (or open a private issue if email is unavailable)
 3. Include:
    - A description of the vulnerability
    - Steps to reproduce

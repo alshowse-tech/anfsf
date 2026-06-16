@@ -1,5 +1,7 @@
 # ANFSF Operation Manual
 
+> **版本**: 2.0 | **日期**: 2026-06-16 | **状态基准**: [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md)
+
 ## Quick Start
 
 ```bash
@@ -289,42 +291,12 @@ make test
 make build
 ```
 
-## Directory Structure
+## Documentation
 
-```
-anfsf/
-├── src/                          # Backend TypeScript
-│   ├── server/                   # Fastify HTTP layer
-│   │   ├── routes/               # API endpoints
-│   │   ├── middleware/           # Auth, rate-limit, tracing
-│   │   ├── store.ts              # SQLite run store
-│   │   └── store-postgres.ts     # PostgreSQL run store
-│   ├── pipeline/                 # 17-layer pipeline orchestrator
-│   ├── skills/                   # LLM-powered skills registry
-│   ├── input/                    # Multi-format PRD processing
-│   ├── input-governance/         # Sanitization and injection detection
-│   ├── integrations/             # LLM client, GraphRAG, MCP
-│   ├── agents/                   # Agent OS and coordination
-│   ├── core/                     # Graph IR, evolution, quality, roles
-│   ├── observability/            # Prometheus metrics + logging
-│   └── mcp/                      # Model Context Protocol bus
-├── web/                          # React frontend
-│   ├── src/
-│   │   ├── components/           # UI components
-│   │   ├── hooks/                # SSE, run queries
-│   │   └── api/client.ts         # Typed API client
-│   └── nginx.conf                # Production nginx config
-├── docs/                         # Documentation
-│   ├── ARCHITECTURE.md           # This document
-│   └── RUNBOOK.md                # Operations manual
-├── infra/                        # Infrastructure configs
-│   └── grafana/                  # Grafana dashboards
-├── scripts/                      # Backup, migration, utilities
-├── .github/workflows/            # CI/CD pipeline
-├── docker-compose.yml            # Full stack definition
-├── Dockerfile                    # Backend multi-stage build
-├── Dockerfile.frontend           # Frontend build
-├── Makefile                      # Build/deploy/backup targets
-├── package.json                  # Dependencies
-└── tsconfig.json                 # TypeScript config
-```
+- [Architecture](ARCHITECTURE.md) — System architecture (five-stage state machine + Agent Loop)
+- [Runbook](RUNBOOK.md) — This document
+- [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md) — **Current system status audit** (start here)
+- [API Spec](API-SPEC.md) — REST API endpoints
+- [Database Schema](DATABASE-SCHEMA.md) — Database table definitions
+- [Development Standards](DEVELOPMENT-STANDARDS.md) — Code style and Git workflow
+- [INDEX](INDEX.md) — Complete document and code index with runtime status

@@ -1,7 +1,9 @@
 ﻿# ANFSF 完整蓝图 — 架构现状·流程映射·缺口分析·演进路径
 
-> **版本**: 1.0 | **日期**: 2026-06-10 | **状态**: 基线文档
-> 关联文档: [产品蓝图](product-discussion-2026-05-28.md) | [技术架构](TECHNICAL-DESIGN.md) | [实施计划](IMPLEMENTATION-PLAN.md)
+> **版本**: 1.1 | **日期**: 2026-06-16 | **状态**: 基线文档（已更新运行时状态标注）
+> ⚠️ **重要**: 本文档描述的"完成"状态指"代码已编写+测试通过"，不代表"已接入运行时"。
+> 运行时接入率约 35%，详见 [REFACTOR-FIX](ANFSF-REFACTOR-FIX.md)。
+> 关联文档: [产品蓝图](product-discussion-2026-05-28.md) | [技术架构](TECHNICAL-DESIGN.md) | [实施计划](IMPLEMENTATION-PLAN.md) | [**真实状态审计**](ANFSF-REFACTOR-FIX.md)
 
 ---
 
@@ -189,7 +191,7 @@ Stage 5: 新增进化触发
 
 **修复**：
 
-`	ypescript
+```typescript
 pipeline.onEnter('stage5_done', async (projectId) => {
   await evolution.optimize();
   // -> 更新 BackendArchitect 默认参数
@@ -197,7 +199,7 @@ pipeline.onEnter('stage5_done', async (projectId) => {
   // -> 调整 FixEngine.FIX_MATRIX 等级映射
   // -> 积累数据足够时触发架构自省
 });
-`
+```
 
 | 子任务 | 工期 | 依赖 |
 |-------|------|------|
