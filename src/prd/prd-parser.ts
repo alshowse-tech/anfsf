@@ -224,7 +224,7 @@ export class AINativePRDParser {
         { role: 'user', content: prdText },
       ],
       temperature: 0.1,
-      max_tokens: 8192,
+      max_tokens: 16384,
       timeoutMs: 600000,
     });
 
@@ -238,7 +238,14 @@ export class AINativePRDParser {
       let cleaned = result.content.trim();
       cleaned = cleaned.replace(/^```(?:json|javascript|typescript|ts)?\s*\n?/i, "");
       cleaned = cleaned.replace(/\n?```\s*$/i, "");
-      const parsed = JSON.parse(cleaned) as Partial<AINativePRD>;
+      let parsed: Partial<AINativePRD>;
+      try {
+        parsed = JSON.parse(cleaned) as Partial<AINativePRD>;
+      } catch {
+        // JSON may be truncated by LLM output limit — try auto-repair
+        cleaned = repairTruncatedJSON(cleaned);
+        parsed = JSON.parse(cleaned) as Partial<AINativePRD>;
+      }
       // Handle qaSpecs which may be a single object or array
       let qaSpecs: QASpec[] = [];
       if (Array.isArray(parsed.qaSpecs)) {
@@ -460,6 +467,31 @@ export interface ValidationReport {
   valid: boolean;
   missing: string[];
   warnings: string[];
+}
+
+/**
+ * Attempt to repair truncated JSON by closing unmatched brackets/braces.
+ * LLM outputs may be cut off by max_tokens.
+ */
+function repairTruncatedJSON(json: string): string {
+  let s = json.trim();
+  // Remove trailing comma (common in truncated arrays/objects: "x": "y", → "x": "y")
+  s = s.replace(/,\s*$/, "");
+  // Remove trailing incomplete key-value: "key": "val  → nothing (keep for count)
+  // Close unmatched strings (trailing unclosed quote)
+  const dq = (s.match(/"/g) || []).length;
+  if (dq % 2 !== 0) s += '"';
+  // Close unmatched braces/brackets
+  const opens: string[] = [];
+  for (const ch of s) {
+    if (ch === '{' || ch === '[') opens.push(ch);
+    else if (ch === '}') { if (opens[opens.length - 1] === '{') opens.pop(); }
+    else if (ch === ']') { if (opens[opens.length - 1] === '[') opens.pop(); }
+  }
+  for (let i = opens.length - 1; i >= 0; i--) {
+    s += opens[i] === '{' ? '}' : ']';
+  }
+  return s;
 }
 
 export interface PRDQualityReport {
