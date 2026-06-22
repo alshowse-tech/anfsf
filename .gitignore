@@ -46,6 +46,7 @@ projects/*/node_modules/
 .openclaw/
 .claude/
 .anfsf/
+output/
 *.js
 !jest.config.js
 !eslint.config.js

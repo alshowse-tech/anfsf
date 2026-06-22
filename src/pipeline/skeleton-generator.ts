@@ -58,7 +58,7 @@ export class SkeletonGenerator {
     private budget?: TokenBudget,
     agentConfig?: Partial<AgentLoopConfig>,
   ) {
-    this.agentLoop = new CodeGenerationLoop(llmClient, agentConfig);
+    this.agentLoop = new CodeGenerationLoop(llmClient, agentConfig, budget);
   }
 
   /**
@@ -108,20 +108,20 @@ export class SkeletonGenerator {
     // Track token usage in budget (if configured)
     if (this.budget) {
       for (const usage of result.tokenUsage) {
-        const allowed = this.budget.consume(
+        const result_1 = this.budget.consumeSync(
           { promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, totalTokens: usage.totalTokens },
           'default',
           stage,
           usage.round === 0 ? 'generation' : 'fix',
         );
-        if (!allowed) {
+        if (!result_1.allowed && result_1.threshold === 'hardBlock') {
           return {
             success: false,
             code: result.output,
             rounds: result.rounds,
             errors: result.errors,
             tokenUsage: result.tokenUsage,
-            message: 'Token budget exceeded during skeleton generation',
+            message: 'Token budget hard cap exceeded during skeleton generation',
           };
         }
       }

@@ -111,7 +111,55 @@ export function registerMetricsRoute(app: FastifyInstance, store: AnfsfStore): v
     lines.push(`anfsf_http_errors_total{type="5xx"} ${httpMetrics.errors5xx}`);
     lines.push('');
 
-    // --- NEW: LLM token and cost metrics ---
+    // --- NEW: Token budget metrics (per-project) ---
+    // Budget tracking is wired through synthesize.ts per jobId.
+    // Here we expose aggregate metrics from the store.
+    const allRuns = await store.listRuns(100);
+    const budgetedRuns = allRuns.filter(r => (r.result as any)?.budget);
+    if (budgetedRuns.length > 0) {
+      // Aggregate budget stats across all runs
+      let totalBudgetAllocated = 0;
+      let totalBudgetUsed = 0;
+      let totalEstimatedCost = 0;
+      const budgetExhaustedCount = budgetedRuns.filter(r => (r.result as any)?.budgetExhausted === true).length;
+
+      for (const run of budgetedRuns) {
+        const b = (run.result as any).budget;
+        totalBudgetAllocated += b.total || 0;
+        totalBudgetUsed += b.used || 0;
+        totalEstimatedCost += b.estimatedCost?.amount || 0;
+      }
+
+      metric('token_budget_allocated_total', 'counter', 'Total token budget allocated across projects');
+      lines.push(`anfsf_token_budget_allocated_total ${totalBudgetAllocated}`);
+      lines.push('');
+
+      metric('token_budget_used_total', 'counter', 'Total tokens consumed across projects');
+      lines.push(`anfsf_token_budget_used_total ${totalBudgetUsed}`);
+      lines.push('');
+
+      metric('token_budget_usage_ratio', 'gauge', 'Aggregate budget usage ratio');
+      const aggregateRatio = totalBudgetAllocated > 0 ? totalBudgetUsed / totalBudgetAllocated : 0;
+      lines.push(`anfsf_token_budget_usage_ratio ${aggregateRatio.toFixed(4)}`);
+      lines.push('');
+
+      metric('token_budget_exhausted_total', 'counter', 'Number of runs terminated by budget exhaustion');
+      lines.push(`anfsf_token_budget_exhausted_total ${budgetExhaustedCount}`);
+      lines.push('');
+
+      metric('token_budget_estimated_cost', 'counter', 'Total estimated LLM cost across budgeted projects');
+      lines.push(`anfsf_token_budget_estimated_cost ${totalEstimatedCost.toFixed(6)}`);
+      lines.push('');
+
+      // Per-run budget gauge (latest 10 budgeted runs)
+      metric('token_budget_run_usage', 'gauge', 'Per-run budget usage ratio');
+      for (const run of budgetedRuns.slice(0, 10)) {
+        const br = (run.result as any).budget;
+        const rid = run.id.replace(/[^a-zA-Z0-9_]/g, '_');
+        lines.push(`anfsf_token_budget_run_usage{run_id="${rid}",project="${(run as any).projectName || 'unknown'}"} ${(br.usageRate || 0).toFixed(4)}`);
+      }
+      lines.push('');
+    }
     if (llmClient) {
       const usage = llmClient.getTotalUsage();
       const cost = llmClient.getTotalCost();
@@ -123,10 +171,10 @@ export function registerMetricsRoute(app: FastifyInstance, store: AnfsfStore): v
       lines.push(`anfsf_llm_tokens_total{type="total"} ${usage.total_tokens}`);
       lines.push('');
 
-      metric('llm_cost_usd', 'counter', 'Estimated LLM cost in USD');
-      lines.push(`anfsf_llm_cost_usd{type="prompt"} ${cost.promptCost.toFixed(6)}`);
-      lines.push(`anfsf_llm_cost_usd{type="completion"} ${cost.completionCost.toFixed(6)}`);
-      lines.push(`anfsf_llm_cost_usd{type="total"} ${cost.totalCost.toFixed(6)}`);
+      metric('llm_cost', 'counter', 'Estimated LLM cost');
+      lines.push(`anfsf_llm_cost{type="prompt",currency="${cost.currency}"} ${cost.promptCost.toFixed(6)}`);
+      lines.push(`anfsf_llm_cost{type="completion",currency="${cost.currency}"} ${cost.completionCost.toFixed(6)}`);
+      lines.push(`anfsf_llm_cost{type="total",currency="${cost.currency}"} ${cost.totalCost.toFixed(6)}`);
       lines.push('');
 
       metric('circuit_breaker_state', 'gauge', 'LLM circuit breaker state (0=closed, 1=open, 2=half-open)');
@@ -136,7 +184,14 @@ export function registerMetricsRoute(app: FastifyInstance, store: AnfsfStore): v
       lines.push('');
     }
 
-    // --- NEW: Process memory and CPU metrics ---
+    // Also expose budget threshold config via gauge
+    metric('token_budget_threshold_config', 'gauge', 'Budget threshold configuration (ratio)');
+    lines.push(`anfsf_token_budget_threshold_config{level="warn"} 0.7`);
+    lines.push(`anfsf_token_budget_threshold_config{level="block"} 0.9`);
+    lines.push(`anfsf_token_budget_threshold_config{level="hardBlock"} 1.35`);
+    lines.push('');
+
+    // --- Process memory and CPU metrics ---
     const mem = process.memoryUsage();
     const cpu = process.cpuUsage();
     metric('process_memory_bytes', 'gauge', 'Process memory usage');

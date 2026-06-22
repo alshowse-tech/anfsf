@@ -1,87 +1,152 @@
 # ANFSF — Project Context for Claude Code
 
-> This file provides essential context for Claude Code sessions working on ANFSF.
+> **版本**: 2.0 | **日期**: 2026-06-17
+> 此文件为 Claude Code 会话提供关键上下文。每次会话开始时自动加载。
 
-## Project Overview
+---
 
-ANFSF (Autonomous Non-Fungible Software Factory) converts PRDs into production-ready project skeletons through a five-stage state machine with an Agent Loop.
+## 一、项目定位
 
-## Critical Context
+ANFSF (Autonomous Non-Fungible Software Factory) 是一个**智能软件开发系统**，目标是将软件开发全流程 AI/Agent 化。
 
-### Runtime Status (as of 2026-06-16)
+**最终愿景**: 从 PRD 到可部署项目的全自动闭环，仅保留 1 产品 + 1 后端 + 1 前端人员，负责 PRD 确认、逻辑编码、测试和优化。
 
-**~35% of written code is active in the runtime pipeline.** This is the single most important fact.
+**当前阶段**: Phase 1 — 生成阶段（PRD→代码骨架+TASK.md）已跑通。开发者阶段（Stage 2-3）和验证发布阶段（Stage 4-5）尚未实现。
 
-The active runtime path is:
+---
+
+## 二、当前状态 — 最重要的信息
+
+**运行时接入率约 35%**。这是理解本项目的唯一最重要事实。
+
+### 实际运行的路径（`POST /api/v1/synthesize`）
+
 ```
-POST /api/v1/synthesize
-  → PRDQualityCheck → ConfidenceAnnotator → PipelineStateMachine (2 transitions)
-  → CodeGenerationLoop (generate → verify → fix) → TaskGenerator → GiteaClient.push
+synthesize.ts → runAgentPipeline()
+  ├── Step 1: evaluatePRDQuality()               [规则引擎，无LLM]
+  ├── Step 2: AINativePRDParser.parse()          [LLM call #1，deepseek-chat]
+  ├── Step 3: TokenBudget 恢复 + preEvaluate      [成本管理]
+  ├── Step 4: CodeGenerationLoop.run()            [Agent Loop 核心]
+  │    ├── generate() → LLM call #2              [生成代码]
+  │    ├── writeOutput() → npm install            [写磁盘+装依赖]
+  │    ├── verify() → CompileValidator (tsc)      [唯一验证工具]
+  │    └── fix() → LLM call #3 (最多2轮)          [修复编译错误]
+  ├── Step 5: TaskGenerator → TASK.md             [任务分解]
+  ├── Step 6: GiteaClient.push()                  [best effort]
+  └── Step 7: saveBudgetRecords()                 [预算持久化]
 ```
 
-Modules that exist but are **NOT** in this path:
-- 18 Skills (SkillsRegistry registration is no-op)
-- FixEngine, CommitVerifier, ContractWatcher (need webhook integration)
-- ReleaseCheck, Archiver (need stage 4-5 integration)
-- All 7 evolution modules (standby)
-- ProjectDashboard, RequirementReview (not routed in frontend)
+### 未接入的关键模块
 
-See [docs/ANFSF-REFACTOR-FIX.md](docs/ANFSF-REFACTOR-FIX.md) for the full audit.
+| 类别 | 总数 | 接入运行时 | 说明 |
+|------|------|-----------|------|
+| Core 模块 | ~50 | 1 (`compile-validator`) | graph-engine, backend/frontend-architect 等全孤立 |
+| Skills | 18 | 0 | SkillsRegistry 注册函数为空 |
+| Harnesses | 9 | 0 | agent/governance/evolution/uiux 全孤立 |
+| Evolution 模块 | 7 | 0 | framework, rollback, introspection 代码存在但未触发 |
+| Pipeline 阶段 | 5 | 2 个状态转换 | 仅 `stage1_parsing→stage1_done` |
+| Server 路由 | 16 | 16 | 路由全注册，但大部分只返回空数据 |
 
-### Architecture Shift
+### 13 步工作流覆盖
 
-The system was originally designed as a 17-layer vertical pipeline. It has been refactored to a **five-stage state machine + Agent Loop** architecture. The old `product-pipeline.ts` (703 lines) still exists but is deprecated.
+| 阶段 | Steps | 运行时覆盖 | 评分 |
+|------|-------|-----------|------|
+| 生成阶段 | 1-4 (PRD→代码) | 骨架生成跑通 | 7/10 |
+| 开发者阶段 | 5-7 (编码→验证→修复) | Gitea push only | 2/10 |
+| 验证发布阶段 | 8-12 (测试→发布→归档) | 零 | 0/10 |
+| 进化阶段 | 13 (自进化) | 零 | 0/10 |
 
-## Key Decisions (Locked, Do Not Override)
+---
 
-1. **Agent Loop does NOT generate business logic** — skeletons only, TODO comments for humans
-2. **Stage 2 (dev) is a black box** — ANFSF does not interfere with developer's local IDE
-3. **FixEngine three-level boundary** — generated/modified/new × style/type/interface/business
-4. **Five-stage state machine** — created→parsing→locked→generating→done (only 2 transitions active currently)
-5. **LLM provider is pluggable** — DeepSeek primary, DashScope fallback, configurable via env vars
+## 三、架构概览
 
-## File Conventions
+### 双重架构并存
 
-- Module files: `kebab-case.ts`
-- Test files: `__tests__/*.test.ts` (same directory)
-- React components: `PascalCase.tsx`
-- Docs: `UPPERCASE.md` in `docs/`
+| 架构 | 状态 | 说明 |
+|------|------|------|
+| **五阶段状态机 + Agent Loop** | ✅ 活跃运行 | 当前主路径，见上方 |
+| **17 层理论架构** | 📐 设计参考 | 65% 代码存在，35% 接入。详见 [AUDIT-FULL-STACK](docs/AUDIT-FULL-STACK.md) |
 
-## Common Commands
+### Agent Loop 执行引擎
+
+- **基类**: `AgentLoop<TInput, TOutput, TError>` — 模板方法模式（214行）
+- **子类**: `CodeGenerationLoop`（382行，活跃）、`DevFixLoop`（435行，未接入）、`TestGenLoop`（280+行，未接入）
+- **验证链**: 仅 `CompileValidator (tsc --noEmit)` 活跃。3 个额外 Skill 已实现未接入
+- **工具系统**: **无**。Agent Loop 纯文本管道，对标竞品（Claude Code 43+工具、SWE-agent 4工具）严重薄弱
+- **成本管理**: 三级阈值（warn 70%/block 90%/hardBlock 135%）+ 统一定价 + SQLite 持久化 + Prometheus 指标。行业领先
+
+### 关键架构缺口
+
+| 缺口 | 严重度 | 说明 |
+|------|--------|------|
+| 无工具系统 | 🔴致命 | `generate()` 只有一行 `this.llm.chat()` |
+| 无沙箱执行 | 🔴致命 | npm install 直接在本地文件系统运行 |
+| 无任务分解 | 🔴致命 | 大 PRD 一次性全体生成 |
+| 无多 Agent 协作 | 🟠严重 | 单一 Loop，无子 Agent 委托 |
+| 验证链薄弱 | 🟠严重 | 仅 tsc 编译检查 |
+| 无上下文压缩 | 🟡中等 | 长 prompt 线性膨胀 |
+
+---
+
+## 四、关键决策（锁定，不可推翻）
+
+1. **Agent Loop 不生成业务逻辑** — 骨架代码以 `// TODO: implement` 结尾。业务逻辑始终由人类开发者手动填写
+2. **Stage 2 (dev) 是黑盒** — ANFSF 不干预开发者的本地 IDE
+3. **FixEngine 三级边界** — generated/modified/new × style/type/interface/business，L1 自动修复/L2 建议 Diff/L3 仅定位
+4. **五阶段状态机** — created→parsing→locked→generating→done（当前仅 2 个状态转换活跃）
+5. **LLM Provider 可插拔** — DeepSeek 主、DashScope 备，通过环境变量配置
+
+---
+
+## 五、代码库速览
+
+| 指标 | 数值 |
+|------|------|
+| TypeScript 源文件 | 211 |
+| 测试文件 | 126 |
+| 总代码行 | 57,665 |
+| 测试通过 | 1,617/1,632 (99.1%) |
+| 测试失败 | 10（环境依赖，6 suites 失败） |
+| 类型检查 | `npx tsc --noEmit` → 零错误 |
+
+### 文件约定
+
+- 模块: `kebab-case.ts` | 测试: `__tests__/*.test.ts` | 组件: `PascalCase.tsx` | 文档: `UPPERCASE.md` in `docs/`
+
+### 常用命令
 
 ```bash
-# Build
-npm run build
-
-# Dev server
-npm run server
-
-# Frontend
-cd web && npm run dev
-
-# Tests
-npm test
-
-# Type check
-npx tsc --noEmit
+npm run build          # 构建
+npm run server         # 开发服务器
+cd web && npm run dev  # 前端
+npm test               # 测试
+npx tsc --noEmit       # 类型检查
 ```
 
-## Test Baseline
+---
 
-- 1621 total tests (1615 passed, 1 pre-existing failure, 5 skipped)
-- 4 test suites fail due to environment dependencies (compile-validator, auth, rate-limit, server)
-- Full test pass rate: 99.6%
+## 六、文档地图
 
-## Environment
+| 文档 | 用途 | 何时读 |
+|------|------|--------|
+| [docs/ANFSF-REFACTOR-FIX.md](docs/ANFSF-REFACTOR-FIX.md) | 系统真实状态基准（需更新统计数据） | **首次必读** |
+| [docs/AUDIT-FULL-STACK.md](docs/AUDIT-FULL-STACK.md) | 全面审查报告：13步工作流+生成阶段+竞品对比 | 理解系统全貌 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 当前架构图 + 组件说明 | 理解系统结构 |
+| [docs/ANFSF-BLUEPRINT.md](docs/ANFSF-BLUEPRINT.md) | 13步工作流详情 + 三缺口 + 演进路线 | 理解设计意图 |
+| [docs/ANFSF-DEVELOPMENT-PATH.md](docs/ANFSF-DEVELOPMENT-PATH.md) | 锁定决策 + 执行参考 | 开发前必读 |
+| [docs/COST-MANAGEMENT-FIX.md](docs/COST-MANAGEMENT-FIX.md) | 成本管理体系修复文档 | 理解预算系统 |
+| [docs/DOC-AUDIT-REPORT.md](docs/DOC-AUDIT-REPORT.md) | 文档体系自洽性审查 | 文档维护参考 |
+| [docs/DATABASE-SCHEMA.md](docs/DATABASE-SCHEMA.md) | 数据库表结构 | 数据层变更时 |
+| [docs/DEVELOPMENT-STANDARDS.md](docs/DEVELOPMENT-STANDARDS.md) | 开发规范 | 新成员入职 |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | 运维手册 | 部署/故障时 |
+| [docs/API-SPEC.md](docs/API-SPEC.md) | API 规范 | 接口开发时 |
 
-- Node.js 20+, npm 10+
-- Windows 11 Pro local development
-- Gitea 1.25.4 at localhost:3001 for local testing
-- SQLite by default, PostgreSQL optional
-- LLM: DashScope (Qwen) or DeepSeek
+---
 
-## Document Map
+## 七、环境
 
-Start with [docs/INDEX.md](docs/INDEX.md) for the full document index with runtime status annotations.
-
-The most important document: [docs/ANFSF-REFACTOR-FIX.md](docs/ANFSF-REFACTOR-FIX.md) — the single source of truth for current system status.
+- **OS/运行时**: Windows 11 Pro, Node.js 20+, npm 10+
+- **数据库**: SQLite（默认，WAL 模式），PostgreSQL（可选）
+- **LLM**: DashScope (Qwen) 或 DeepSeek，通过 `DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` 配置
+- **Git 服务**: Gitea 1.25.4 @ localhost:3001
+- **预算控制**: `TOKEN_BUDGET` 环境变量（默认 5,000,000 tokens）

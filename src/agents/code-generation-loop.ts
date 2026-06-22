@@ -1,8 +1,12 @@
-﻿/**
- * ANFSF Agent 鈥?Code Generation Loop
+/**
+ * ANFSF Agent — Code Generation Loop
  *
  * "generate -> verify -> fix" loop for producing verified skeleton code.
  * Extends AgentLoop<RequirementSpec, GeneratedCode, VerificationError>.
+ *
+ * Budget-aware: accepts optional TokenBudget in constructor. Checks budget
+ * before each LLM call via preEvaluate(), records consumption after each
+ * successful LLM call via consume().
  *
  * Task: T-002, refactored GAP-01
  */
@@ -13,8 +17,10 @@ import { spawn } from "child_process";
 import { LLMClient, type LLMMessage } from "../integrations/llm-client";
 import { getCompileLearningDB, verificationErrorsToNormalized } from "../pipeline/compile-learning-db";
 import { getKnowledgeInjection } from "../pipeline/knowledge-bridge";
+import { TokenBudget } from "../pipeline/token-budget";
 import {
   AgentLoop,
+  BudgetExhaustedError,
   type AgentRoundTokenUsage,
   type AgentLoopConfig,
   type AgentLoopResult,
@@ -22,7 +28,7 @@ import {
 } from "./agent-loop-base";
 import { VerificationRunner, type VerificationResult, type VerificationError } from "./verification-runner";
 
-export { AgentLoop, AgentRoundTokenUsage, AgentLoopConfig, DEFAULT_AGENT_CONFIG } from "./agent-loop-base";
+export { AgentLoop, BudgetExhaustedError, AgentRoundTokenUsage, AgentLoopConfig, DEFAULT_AGENT_CONFIG } from "./agent-loop-base";
 export type { AgentLoopResult } from "./agent-loop-base";
 export type { VerificationError } from "./verification-runner";
 
@@ -60,6 +66,7 @@ export type LegacyCodeGenResult = {
   errors: VerificationError[];
   tokenUsage: AgentRoundTokenUsage[];
   message: string;
+  budgetExhausted?: boolean;
 };
 
 const FILE_DELIMITER = "===FILE:";
@@ -72,7 +79,7 @@ function buildSkeletonPrompt(spec: RequirementSpec, historyInjection?: string): 
     {
       role: "system",
       content: "You are a project skeleton generator. Generate a minimal, compilable TypeScript project.\n\n"
-        + "OUTPUT FORMAT 鈥?use EXACTLY this delimiter format (NOT JSON):\n\n"
+        + "OUTPUT FORMAT — use EXACTLY this delimiter format (NOT JSON):\n\n"
         + FILE_DELIMITER + " package.json\n{ \"name\": \"...\", \"dependencies\": {...} }\n"
         + FILE_END + "\n\n"
         + (historyInjection || "")
@@ -108,17 +115,33 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
   private verifier: VerificationRunner;
   private config: AgentLoopConfig;
   private currentProjectType: string = "web";
+  // Use declare to avoid conflicting with protected budget in parent
+  declare protected budget?: TokenBudget;
 
   get maxRetries(): number { return this.config.maxRetries; }
 
   constructor(
     llm: LLMClient,
     config: Partial<AgentLoopConfig> = {},
+    budget?: TokenBudget,
   ) {
     super();
     this.llm = llm;
     this.config = { ...DEFAULT_AGENT_CONFIG, ...config };
     this.verifier = new VerificationRunner();
+    this.budget = budget;
+  }
+
+  /**
+   * Set or replace the budget tracker after construction.
+   */
+  setBudget(budget: TokenBudget): void {
+    this.budget = budget;
+  }
+
+  /** Override to return config maxTokens for budget pre-evaluation. */
+  protected estimateFixTokens(_errors: VerificationError[], _output: GeneratedCode): number {
+    return this.config.maxTokens;
   }
 
   // ================================================================
@@ -126,21 +149,36 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
   // ================================================================
 
   async generate(spec: RequirementSpec): Promise<GeneratedCode> {
+    // Pre-evaluate budget
+    if (this.budget) {
+      const preEval = this.budget.preEvaluate(this.config.maxTokens);
+      if (preEval.band === 'hardBlock') {
+        throw new BudgetExhaustedError(
+          `Budget exhausted before generation: ${(preEval.projectedRate * 100).toFixed(0)}%`,
+          preEval.projectedRate,
+          this.budget.remaining(),
+        );
+      }
+    }
+
     this.currentProjectType = spec.deploymentForm || "web";
     const db = getCompileLearningDB();
     const history = db.getPromptInjection(this.currentProjectType);
 
     const extraContext = [history, await getKnowledgeInjection(this.currentProjectType)].filter(Boolean).join("\n");
     const messages = buildSkeletonPrompt(spec, extraContext);
-    const response = await this.llm.chat({
+
+    const request: any = {
       messages,
       max_tokens: this.config.maxTokens,
       timeoutMs: this.config.llmTimeout,
-    });
+    };
+
+    const response = await this.llm.chat(request);
     if (!response.ok) {
       throw new Error("LLM generation failed: " + (response.error || "Unknown error"));
     }
-    // Record token usage for AgentLoop tracking
+    // Record token usage for AgentLoop tracking AND consume from budget
     if (response.usage) {
       this.roundTokenUsages.push({
         round: 0,
@@ -148,6 +186,21 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
         completionTokens: response.usage.completion_tokens || 0,
         totalTokens: response.usage.total_tokens || 0,
       });
+      if (this.budget) {
+        const result = this.budget.consumeSync(
+          { promptTokens: response.usage.prompt_tokens || 0, completionTokens: response.usage.completion_tokens || 0, totalTokens: response.usage.total_tokens || 0 },
+          'unknown',
+          'codegen',
+          'generation',
+        );
+        if (!result.allowed && result.threshold === 'hardBlock') {
+          throw new BudgetExhaustedError(
+            result.reason || 'Budget hard cap reached',
+            this.budget.usageRate(),
+            this.budget.remaining(),
+          );
+        }
+      }
     }
     const code = parseCodeFromResponse(response.content);
     if (code.files.length === 0) {
@@ -157,7 +210,7 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
   }
 
   async verify(code: GeneratedCode): Promise<VerificationError[]> {
-    if (!this.outputPath) throw new Error("outputPath not set 鈥?cannot verify");
+    if (!this.outputPath) throw new Error("outputPath not set — cannot verify");
     await installDependencies(this.outputPath);
     const results = await this.verifier.runAll(this.outputPath);
     const errors = collectErrors(results);
@@ -175,16 +228,31 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
   }
 
   async fix(errors: VerificationError[], code: GeneratedCode): Promise<GeneratedCode> {
+    // Pre-evaluate budget for fix round
+    if (this.budget) {
+      const preEval = this.budget.preEvaluate(this.config.maxTokens);
+      if (preEval.band === 'hardBlock') {
+        throw new BudgetExhaustedError(
+          `Budget hard cap reached before fix: ${(preEval.projectedRate * 100).toFixed(0)}%`,
+          preEval.projectedRate,
+          this.budget.remaining(),
+        );
+      }
+    }
+
     const fixMessages = buildFixPrompt(errors, code.files);
-    const fixResponse = await this.llm.chat({
+
+    const request: any = {
       messages: fixMessages,
       max_tokens: this.config.maxTokens,
       timeoutMs: this.config.llmTimeout,
-    });
+    };
+
+    const fixResponse = await this.llm.chat(request);
     if (!fixResponse.ok) {
       throw new Error("LLM fix failed: " + (fixResponse.error || "Unknown error"));
     }
-    // Record token usage for fix round
+    // Record token usage for fix round AND consume from budget
     if (fixResponse.usage) {
       this.roundTokenUsages.push({
         round: this.roundTokenUsages.length,
@@ -192,6 +260,14 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
         completionTokens: fixResponse.usage.completion_tokens || 0,
         totalTokens: fixResponse.usage.total_tokens || 0,
       });
+      if (this.budget) {
+        this.budget.consumeSync(
+          { promptTokens: fixResponse.usage.prompt_tokens || 0, completionTokens: fixResponse.usage.completion_tokens || 0, totalTokens: fixResponse.usage.total_tokens || 0 },
+          'unknown',
+          'codegen',
+          'fix',
+        );
+      }
     }
     const fixedFiles = parseCodeFromResponse(fixResponse.content);
     if (fixedFiles.files.length > 0) {
@@ -203,7 +279,7 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
 
   async writeOutput(code: GeneratedCode): Promise<void> {
     if (!this.outputPath) {
-      throw new Error("outputPath not set 鈥?cannot write output");
+      throw new Error("outputPath not set — cannot write output");
     }
     writeCodeToDisk(code, this.outputPath);
   }
@@ -217,6 +293,7 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     return {
       ...result,
       code: result.output ?? { files: [], contracts: {} },
+      budgetExhausted: result.budgetExhausted,
     };
   }
 }
@@ -303,10 +380,3 @@ function collectErrors(results: VerificationResult[]): VerificationError[] {
   for (const r of results) errors.push(...r.errors);
   return errors;
 }
-
-
-
-
-
-
-

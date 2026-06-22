@@ -176,6 +176,8 @@ export interface PRDParserConfig {
 export class AINativePRDParser {
   private llm: LLMClient;
   private model: string;
+  /** Expose last response usage so callers can read actual token consumption */
+  public lastUsage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 
   constructor(config?: PRDParserConfig) {
     if (config?.llmClient) {
@@ -232,6 +234,9 @@ export class AINativePRDParser {
       const errMsg = (result as any).error || 'unknown error';
       throw new Error('PRD parse failed: LLM returned non-OK response (' + errMsg + '). Check LLM API key and connectivity.');
     }
+
+    // Expose usage so caller can read actual token consumption for budget tracking
+    this.lastUsage = result.usage;
 
     try {
       // Strip markdown code fences if present (LLM may wrap JSON in ```json ... ```)
@@ -423,6 +428,8 @@ export class AINativePRDParser {
       if (!result.ok) {
         return this.defaultQualityReport(prd);
       }
+
+      this.lastUsage = result.usage;
 
       try {
         const parsed = JSON.parse(result.content) as Partial<PRDQualityReport>;

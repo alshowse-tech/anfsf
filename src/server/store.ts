@@ -37,6 +37,27 @@ export interface PipelineRunStoreLike {
   cleanupOldRuns(maxAgeDays?: number): number | Promise<number>;
   startPeriodicCleanup(intervalHours?: number, maxAgeDays?: number): void;
   close(): void | Promise<void>;
+  // Budget persistence
+  saveBudgetRecords?(projectId: string, records: Array<{
+    timestamp: number;
+    tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
+    model: string;
+    stage: string;
+    context: string;
+  }>): void | Promise<void>;
+  loadBudgetRecords?(projectId: string): Array<{
+    timestamp: number;
+    tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
+    model: string;
+    stage: string;
+    context: string;
+  }> | Promise<Array<{
+    timestamp: number;
+    tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
+    model: string;
+    stage: string;
+    context: string;
+  }>>;
 }
 
 export class PipelineRunStore {
@@ -86,6 +107,22 @@ export class PipelineRunStore {
         failed INTEGER NOT NULL DEFAULT 0,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Budget persistence table: stores per-project token budget records
+      CREATE TABLE IF NOT EXISTS token_budget_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        prompt_tokens INTEGER NOT NULL DEFAULT 0,
+        completion_tokens INTEGER NOT NULL DEFAULT 0,
+        total_tokens INTEGER NOT NULL DEFAULT 0,
+        model TEXT NOT NULL DEFAULT 'unknown',
+        stage TEXT NOT NULL DEFAULT 'unknown',
+        context TEXT NOT NULL DEFAULT 'unknown',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_budget_project ON token_budget_records(project_id);
 
       INSERT OR IGNORE INTO run_stats (id, total, success, failed) VALUES (1, 0, 0, 0);
     `);
@@ -218,6 +255,7 @@ export class PipelineRunStore {
 
   /**
    * Delete runs older than maxAgeDays to prevent unbounded growth.
+   * Also cleans up related token budget records.
    * Returns the number of deleted runs.
    */
   cleanupOldRuns(maxAgeDays: number = 30): number {
@@ -227,6 +265,10 @@ export class PipelineRunStore {
     const deleted = rows.length;
     if (deleted > 0) {
       this.db.prepare('DELETE FROM pipeline_runs WHERE started_at < ?').run(cutoff);
+      // Clean up budget records for deleted runs
+      for (const row of rows) {
+        this.db.prepare('DELETE FROM token_budget_records WHERE project_id = ?').run(row.id);
+      }
       const successCount = rows.filter(r => r.status === 'done').length;
       const failedCount = rows.filter(r => r.status === 'failed').length;
       this.db.prepare(`
@@ -239,6 +281,85 @@ export class PipelineRunStore {
       `).run(deleted, successCount, failedCount);
     }
     return deleted;
+  }
+
+  // ============================================================================
+  // Token Budget Persistence (BudgetPersistence implementation)
+  // ============================================================================
+
+  /**
+   * Save a batch of token consumption records for a project.
+   */
+  saveBudgetRecords(
+    projectId: string,
+    records: Array<{
+      timestamp: number;
+      tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
+      model: string;
+      stage: string;
+      context: string;
+    }>,
+  ): void {
+    if (!this.open) return;
+    const stmt = this.db.prepare(`
+      INSERT INTO token_budget_records (project_id, timestamp, prompt_tokens, completion_tokens, total_tokens, model, stage, context)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertMany = this.db.transaction((items: typeof records) => {
+      for (const r of items) {
+        stmt.run(projectId, r.timestamp, r.tokens.promptTokens, r.tokens.completionTokens, r.tokens.totalTokens, r.model, r.stage, r.context);
+      }
+    });
+    insertMany(records);
+  }
+
+  /**
+   * Restore budget records for a project from the database.
+   */
+  loadBudgetRecords(projectId: string): Array<{
+    timestamp: number;
+    tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
+    model: string;
+    stage: string;
+    context: string;
+  }> {
+    if (!this.open) return [];
+    const rows = this.db.prepare(
+      'SELECT * FROM token_budget_records WHERE project_id = ? ORDER BY timestamp ASC',
+    ).all(projectId) as Array<Record<string, unknown>>;
+    return rows.map(r => ({
+      timestamp: r.timestamp as number,
+      tokens: {
+        promptTokens: r.prompt_tokens as number,
+        completionTokens: r.completion_tokens as number,
+        totalTokens: r.total_tokens as number,
+      },
+      model: r.model as string,
+      stage: r.stage as string,
+      context: r.context as string,
+    }));
+  }
+
+  /**
+   * Get budget summary for a project (aggregate counts).
+   */
+  getBudgetSummary(projectId: string): { totalTokens: number; recordCount: number; byStage: Record<string, number> } {
+    if (!this.open) return { totalTokens: 0, recordCount: 0, byStage: {} };
+    const rows = this.db.prepare(
+      'SELECT stage, COUNT(*) as cnt, SUM(total_tokens) as tokens FROM token_budget_records WHERE project_id = ? GROUP BY stage',
+    ).all(projectId) as Array<Record<string, unknown>>;
+    let totalTokens = 0;
+    let recordCount = 0;
+    const byStage: Record<string, number> = {};
+    for (const r of rows) {
+      const stage = r.stage as string;
+      const tokens = r.tokens as number;
+      const cnt = r.cnt as number;
+      byStage[stage] = tokens;
+      totalTokens += tokens;
+      recordCount += cnt;
+    }
+    return { totalTokens, recordCount, byStage };
   }
 
   /** Start periodic cleanup of old runs */

@@ -1,5 +1,6 @@
 /**
  * Tests for CodeGenerationLoop (T-002)
+ * Includes budget integration tests.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
@@ -13,6 +14,7 @@ import {
 } from '../code-generation-loop';
 import type { RequirementSpec, AgentLoopConfig, GeneratedCode, AgentRoundTokenUsage } from '../code-generation-loop';
 import { LLMClient } from '../../integrations/llm-client';
+import { TokenBudget } from '../../pipeline/token-budget';
 
 function mockLLMClient(responses: Array<{ ok: boolean; content: string; error?: string; usage?: object }>) {
   let callIndex = 0;
@@ -193,6 +195,60 @@ describe('CodeGenerationLoop', () => {
 
       const files = fs.readdirSync(tempDir, { recursive: true });
       expect(files.length).toBeGreaterThan(0);
+    }, 30_000);
+  });
+
+  // ========================================================================
+  // Budget integration tests
+  // ========================================================================
+
+  describe('budget integration', () => {
+    it('should accept TokenBudget in constructor', () => {
+      const { client } = mockLLMClient([]);
+      const budget = new TokenBudget('test-proj', { totalBudget: 10000 });
+      loop = new CodeGenerationLoop(client, {}, budget);
+      expect(loop).toBeDefined();
+    });
+
+    it('should return budgetExhausted when hard block reached', async () => {
+      const { client } = mockLLMClient([{ ok: true, content: validDelimiterResponse }]);
+      // Tiny budget so it hits hardBlock immediately
+      const budget = new TokenBudget('test-proj', {
+        totalBudget: 100,
+        warnThreshold: 0.5,
+        blockThreshold: 0.7,
+        hardBlockThreshold: 0.8,
+      });
+      loop = new CodeGenerationLoop(client, { maxRetries: 2, maxTokens: 32_768 }, budget);
+
+      const result = await loop.generateOld(sampleSpec, tempDir);
+
+      // Budget should be exhausted since preEvaluate(32768) > 80 tokens
+      expect(result.budgetExhausted).toBe(true);
+    }, 30_000);
+
+    it('should track budget usage in result when budget is configured', async () => {
+      const { client } = mockLLMClient([{ ok: true, content: validDelimiterResponse }]);
+      const budget = new TokenBudget('test-proj', { totalBudget: 500_000 });
+      loop = new CodeGenerationLoop(client, {}, budget);
+
+      const result = await loop.generateOld(sampleSpec, tempDir);
+
+      expect(result.budgetExhausted).toBe(false);
+    }, 30_000);
+
+    it('should work without budget (backward compatible)', async () => {
+      const { client } = mockLLMClient([{ ok: true, content: validDelimiterResponse }]);
+      loop = new CodeGenerationLoop(client);
+
+      const result = await loop.generateOld(sampleSpec, tempDir);
+
+      // The test environment may not have npm/node_modules for install,
+      // so the verify step may legitimately find errors.
+      // This test checks: (a) generation succeeded (files exist),
+      // (b) budgetExhausted is false (no budget configured).
+      expect(result.budgetExhausted).toBe(false);
+      expect(result.code.files.length).toBeGreaterThan(0);
     }, 30_000);
   });
 });

@@ -298,6 +298,85 @@ export class PostgresPipelineRunStore {
     }
   }
 
+  // ============================================================================
+  // Token Budget Persistence
+  // ============================================================================
+
+  async saveBudgetRecords(
+    projectId: string,
+    records: Array<{
+      timestamp: number;
+      tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
+      model: string;
+      stage: string;
+      context: string;
+    }>,
+  ): Promise<void> {
+    if (!this.open) return;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const r of records) {
+        await client.query(
+          `INSERT INTO token_budget_records (project_id, timestamp, prompt_tokens, completion_tokens, total_tokens, model, stage, context)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [projectId, r.timestamp, r.tokens.promptTokens, r.tokens.completionTokens, r.tokens.totalTokens, r.model, r.stage, r.context],
+        );
+      }
+      await client.query('COMMIT');
+    } catch (_err) {
+      await client.query('ROLLBACK');
+      throw _err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async loadBudgetRecords(projectId: string): Promise<Array<{
+    timestamp: number;
+    tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
+    model: string;
+    stage: string;
+    context: string;
+  }>> {
+    if (!this.open) return [];
+    const result = await this.pool.query(
+      'SELECT * FROM token_budget_records WHERE project_id = $1 ORDER BY timestamp ASC',
+      [projectId],
+    );
+    return result.rows.map((r: Record<string, unknown>) => ({
+      timestamp: r.timestamp as number,
+      tokens: {
+        promptTokens: r.prompt_tokens as number,
+        completionTokens: r.completion_tokens as number,
+        totalTokens: r.total_tokens as number,
+      },
+      model: r.model as string,
+      stage: r.stage as string,
+      context: r.context as string,
+    }));
+  }
+
+  async getBudgetSummary(projectId: string): Promise<{ totalTokens: number; recordCount: number; byStage: Record<string, number> }> {
+    if (!this.open) return { totalTokens: 0, recordCount: 0, byStage: {} };
+    const result = await this.pool.query(
+      'SELECT stage, COUNT(*) as cnt, SUM(total_tokens) as tokens FROM token_budget_records WHERE project_id = $1 GROUP BY stage',
+      [projectId],
+    );
+    let totalTokens = 0;
+    let recordCount = 0;
+    const byStage: Record<string, number> = {};
+    for (const r of result.rows) {
+      const stage = r.stage as string;
+      const tokens = Number(r.tokens);
+      const cnt = Number(r.cnt);
+      byStage[stage] = tokens;
+      totalTokens += tokens;
+      recordCount += cnt;
+    }
+    return { totalTokens, recordCount, byStage };
+  }
+
   private rowToRun(row: Record<string, unknown>): PipelineRun {
     return {
       id: row.id as string,

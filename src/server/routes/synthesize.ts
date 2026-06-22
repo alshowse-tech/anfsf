@@ -19,8 +19,9 @@ import { MAX_FILE_SIZE, MAX_ATTACHMENT_COUNT } from '../../input/attachment-type
 import { evaluatePRDQuality } from '../../prd/prd-quality-check';
 import { AINativePRDParser } from '../../prd/prd-parser';
 import { PipelineStateMachine } from '../../pipeline/pipeline-state-machine';
-import { CodeGenerationLoop, type RequirementSpec } from '../../agents/code-generation-loop';
+import { CodeGenerationLoop, BudgetExhaustedError, type RequirementSpec } from '../../agents/code-generation-loop';
 import { TaskGenerator } from '../../pipeline/task-generator';
+import { TokenBudget } from '../../pipeline/token-budget';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -194,8 +195,50 @@ async function runAgentPipeline(
         await sm.transition('stage1_parsing');
 
         // Step 2: LLM-based PRD analysis (deepseek-chat — tested: 6 features in 4s)
+        // PRD parse is the first LLM call in the pipeline — it consumes from the budget.
+        // Restore previous budget state from store if available.
+        const budget = new TokenBudget(jobId, {
+          totalBudget: parseInt(process.env.TOKEN_BUDGET || '5000000', 10),
+          warnThreshold: 0.7,
+          blockThreshold: 0.9,
+          hardBlockThreshold: 1.35,
+        });
+        const savedRecords = await Promise.resolve(store.loadBudgetRecords(jobId));
+        if (savedRecords && savedRecords.length > 0) {
+          const savedUsed = savedRecords.reduce((sum: number, r: { tokens: { totalTokens: number } }) => sum + r.tokens.totalTokens, 0);
+          budget.importState(savedRecords as any, savedUsed);
+        }
+
+        // Step 2: LLM-based PRD analysis (deepseek-chat, max_tokens=16384)
+        // Pre-evaluate budget before LLM call
+        const prdPreEval = budget.preEvaluate(16_384);
+        if (prdPreEval.band === 'hardBlock') {
+          await store.updateRun(jobId, { status: 'failed', error: 'Token budget hard cap reached before PRD analysis', completedAt: Date.now(), steps: persistedSteps });
+          await store.completeRun(jobId, false);
+          return;
+        }
+
         const parser = new AINativePRDParser({ llmClient: llm, model: 'deepseek-chat' });
         const prd = await parser.parse(prdText);
+
+        // Record actual PRD parse token consumption from LLM response
+        if (parser.lastUsage) {
+          budget.consumeSync(
+            { promptTokens: parser.lastUsage.prompt_tokens, completionTokens: parser.lastUsage.completion_tokens, totalTokens: parser.lastUsage.total_tokens },
+            'deepseek-chat',
+            'prd-parse',
+            'analysis',
+          );
+        } else {
+          // Fallback estimate if usage not available
+          const prdPromptTokens = Math.ceil(prdText.length / 4);
+          budget.consumeSync(
+            { promptTokens: prdPromptTokens, completionTokens: 4_096, totalTokens: prdPromptTokens + 4_096 },
+            'deepseek-chat',
+            'prd-parse',
+            'analysis',
+          );
+        }
 
         const allFeatures = prd.features && prd.features.length > 0 ? prd.features : [
           { id: 'f1', name: projectName, description: prdText.slice(0, 100), priority: 'P0' as const, status: 'draft' as const },
@@ -206,10 +249,9 @@ async function runAgentPipeline(
         persistedSteps.push({ name: 'Agent Loop: Start', duration: 0, status: 'ok' });
         store.emitStep(jobId, { name: 'Agent Loop: Generating skeleton...', duration: 0, status: 'ok' });
 
-        const agentLoop = new CodeGenerationLoop(llm, { maxRetries: 2, maxTokens: 32_768 });
-        // NOTE: TokenBudget is intentionally not wired here — synthesize runs are
-        // short-lived prototyping loops. Budget tracking is wired through SkeletonGenerator
-        // for production-stage pipelines when a budget is explicitly configured.
+        const agentLoop = new CodeGenerationLoop(llm, { maxRetries: 2, maxTokens: 32_768 }, budget);
+        // Budget is wired into CodeGenerationLoop — every generate() and fix() call
+        // is pre-evaluated and consumed against the project-level TokenBudget.
         const taskGenerator = new TaskGenerator();
 
         const spec: RequirementSpec = {
@@ -251,12 +293,37 @@ async function runAgentPipeline(
           app.log?.warn?.('[synthesize] Gitea push skipped (offline?)');
         }
 
+        // Step 5: Persist budget records via store for crash recovery
+        try {
+          if (store.saveBudgetRecords) {
+            const exported = budget.export();
+            store.saveBudgetRecords(jobId, exported.records);
+          }
+        } catch (e) {
+          app.log?.warn?.('[synthesize] Budget persist failed');
+        }
+
         await sm.transition('stage1_done');
 
         const ok = result.success || (result.output.files.length >= 5 && result.rounds > 0);
+        const budgetReport = budget.getReport();
         await store.updateRun(jobId, {
           status: ok ? 'done' : 'failed',
-          result: { files: result.output.files.map(f => ({ path: f.path, size: f.content.length, type: 'code' })), rounds: result.rounds, tokenUsage: result.tokenUsage, giteaUrl, message: result.message } as any,
+          result: {
+            files: result.output.files.map(f => ({ path: f.path, size: f.content.length, type: 'code' })),
+            rounds: result.rounds,
+            tokenUsage: result.tokenUsage,
+            giteaUrl,
+            message: result.message,
+            budgetExhausted: result.budgetExhausted,
+            budget: {
+              used: budgetReport.used,
+              total: budgetReport.totalBudget,
+              usageRate: budgetReport.usageRate,
+              remaining: budgetReport.remaining,
+              estimatedCost: budgetReport.estimatedCost,
+            },
+          } as any,
           steps: persistedSteps,
           error: result.success ? null : result.message,
           completedAt: Date.now(),

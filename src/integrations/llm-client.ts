@@ -71,25 +71,61 @@ export interface LLMClientConfig {
   timeoutMs?: number;
   circuitBreakerThreshold?: number;
   circuitBreakerResetMs?: number;
+  /**
+   * Optional budget guard. Called before each chat() request with the
+   * estimated token count. Return false to reject the call (budget exhausted).
+   * Also accepts the request context string for per-operation decisions.
+   */
+  budgetGuard?: (estimatedTokens: number, model: string, context: string) => { allowed: boolean; reason?: string };
 }
 
 // ============================================================================
 // Pricing (per 1K tokens, approximate for common models)
+// SINGLE SOURCE OF TRUTH — also imported by token-budget.ts
 // ============================================================================
 
-const MODEL_PRICING: Record<string, { promptPer1k: number; completionPer1k: number }> = {
-  // DashScope (Qwen)
-  'qwen3.5-plus': { promptPer1k: 0.001, completionPer1k: 0.004 },
-  'qwen3.5-turbo': { promptPer1k: 0.0003, completionPer1k: 0.0012 },
-  'qwen-max': { promptPer1k: 0.005, completionPer1k: 0.02 },
-  // DeepSeek
-  'deepseek-chat': { promptPer1k: 0.0005, completionPer1k: 0.002 },
-  'deepseek-reasoner': { promptPer1k: 0.001, completionPer1k: 0.004 },
-  'deepseek-v4': { promptPer1k: 0.00014, completionPer1k: 0.00028 },
-  'deepseek-v4-pro': { promptPer1k: 0.000435, completionPer1k: 0.00087 },
-  'deepseek-r1': { promptPer1k: 0.00055, completionPer1k: 0.00219 },
-  'default': { promptPer1k: 0.001, completionPer1k: 0.004 },
+export interface ModelPricingEntry {
+  /** Cost per 1000 prompt (input) tokens */
+  promptPer1k: number;
+  /** Cost per 1000 completion (output) tokens */
+  completionPer1k: number;
+  /** ISO 4217 currency code */
+  currency: string;
+}
+
+export const MODEL_PRICING: Record<string, ModelPricingEntry> = {
+  // DashScope (Qwen) — priced in CNY
+  'qwen3.5-plus':    { promptPer1k: 0.001,  completionPer1k: 0.004,  currency: 'CNY' },
+  'qwen3.5-turbo':   { promptPer1k: 0.0003, completionPer1k: 0.0012, currency: 'CNY' },
+  'qwen-max':        { promptPer1k: 0.005,  completionPer1k: 0.02,   currency: 'CNY' },
+  'qwen-plus':       { promptPer1k: 0.0008, completionPer1k: 0.002,  currency: 'CNY' },
+  'qwen-turbo':      { promptPer1k: 0.0003, completionPer1k: 0.0006, currency: 'CNY' },
+  // DeepSeek — priced in USD
+  'deepseek-chat':     { promptPer1k: 0.00014, completionPer1k: 0.00028, currency: 'USD' },
+  'deepseek-reasoner': { promptPer1k: 0.001,   completionPer1k: 0.004,   currency: 'USD' },
+  'deepseek-v4':       { promptPer1k: 0.00014, completionPer1k: 0.00028, currency: 'USD' },
+  'deepseek-v4-pro':   { promptPer1k: 0.000435,completionPer1k: 0.00087, currency: 'USD' },
+  'deepseek-r1':       { promptPer1k: 0.00055, completionPer1k: 0.00219, currency: 'USD' },
+  // Generic fallbacks
+  'flash':        { promptPer1k: 0.0001, completionPer1k: 0.0002, currency: 'USD' },
+  'pro':          { promptPer1k: 0.001,  completionPer1k: 0.002,  currency: 'USD' },
+  'default':      { promptPer1k: 0.001,  completionPer1k: 0.004,  currency: 'USD' },
 };
+
+/**
+ * Convert MODEL_PRICING to the shape expected by token-budget.ts.
+ */
+export function getBudgetModelPricing(): Record<string, { inputPer1K: number; outputPer1K: number; currency: string }> {
+  const result: Record<string, { inputPer1K: number; outputPer1K: number; currency: string }> = {};
+  for (const [model, entry] of Object.entries(MODEL_PRICING)) {
+    result[model] = {
+      inputPer1K: entry.promptPer1k,
+      outputPer1K: entry.completionPer1k,
+      currency: entry.currency,
+    };
+  }
+  return result;
+}
 
 // Provider base URLs
 const PROVIDER_BASE_URLS: Record<string, string> = {
@@ -111,7 +147,7 @@ function detectProviderBaseUrl(apiKey: string): string | null {
   return null;
 }
 
-const DEFAULT_CONFIG: Required<LLMClientConfig> = {
+const DEFAULT_CONFIG: Omit<Required<LLMClientConfig>, 'budgetGuard'> = {
   apiKey: '',
   baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   defaultModel: 'qwen3.5-plus',
@@ -127,7 +163,7 @@ const DEFAULT_CONFIG: Required<LLMClientConfig> = {
 // ============================================================================
 
 export class LLMClient {
-  private config: Required<LLMClientConfig>;
+  private config: Required<Omit<LLMClientConfig, 'budgetGuard'>> & Pick<LLMClientConfig, 'budgetGuard'>;
   private circuit: CircuitBreakerState;
   private totalTokens: LLMUsage;
   private totalCost: { prompt: number; completion: number };
@@ -139,10 +175,11 @@ export class LLMClient {
       ...config,
       baseUrl: (config.baseUrl || autoBaseUrl || DEFAULT_CONFIG.baseUrl).trim(),
     };
-    this.config = { ...DEFAULT_CONFIG, ...resolvedConfig };
+    const mergedConfig = { ...DEFAULT_CONFIG, ...resolvedConfig };
     // Defensive trim on URL and model (env vars may have trailing spaces)
-    this.config.baseUrl = this.config.baseUrl.trim();
-    this.config.defaultModel = this.config.defaultModel.trim();
+    mergedConfig.baseUrl = mergedConfig.baseUrl.trim();
+    mergedConfig.defaultModel = mergedConfig.defaultModel.trim();
+    this.config = mergedConfig;
     this.circuit = { failures: 0, lastFailure: 0, state: 'closed' };
     this.totalTokens = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
     this.totalCost = { prompt: 0, completion: 0 };
@@ -175,6 +212,24 @@ export class LLMClient {
           content: '',
           usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
           error: 'Circuit breaker is open — API is temporarily unavailable',
+        };
+      }
+    }
+
+    // Budget guard check — reject before any network call
+    if (this.config.budgetGuard) {
+      const guardResult = this.config.budgetGuard(
+        request.max_tokens ?? 4096,
+        model,
+        (request as any)._budgetContext ?? 'llm-call',
+      );
+      if (!guardResult.allowed) {
+        return {
+          ok: false,
+          status: 0,
+          content: '',
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+          error: `Budget exhausted: ${guardResult.reason || 'token limit reached'}`,
         };
       }
     }
@@ -256,6 +311,20 @@ export class LLMClient {
       }
     }
 
+    // Budget guard check — same as chat()
+    if (this.config.budgetGuard) {
+      const guardResult = this.config.budgetGuard(4096, targetModel, 'vision');
+      if (!guardResult.allowed) {
+        return {
+          ok: false,
+          status: 0,
+          content: '',
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+          error: `Budget exhausted: ${guardResult.reason || 'token limit reached'}`,
+        };
+      }
+    }
+
     const messages: LLMMessageMultimodal[] = [
       { role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: imageDataUri } }] },
     ];
@@ -310,7 +379,7 @@ export class LLMClient {
       completionCost: (usage.completion_tokens / 1000) * pricing.completionPer1k,
       totalCost: ((usage.prompt_tokens / 1000) * pricing.promptPer1k) +
                  ((usage.completion_tokens / 1000) * pricing.completionPer1k),
-      currency: 'USD',
+      currency: pricing.currency,
     };
   }
 

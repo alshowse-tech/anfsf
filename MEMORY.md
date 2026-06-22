@@ -1,0 +1,6 @@
+- [Runtime Coverage: 35% — the single most important fact](.claude/memory/runtime-coverage-35pct.md) — Always load first
+- [Locked Architectural Decisions](.claude/memory/locked-decisions.md) — 5 decisions, never override
+- [Agent Loop Audit](.claude/memory/agent-loop-audit.md) — Execution engine: gaps, strengths, roadmap
+- [Cost Management System](.claude/memory/cost-management-system.md) — Three-tier budget, pricing, persistence
+- [Document Map](.claude/memory/document-map.md) — What each document covers, read order
+- [Code Conventions](.claude/memory/code-conventions.md) — Naming, directories, commands, test baseline
