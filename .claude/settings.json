@@ -98,7 +98,7 @@
           },
           {
             "type": "command",
-            "command": "bash -c \"cd 'C:/Users/18079/Desktop/ANFSF-OS/anfsf' && bash scripts/audit/check-env-security.sh 2>&1\"",
+            "command": "bash -c \"cd '$(git rev-parse --show-toplevel 2>/dev/null || echo .)' && bash scripts/audit/check-env-security.sh 2>&1\"",
             "timeout": 15
           }
         ]
@@ -112,6 +112,18 @@
             "type": "command",
             "command": "bash -c \"cd 'C:/Users/18079/Desktop/ANFSF-OS/anfsf' && echo '[PreToolUse] About to write/edit files — remember: CLAUDE.md trap section applies'\"",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c \"cd '$(git rev-parse --show-toplevel 2>/dev/null || echo .)' && npx tsc --noEmit 2>&1 | tail -3\"",
+            "timeout": 30
           }
         ]
       }
