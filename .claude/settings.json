@@ -1,0 +1,131 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"C:/Users/18079/AppData/Local/nvm/current/npm.cmd\" ls *)",
+      "Bash('text=生成轮数')",
+      "Bash(C:/Users/18079/AppData/Local/nvm/current/node.exe -e ' *)",
+      "Bash(\"C:/Users/18079/AppData/Local/nvm/current/node.exe\" scripts/screenshot.mjs)",
+      "Bash(\"C:/Users/18079/AppData/Local/nvm/current/node.exe\" \"C:/Users/18079/Desktop/ANFSF-OS/anfsf/scripts/screenshot.cjs\")",
+      "Bash(\"C:/Users/18079/AppData/Local/nvm/current/node.exe\" \"C:/Users/18079/Desktop/ANFSF-OS/anfsf/scripts/dump-dom.cjs\")",
+      "Bash(\"C:/Users/18079/AppData/Local/nvm/current/node.exe\" \"C:/Users/18079/Desktop/ANFSF-OS/anfsf/scripts/test-e2e.cjs\")",
+      "Bash(\"C:/Users/18079/AppData/Local/nvm/current/node.exe\" -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\); const r=JSON.parse\\(Array.isArray\\(JSON.parse\\(d\\)\\)?d:'[]'\\).slice\\(0,3\\); r.forEach\\(x=>console.log\\(x.id,x.status,x.projectName,x.completedAt?'done':'running'\\)\\)\")",
+      "Bash(cmd.exe //c \"set PATH=%LOCALAPPDATA%\\\\nvm\\\\current;%PATH% && set LLM_API_KEY=test-key && set LLM_BASE_URL=http://localhost:8080 && npx jest src/pipeline/__tests__/pipeline-state-machine.test.ts src/pipeline/__tests__/fix-engine.test.ts src/pipeline/__tests__/full-pipeline-integration.test.ts --no-coverage 2>&1\")",
+      "Bash(ssh -T git@github.com)",
+      "Bash(ssh-keyscan github.com)",
+      "Bash(ssh-keygen -t ed25519 -C \"alshowse-tech/anfsf\" -f ~/.ssh/id_ed25519 -N \"\")",
+      "Bash(ssh -T -p 443 git@ssh.github.com)",
+      "Bash(ssh-keyscan -p 443 ssh.github.com)",
+      "Bash(sed -i 's/patchText: this.computePatch\\(fileContent, fixedContent\\),/patchText: this.computePatch\\(fileContent, fixedContent, record\\),/' src/pipeline/fix-executor.ts)",
+      "Bash(sed -i 's/private computePatch\\(original: string, fixed: string\\): string {/private computePatch\\(original: string, fixed: string, record: FixRecord\\): string {/' src/pipeline/fix-executor.ts)",
+      "Bash(sed -i 's|`--- a/${path.relative\\(this.projectPath, path.join\\(this.projectPath, \"tmp\"\\)\\)}`|`--- a/${record.file.replace\\(/\\\\\\\\\\\\\\\\/g, \"/\"\\)}`|' src/pipeline/fix-executor.ts)",
+      "Bash(sed -i 's|`+++ b/${path.relative\\(this.projectPath, path.join\\(this.projectPath, \"tmp\"\\)\\)}`|`+++ b/${record.file.replace\\(/\\\\\\\\\\\\\\\\/g, \"/\"\\)}`|' src/pipeline/fix-executor.ts)",
+      "Bash(xxd src/pipeline/fix-executor.ts)",
+      "Bash(xxd src/agents/code-generation-loop.ts)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(powershell -c \"\\(New-Object Media.SoundPlayer 'C:\\\\Windows\\\\Media\\\\ding.wav'\\).PlaySync\\(\\); Write-Output 'ding.wav played OK'\")",
+      "Bash(powershell -c \"\\(New-Object Media.SoundPlayer 'C:\\\\Windows\\\\Media\\\\Windows Notify.wav'\\).PlaySync\\(\\); Write-Output 'notify.wav played OK'\")",
+      "Bash(powershell -c \"\\(New-Object Media.SoundPlayer 'C:\\\\Windows\\\\Media\\\\ding.wav'\\).PlaySync\\(\\); Write-Output 'OK'\")",
+      "Bash(powershell -c \"\\(New-Object Media.SoundPlayer 'C:\\\\Windows\\\\Media\\\\Windows Notify.wav'\\).PlaySync\\(\\); Write-Output 'OK'\")",
+      "Bash(xxd src/pipeline/checkpoint.ts)",
+      "Bash(xxd src/pipeline/compile-learning-db.ts)",
+      "Bash(xxd web/src/components/TestFeedback.tsx)",
+      "Bash(cmd //c \"start.bat\")",
+      "Bash(netstat -ano)",
+      "Bash(LLM_API_KEY=sk-865b6777e6744aa3b1eaf623bb3524dd LLM_BASE_URL=https://api.deepseek.com/v1 ANFSF_MODEL=deepseek-chat GITEA_URL=http://localhost:3001 GITEA_USERNAME=anfsf GITEA_PASSWORD=anfsf123 node dist/server/index.js)",
+      "Bash(nvm current *)",
+      "Bash(npm rebuild *)",
+      "Bash(nvm ls *)",
+      "Bash(export LLM_API_KEY=sk-865b6777e6744aa3b1eaf623bb3524dd)",
+      "Bash(export LLM_BASE_URL=https://api.deepseek.com/v1)",
+      "Bash(export ANFSF_MODEL=deepseek-chat)",
+      "Bash(export GITEA_URL=http://localhost:3001)",
+      "Bash(export GITEA_USERNAME=anfsf)",
+      "Bash(taskkill //f //im node.exe)",
+      "Bash(export GITEA_PASSWORD=anfsf123)",
+      "Bash(npm i *)",
+      "Bash(npm ci *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d,indent=2,ensure_ascii=False\\)\\)\")",
+      "Bash(ls -la /tmp/test-prd.txt /tmp/test-data.csv 2>&1)",
+      "Read(//tmp/**)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('status:', d.get\\('status'\\), 'steps:', len\\(d.get\\('steps',[]\\)\\), 'files:', d.get\\('files'\\)\\)\")",
+      "Bash(unset LLM_API_KEY LLM_BASE_URL ANFSF_MODEL)",
+      "Bash(unset LLM_API_KEY)",
+      "Bash(unset LLM_BASE_URL)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('tenants:', d['data']['tenants']\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('status:', d.get\\('status','?'\\), 'files:', d.get\\('files','?'\\), 'rounds:', d.get\\('rounds','?'\\), 'gitea:', d.get\\('giteaUrl','?'\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('status:', d.get\\('status'\\), '| files:', len\\(d.get\\('files',[]\\)\\), '| rounds:', d.get\\('rounds'\\), '| message:', d.get\\('message'\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('compile records:', d['data']['compile']['totalPatterns'], '| patterns:', d['data']['compile']['uniquePatterns'], '| pipeline:', d['data']['pipeline']['totalRecords']\\)\")",
+      "Bash(printf '{\"prdText\":\"%s\",\"projectName\":\"%s\"}' \"固定资产投资项目管理系统。核心功能：批复数据同步、项目过程管控、统计报表、预警提醒。\" \"fixed-asset-final\" > /tmp/prd.json && curl -s -X POST http://localhost:3000/api/v1/synthesize -H \"Content-Type: application/json\" -d @/tmp/prd.json 2>&1)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('status:', d.get\\('status'\\), '| files:', len\\(d.get\\('files',[]\\)\\), '| rounds:', d.get\\('rounds'\\), '| msg:', d.get\\('message',''\\)[:80]\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('status:', d.get\\('status'\\), '| files:', d.get\\('files'\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('fixes:', d['total']\\)\")",
+      "Bash(ping -n 1 192.168.2.245)",
+      "Bash(npx vite *)",
+      "Bash(sleep 1)",
+      "Bash(cd \"C:/Users/18079/Desktop/ANFSF-OS/anfsf\")",
+      "Bash(sleep 3)",
+      "Bash(echo \"=== Backend ===\")",
+      "Bash(printf '{\"prdText\":\"%s\",\"projectName\":\"%s\"}' \"固定资产投资项目管理系统。核心功能：批复数据同步、项目过程管控、统计报表、预警提醒。\" \"fixed-asset-test\" > /tmp/prd-test.json && curl -s -X POST http://localhost:3000/api/v1/synthesize -H \"Content-Type: application/json\" -d @/tmp/prd-test.json 2>&1)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('status:', d.get\\('status'\\), '| files:', len\\(d.get\\('files',[]\\)\\), '| rounds:', d.get\\('rounds'\\), '| msg:', \\(d.get\\('message',''\\)[:100]\\)\\)\")",
+      "Bash(grep -B3 -A8 \"const cleaned\\\\|strip markdown\\\\|markdown.*fence\\\\|cleaned.replace\\\\|replace.*\\\\`\\\\`\\\\`\" dist/prd/prd-parser.js)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('status:', d.get\\('status'\\), '| files:', len\\(d.get\\('files',[]\\)\\), '| rounds:', d.get\\('rounds'\\), '| msg:', d.get\\('message',''\\), '| steps:', [s['name'] for s in d.get\\('steps',[]\\)]\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('status:', d.get\\('status'\\), '| files:', len\\(d.get\\('files',[]\\)\\), '| rounds:', d.get\\('rounds'\\), '| msg:', d.get\\('message',''\\), '| error:', d.get\\('error','none'\\)\\)\")",
+      "Bash(bash 'diff --git a/docs/UI-REFACTOR-PLAN.md b/docs/UI-REFACTOR-PLAN.md')",
+      "Bash(gh pr *)",
+      "Bash(xargs wc -l)",
+      "Bash(ls -la .claude/memory/)",
+      "Bash(ls -la MEMORY.md)",
+      "Bash(mkdir -p \"c:/Users/18079/Desktop/ANFSF-OS/anfsf/.claude/memory\")",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(ls -la .claude/)",
+      "Bash(ls -la scripts/)"
+    ],
+    "additionalDirectories": [
+      "\\tmp",
+      "c:\\Users\\18079\\Desktop\\ANFSF-OS\\anfsf\\.claude"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -c \"(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\ding.wav').PlaySync(); Write-Output '{}'\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash -c \"cd 'C:/Users/18079/Desktop/ANFSF-OS/anfsf' && bash scripts/audit/check-env-security.sh 2>&1\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c \"cd 'C:/Users/18079/Desktop/ANFSF-OS/anfsf' && echo '[PreToolUse] About to write/edit files — remember: CLAUDE.md trap section applies'\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -c \"(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\Windows Notify.wav').PlaySync(); Write-Output '{}'\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

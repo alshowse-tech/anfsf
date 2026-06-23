@@ -80,11 +80,35 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
+  # ═══════════════════════════════════════════════════════════
+  # Layer 2: Quality Gate — ANFSF Audit Suite
+  # ═══════════════════════════════════════════════════════════
+  audit:
+    name: ANFSF Audit Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ANFSF audit suite
+        run: |
+          chmod +x scripts/audit/*.sh
+          bash scripts/audit/run-all.sh
+
   # Build
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, test]
+    needs: [typecheck, lint, test, audit]
 
     steps:
       - name: Checkout
@@ -187,7 +211,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, test, build, integration]
+    needs: [typecheck, lint, test, build, audit, integration]
     if: github.ref == 'refs/heads/main'
 
     steps:
