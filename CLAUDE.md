@@ -150,3 +150,40 @@ npx tsc --noEmit       # 类型检查
 - **LLM**: DashScope (Qwen) 或 DeepSeek，通过 `DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` 配置
 - **Git 服务**: Gitea 1.25.4 @ localhost:3001
 - **预算控制**: `TOKEN_BUDGET` 环境变量（默认 5,000,000 tokens）
+
+---
+
+## 八、已知陷阱 — 每次会话开始前必读
+
+> 从 200+ 次审查中提炼的不可再犯的错误。
+
+### 陷阱 1: "文件存在 ≠ 运行时接入"
+
+看到模块有文件就假设它在工作。**现实**: `DevFixLoop` 有 435 行代码但 `synthesize.ts` 不导入它。
+**规则**: `grep <ModuleName> src/server/routes/synthesize.ts` 确认被导入后再声明"已实现"。
+
+### 陷阱 2: "文档 [x] ≠ 代码真的修了"
+
+`audit-report.md` 的 `[x]` 标记可能是预填的期望而非核实的结果。
+**规则**: 对任何 `[x]` 标记，用 `grep` 到代码中验证。
+
+### 陷阱 3: 新旧架构混用
+
+`product-pipeline.ts`（旧 17 层）和 `synthesize.ts`→`CodeGenerationLoop`（新 Agent Loop）并存。
+**规则**: 新功能在 `synthesize.ts`→Agent Loop 路径接入。旧 pipeline 的 `PipelineStep` 类型可用，运行逻辑已废弃。
+
+### 陷阱 4: 定价表分裂
+
+`llm-client.ts` 和 `token-budget.ts` 一度独立维护两套 `MODEL_PRICING`，差 3-7 倍。
+**规则**: 定价变更只改 `llm-client.ts`（单一事实来源）。
+
+### 陷阱 5: 修复 ≠ 加注释
+
+P1-6 的"修复"是加注释而非改代码。
+**规则**: 注释是文档，不是修复。
+
+### 自查
+
+```bash
+bash scripts/audit/run-all.sh
+```
