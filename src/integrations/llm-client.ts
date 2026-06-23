@@ -3,6 +3,8 @@
  *
  * Shared HTTP LLM client with retry, circuit breaker, timeout, and
  * token/cost tracking. Replaces bare fetch() calls across the codebase.
+ *
+ * Phase 3: Extended with tool-use (function calling) support.
  */
 
 // ============================================================================
@@ -23,8 +25,41 @@ export interface LLMMessageMultimodal {
 // ============================================================================
 
 export interface LLMMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  /** Tool call ID — set when role === 'tool' (function result) */
+  tool_call_id?: string;
+  /** Tool calls made by the assistant — set when role === 'assistant' and the LLM requested tool calls */
+  tool_calls?: ToolCall[];
+}
+
+/** Simplified tool definition sent to the LLM (function-calling schema) */
+export interface LLMToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, {
+        type: string;
+        description: string;
+        enum?: string[];
+        items?: { type: string };
+      }>;
+      required: string[];
+    };
+  };
+}
+
+/** A tool call made by the LLM */
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string; // JSON string — parsed by caller
+  };
 }
 
 export interface LLMRequest {
@@ -33,6 +68,10 @@ export interface LLMRequest {
   temperature?: number;
   max_tokens?: number;
   timeoutMs?: number;
+  /** Available tools for function calling (Phase 3) */
+  tools?: LLMToolDefinition[];
+  /** Tool choice strategy */
+  tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };
 }
 
 export interface LLMUsage {
@@ -47,6 +86,10 @@ export interface LLMResponse {
   content: string;
   usage: LLMUsage;
   error?: string;
+  /** Tool calls made by the LLM (Phase 3) */
+  tool_calls?: ToolCall[];
+  /** Why the LLM stopped: 'stop' (natural), 'tool_calls' (wants to call tools), 'length' (token limit) */
+  finish_reason?: 'stop' | 'tool_calls' | 'length';
 }
 
 export interface CostEstimate {
@@ -428,6 +471,8 @@ export class LLMClient {
           messages: request.messages || [],
           temperature: request.temperature ?? 0.7,
           max_tokens: request.max_tokens,
+          ...(request.tools && request.tools.length > 0 ? { tools: request.tools } : {}),
+          ...(request.tool_choice ? { tool_choice: request.tool_choice } : {}),
         }),
         signal,
       });
@@ -444,18 +489,22 @@ export class LLMClient {
       }
 
       const data = await response.json() as {
-        choices: Array<{ message: { content: string } }>;
+        choices: Array<{ message: { content: string; tool_calls?: ToolCall[] }; finish_reason?: string }>;
         usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
       };
 
-      const content = data.choices?.[0]?.message?.content || '';
+      const message = data.choices?.[0]?.message;
+      const content = message?.content || '';
       const usage = data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      const finishReason = data.choices?.[0]?.finish_reason as LLMResponse['finish_reason'];
 
       return {
         ok: true,
         status: response.status,
         content,
         usage,
+        tool_calls: message?.tool_calls,
+        finish_reason: finishReason,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
