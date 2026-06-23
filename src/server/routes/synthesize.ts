@@ -22,6 +22,9 @@ import { PipelineStateMachine } from '../../pipeline/pipeline-state-machine';
 import { CodeGenerationLoop, BudgetExhaustedError, type RequirementSpec } from '../../agents/code-generation-loop';
 import { TaskGenerator } from '../../pipeline/task-generator';
 import { TokenBudget } from '../../pipeline/token-budget';
+import { createCodeQualityGuardTool } from '../../agents/verification-tools/code-quality-guard-tool';
+import { createHallucinationGuardTool } from '../../agents/verification-tools/hallucination-guard-tool';
+import { createSecurityAuditorTool } from '../../agents/verification-tools/security-auditor-tool';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -249,7 +252,12 @@ async function runAgentPipeline(
         persistedSteps.push({ name: 'Agent Loop: Start', duration: 0, status: 'ok' });
         store.emitStep(jobId, { name: 'Agent Loop: Generating skeleton...', duration: 0, status: 'ok' });
 
-        const agentLoop = new CodeGenerationLoop(llm, { maxRetries: 2, maxTokens: 32_768 }, budget);
+        const extraTools = [
+          createCodeQualityGuardTool(),
+          createHallucinationGuardTool(),
+          createSecurityAuditorTool(),
+        ];
+        const agentLoop = new CodeGenerationLoop(llm, { maxRetries: 2, maxTokens: 32_768 }, budget, extraTools);
         // Budget is wired into CodeGenerationLoop — every generate() and fix() call
         // is pre-evaluated and consumed against the project-level TokenBudget.
         const taskGenerator = new TaskGenerator();

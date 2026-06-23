@@ -89,7 +89,7 @@ const tscCompileTool: VerificationTool = {
   },
 };
 
-const DEFAULT_TOOLS: VerificationTool[] = [tscCompileTool];
+export const DEFAULT_TOOLS: VerificationTool[] = [tscCompileTool];
 
 export class VerificationRunner {
   private tools: VerificationTool[];

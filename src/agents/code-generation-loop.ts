@@ -26,7 +26,7 @@ import {
   type AgentLoopResult,
   DEFAULT_AGENT_CONFIG,
 } from "./agent-loop-base";
-import { VerificationRunner, type VerificationResult, type VerificationError } from "./verification-runner";
+import { VerificationRunner, DEFAULT_TOOLS, type VerificationResult, type VerificationError, type VerificationTool } from "./verification-runner";
 
 export { AgentLoop, BudgetExhaustedError, AgentRoundTokenUsage, AgentLoopConfig, DEFAULT_AGENT_CONFIG } from "./agent-loop-base";
 export type { AgentLoopResult } from "./agent-loop-base";
@@ -124,11 +124,15 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     llm: LLMClient,
     config: Partial<AgentLoopConfig> = {},
     budget?: TokenBudget,
+    extraTools?: VerificationTool[],
   ) {
     super();
     this.llm = llm;
     this.config = { ...DEFAULT_AGENT_CONFIG, ...config };
-    this.verifier = new VerificationRunner();
+    this.verifier = new VerificationRunner([
+      ...DEFAULT_TOOLS,
+      ...(extraTools ?? []),
+    ]);
     this.budget = budget;
   }
 
