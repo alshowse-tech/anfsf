@@ -8,6 +8,7 @@
  */
 
 import { spawn } from 'child_process';
+import type { SandboxExecutor } from '../skills/sandbox-executor';
 import type { Tool, ToolDefinition, ToolResult, ToolContext } from './types';
 
 // ============================================================================
@@ -71,6 +72,7 @@ export class BashTool implements Tool {
     context: ToolContext,
   ): Promise<ToolResult> {
     const command = String(params.command ?? '').trim();
+    const useSandbox = this.definition.requiresSandbox && context.sandbox;
     const timeout = Math.min(
       Number(params.timeout ?? DEFAULT_TIMEOUT_MS),
       120_000, // max 2 minutes
@@ -101,6 +103,68 @@ export class BashTool implements Tool {
       }
     }
 
+    const start = Date.now();
+
+    // ======================================================================
+    // Phase 4: Sandboxed execution path (when SandboxExecutor is available)
+    // ======================================================================
+    if (useSandbox) {
+      return this.executeInSandbox(command, timeout, context);
+    }
+
+    // ======================================================================
+    // Fallback: direct spawn (backward compatible)
+    // ======================================================================
+    return this.executeDirect(command, timeout, context);
+  }
+
+  /**
+   * Execute command through the sandbox executor (Phase 4).
+   * Sandbox can restrict filesystem access, network, etc.
+   */
+  private async executeInSandbox(
+    command: string,
+    timeout: number,
+    context: ToolContext,
+  ): Promise<ToolResult> {
+    const start = Date.now();
+    const sandbox = context.sandbox as SandboxExecutor;
+
+    try {
+      const result = await sandbox.executeBash(command, {
+        cwd: context.workingDir,
+        timeout,
+      });
+
+      return {
+        callId: '',
+        toolName: 'execute_bash',
+        success: result.success,
+        output: result.output || '',
+        error: result.error,
+        durationMs: Date.now() - start,
+      };
+    } catch (error) {
+      return {
+        callId: '',
+        toolName: 'execute_bash',
+        success: false,
+        output: '',
+        error: `Sandbox execution failed: ${error instanceof Error ? error.message : String(error)}`,
+        durationMs: Date.now() - start,
+      };
+    }
+  }
+
+  /**
+   * Execute command directly via spawn (pre-Phase 4 behavior).
+   * Used when no sandbox is available.
+   */
+  private async executeDirect(
+    command: string,
+    timeout: number,
+    context: ToolContext,
+  ): Promise<ToolResult> {
     const start = Date.now();
 
     try {

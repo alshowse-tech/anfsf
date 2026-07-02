@@ -116,7 +116,7 @@ export default function PipelineProgress({ runId, onComplete }: Props) {
 
       {/* Metrics */}
       {data && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <MetricBox label="生成轮数" value={`${data.rounds ?? '?'} / 2`} />
           <MetricBox label="生成文件" value={String(fileCount)} />
           <MetricBox label="Token 消耗" value={fmtTokens(totalTokens)} />

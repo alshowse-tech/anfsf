@@ -1,5 +1,5 @@
 /**
- * ANFSF Agent â€?TestGenLoop (GAP-03)
+ * ANFSF Agent ï¿½?TestGenLoop (GAP-03)
  *
  * "generate -> verify -> fix" loop for producing automated test scripts
  * (Playwright/Jest/Vitest) from requirement specs.
@@ -12,6 +12,9 @@ import * as fs from "fs";
 import * as path from "path";
 import * as ts from "typescript";
 import { LLMClient, type LLMMessage } from "../integrations/llm-client";
+import { ToolRegistry } from '../tools';
+import { ToolExecutor } from './tool-executor';
+import { TokenBudget } from '../pipeline/token-budget';
 import {
   AgentLoop,
   type AgentRoundTokenUsage,
@@ -131,16 +134,22 @@ function buildTestFixPrompt(errors: RunError[], suite: TestSuite): LLMMessage[] 
 export class TestGenLoop extends AgentLoop<RequirementSpec, TestSuite, RunError> {
   private llm: LLMClient;
   private config: AgentLoopConfig;
+  private llmClient: LLMClient;
 
   get maxRetries(): number { return this.config.maxRetries; }
 
   constructor(
     llm: LLMClient,
     config: Partial<AgentLoopConfig> = {},
+    budget?: TokenBudget,
+    toolRegistry?: ToolRegistry,
   ) {
     super();
     this.llm = llm;
+    this.llmClient = llm;
     this.config = { ...DEFAULT_AGENT_CONFIG, ...config };
+    this.toolRegistry = toolRegistry;
+    if (budget) this.budget = budget;
   }
 
   // ================================================================
@@ -149,6 +158,23 @@ export class TestGenLoop extends AgentLoop<RequirementSpec, TestSuite, RunError>
 
   async generate(spec: RequirementSpec): Promise<TestSuite> {
     const messages = buildTestGenPrompt(spec);
+    if (this.toolRegistry) {
+      const executor = new ToolExecutor(this.llmClient, this.toolRegistry, {
+        workingDir: this.outputPath || process.cwd(), allowedPaths: this.outputPath ? [this.outputPath] : [], timeoutMs: this.config.llmTimeout,
+      });
+      const { content, state } = await executor.run(
+        messages[0]?.content || '', messages[1]?.content || '',
+        { maxRounds: 3, maxTokens: this.config.maxTokens, llmTimeout: this.config.llmTimeout },
+      );
+      let total = 0; for (const u of state.usage) total += u.totalTokens;
+      if (total > 0) {
+        this.roundTokenUsages.push({ round: 0, promptTokens: state.usage.reduce((s: number, u: any) => s + u.promptTokens, 0), completionTokens: state.usage.reduce((s: number, u: any) => s + u.completionTokens, 0), totalTokens: total });
+        if (this.budget) this.budget.consumeSync({ promptTokens: total, completionTokens: 0, totalTokens: total }, 'unknown', 'testgen', 'generation');
+      }
+      const suite = parseTestsFromResponse(content);
+      if (!suite.files.length) throw new Error('Tool loop returned 0 test files');
+      return suite;
+    }
     const response = await this.llm.chat({
       messages,
       max_tokens: this.config.maxTokens,
@@ -198,6 +224,24 @@ export class TestGenLoop extends AgentLoop<RequirementSpec, TestSuite, RunError>
 
   async fix(errors: RunError[], suite: TestSuite): Promise<TestSuite> {
     const fixMessages = buildTestFixPrompt(errors, suite);
+    if (this.toolRegistry) {
+      const executor = new ToolExecutor(this.llmClient, this.toolRegistry, {
+        workingDir: this.outputPath || process.cwd(), allowedPaths: this.outputPath ? [this.outputPath] : [], timeoutMs: this.config.llmTimeout,
+      });
+      const { content, state } = await executor.run(
+        fixMessages[0]?.content || '', fixMessages[1]?.content || '',
+        { maxRounds: 3, maxTokens: this.config.maxTokens, llmTimeout: this.config.llmTimeout },
+      );
+      let total = 0; for (const u of state.usage) total += u.totalTokens;
+      if (total > 0) {
+        this.roundTokenUsages.push({ round: this.roundTokenUsages.length, promptTokens: state.usage.reduce((s: number, u: any) => s + u.promptTokens, 0), completionTokens: state.usage.reduce((s: number, u: any) => s + u.completionTokens, 0), totalTokens: total });
+        if (this.budget) this.budget.consumeSync({ promptTokens: total, completionTokens: 0, totalTokens: total }, 'unknown', 'testgen', 'fix');
+      }
+      const fixedFiles = parseTestsFromResponse(content);
+      if (fixedFiles.files.length > 0) return mergeFixedTestFiles(suite, fixedFiles.files);
+      console.error('[TestGenLoop] Fix tool loop returned 0 files, keeping previous suite');
+      return suite;
+    }
     const fixResponse = await this.llm.chat({
       messages: fixMessages,
       max_tokens: this.config.maxTokens,

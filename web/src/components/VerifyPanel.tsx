@@ -14,12 +14,35 @@ export default function VerifyPanel() {
   const [projectId, setProjectId] = useState(searchParams.get("projectId") || "");
   const [fixes, setFixes] = useState<FixRecord[]>([]);
   const [message, setMessage] = useState("");
+  const [showGuardDetails, setShowGuardDetails] = useState(false);
+  const [guardResults, setGuardResults] = useState<any[]>([]);
 
   useEffect(() => {
     if (!projectId) return;
     fetch(API_BASE + "/api/v1/feedback/fixes?projectId=" + encodeURIComponent(projectId))
       .then(r => r.json()).then(d => { if (d.fixes) setFixes(d.fixes); }).catch(() => {});
   }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    fetch(API_BASE + "/api/v1/pipeline/" + projectId + "/status")
+      .then(r => r.json())
+      .then(run => {
+        const steps = run.steps || [];
+        const guards = steps
+          .filter((s: any) => s.name && s.name.startsWith('verify:'))
+          .map((s: any) => ({
+            tool: s.name.replace('verify:', ''),
+            passed: s.status === 'ok',
+            errors: [],
+            warnings: [],
+            durationMs: s.duration || 0,
+          }));
+        setGuardResults(guards);
+      })
+      .catch(() => {});
+  }, [projectId]);
+
 
   const transitionState = async (state: string) => {
     if (!projectId) return;
@@ -55,7 +78,7 @@ export default function VerifyPanel() {
         <>
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-sm font-medium text-gray-700 mb-3">{t("Verification Summary")}</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="border rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-green-600">{confirmedCount}</p>
                 <p className="text-xs text-gray-500">{t("Confirmed Fixes")}</p>
@@ -105,6 +128,30 @@ export default function VerifyPanel() {
             </div>
             {message && <p className="text-xs text-gray-500 mt-2">{message}</p>}
           </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <button onClick={() => setShowGuardDetails(!showGuardDetails)}
+            className="flex items-center justify-between w-full text-sm font-medium text-gray-700">
+            <span>验证工具详情 ({guardResults.length})</span>
+            <span>{showGuardDetails ? '▲' : '▼'}</span>
+          </button>
+          {showGuardDetails && (
+            <div className="mt-3 space-y-2">
+              {guardResults.length === 0 ? (
+                <p className="text-sm text-gray-500 py-2 text-center">暂无可用的验证结果</p>
+              ) : guardResults.map((g, i) => (
+                <div key={i} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-mono font-medium">{g.tool}</span>
+                    <span className={"text-xs px-2 py-0.5 rounded " + (g.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>
+                      {g.passed ? '通过' : '未通过'}
+                    </span>
+                  </div>
+                  {g.durationMs > 0 && (<p className="text-xs text-gray-400 mt-1">耗时: {(g.durationMs / 1000).toFixed(1)}s</p>)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         </>
       )}
     </div>

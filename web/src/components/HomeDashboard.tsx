@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { t } from "../i18n";
 
@@ -33,10 +33,15 @@ export default function HomeDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">{t("Projects")}</h2>
+        <div className="flex items-center gap-3">
+          <Link to="/projects" className="text-sm text-blue-600 hover:text-blue-700 no-underline">
+            {t("View all")} →
+          </Link>
         <button onClick={() => navigate("/require")}
           className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
           {t("+ New Project")}
         </button>
+        </div>
       </div>
 
       {projects.length === 0 ? (

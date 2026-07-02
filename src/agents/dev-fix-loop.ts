@@ -17,6 +17,12 @@ import { FixExecutor } from '../pipeline/fix-executor';
 import { VerificationRunner } from './verification-runner';
 import type { CodeSource, CodeAnnotation } from '../pipeline/code-annotator';
 import * as path from 'path';
+import { ToolRegistry } from '../tools';
+import { SandboxExecutor } from '../skills/sandbox-executor';
+import { LLMClient } from '../integrations/llm-client';
+import { TokenBudget } from '../pipeline/token-budget';
+import type { AgentLoopConfig } from './agent-loop-base';
+import type { VerificationTool } from './verification-runner';
 
 // ============================================================================
 // Types
@@ -86,6 +92,28 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
 
   /** Resolved project directory, cached from the input. */
   private projectPath: string = '';
+
+  // ========================================================================
+  // Constructor (Phase 5: ToolRegistry + SandboxExecutor + extra tools)
+  // ========================================================================
+
+  constructor(
+    /** LLM client for fix messages; reserved for future LLM-based fixes */
+    private llmClient: LLMClient,
+    config: Partial<AgentLoopConfig> = {},
+    budget?: TokenBudget,
+    /** ToolRegistry for tool-calling loop (Phase 3); reserved for future fix tool usage */
+    toolRegistry?: ToolRegistry,
+    /** Additional verification tools to extend the default compile check */
+    private extraVerificationTools?: VerificationTool[],
+    /** Optional sandbox for isolated compile/command execution (Phase 4) */
+    private sandbox?: SandboxExecutor,
+  ) {
+    super();
+    if (config.maxRetries) this.maxRetries = config.maxRetries as 2;
+    if (budget) this.budget = budget;
+    if (toolRegistry?.list().length) this.toolRegistry = toolRegistry;
+  }
 
   // ========================================================================
   // AgentLoop lifecycle
@@ -431,5 +459,3 @@ export class DevFixLoop extends AgentLoop<DevCommitInput, VerificationReport, Te
     return 'type_mismatch';
   }
 }
-
-

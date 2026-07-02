@@ -33,6 +33,7 @@ const DEFAULT_CONFIG: Required<SandboxConfig> = {
 };
 
 const TASK_TYPE_LIMITS: Record<string, { maxMemoryMB: number; maxExecutionTimeMs: number }> = {
+  'bash-command': { maxMemoryMB: 512, maxExecutionTimeMs: 60000 },
   'requirement-graph': { maxMemoryMB: 512, maxExecutionTimeMs: 60000 },
   'deep-reasoning': { maxMemoryMB: 512, maxExecutionTimeMs: 60000 },
   'ui-synthesis': { maxMemoryMB: 256, maxExecutionTimeMs: 30000 },
@@ -303,6 +304,116 @@ export class SandboxExecutor {
   clearConsole(): void { this.consoleBuffer = []; }
   getMemoryUsage(): number { return this.memoryUsage; }
   updateConfig(config: Partial<SandboxConfig>): void { this.config = { ...this.config, ...config }; }
+
+  // ==========================================================================
+  // Bash command execution (Phase 4 — sandboxed shell commands)
+  // ==========================================================================
+
+  /**
+   * Execute a shell command with sandbox isolation.
+   *
+   * Creates a temp working directory, spawns the command in it, captures
+   * stdout/stderr, and cleans up. Returns an ExecutionResult-compatible
+   * shape (status/output/error).
+   *
+   * The command is run with shell:true and inherits the system PATH, but
+   * runs in an isolated temp directory that is cleaned up after execution.
+   */
+  async executeBash(
+    command: string,
+    options?: {
+      /** Working directory for the command (default: temp dir) */
+      cwd?: string;
+      /** Timeout in ms (default: this.config.maxExecutionTimeMs) */
+      timeout?: number;
+      /** Environment variables to set */
+      env?: Record<string, string>;
+    },
+  ): Promise<{ success: boolean; output: string; error?: string; durationMs: number; exitCode: number }> {
+    const startTime = now();
+    const timeout = Math.min(
+      options?.timeout ?? this.config.maxExecutionTimeMs,
+      MAX_EXECUTION_TIME_MS,
+    );
+
+    if (!command || typeof command !== 'string' || !command.trim()) {
+      return { success: false, output: '', error: 'Command must be a non-empty string', durationMs: now() - startTime, exitCode: -1 };
+    }
+
+    // Create temp sandbox directory
+    const sandboxDir = fs.mkdtempSync(path.join(os.tmpdir(), 'anfsf-sandbox-bash-'));
+    const execCwd = options?.cwd || sandboxDir;
+
+    return new Promise<{ success: boolean; output: string; error?: string; durationMs: number; exitCode: number }>((resolve) => {
+      const cleanup = () => {
+        try { fs.rmSync(sandboxDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      };
+
+      const child = spawn(command, [], {
+        cwd: execCwd,
+        shell: true,
+        timeout,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: options?.env ? { ...process.env, ...options.env } : process.env,
+      });
+
+      let stdout = '';
+      let stderr = '';
+      const MAX_OUTPUT = 100_000;
+
+      child.stdout?.on('data', (chunk: Buffer) => {
+        if (stdout.length < MAX_OUTPUT) { stdout += chunk.toString('utf-8'); }
+      });
+      child.stderr?.on('data', (chunk: Buffer) => {
+        if (stderr.length < MAX_OUTPUT) { stderr += chunk.toString('utf-8'); }
+      });
+
+      const timer = setTimeout(() => {
+        child.kill('SIGKILL');
+        cleanup();
+        resolve({ success: false, output: stdout.slice(0, MAX_OUTPUT), error: `Command timed out after ${timeout}ms: ${command.slice(0, 100)}`, durationMs: now() - startTime, exitCode: -1 });
+      }, timeout);
+
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        cleanup();
+        const exitCode = code ?? -1;
+        const output = stdout.slice(0, MAX_OUTPUT);
+        const errorOutput = stderr.slice(0, MAX_OUTPUT);
+        resolve({
+          success: exitCode === 0,
+          output: output || (exitCode === 0 && !errorOutput ? '(no output)' : ''),
+          error: errorOutput || (exitCode !== 0 ? `Exit code ${exitCode}` : undefined),
+          durationMs: now() - startTime,
+          exitCode,
+        });
+      });
+
+      child.on('error', (err) => {
+        clearTimeout(timer);
+        cleanup();
+        resolve({ success: false, output: '', error: `Failed to spawn command: ${err.message}`, durationMs: now() - startTime, exitCode: -1 });
+      });
+    });
+  }
+
+  /**
+   * Set a new task type for this executor instance.
+   * Used by BashTool when routing through sandbox.
+   */
+  setTaskType(taskType: string): void {
+    this.taskType = taskType;
+    const limits = TASK_TYPE_LIMITS[taskType] || TASK_TYPE_LIMITS['default'];
+    this.config.maxMemoryMB = Math.min(this.config.maxMemoryMB, limits.maxMemoryMB);
+    this.config.maxExecutionTimeMs = Math.min(this.config.maxExecutionTimeMs, limits.maxExecutionTimeMs);
+  }
+
+  /**
+   * Get the current task type.
+   */
+  getTaskType(): string {
+    return this.taskType;
+  }
 }
 
 export async function safeEval(

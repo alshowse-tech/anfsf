@@ -1,8 +1,8 @@
-# ANFSF — Autonomous Non-Fungible Software Factory
+﻿# ANFSF — Autonomous Non-Fungible Software Factory
 
 ANFSF 是一个智能软件开发系统，将 PRD 转化为可编译运行的 TypeScript 全栈项目骨架。它是唯一从"PRD→全栈代码"方向切入的 AI-Native 软件工厂。
 
-> **当前阶段**: Phase 1 — 生成阶段（PRD→代码骨架+TASK.md→Gitea）已跑通。验证发布阶段和进化阶段待实现。
+> **当前阶段**: Phase A+B+C 生产级硬化 — 安全加固 + 运维能力 + 稳定性
 > **运行时接入率**: ~35%。详见 [全面审查报告](docs/AUDIT-FULL-STACK.md)。
 
 ## 核心理念
@@ -32,6 +32,7 @@ ANFSF 的最终目标是**软件开发全流程 AI/Agent 化**——仅保留 1 
 ### 环境要求
 
 - Node.js 20+, npm 10+
+- JWT_SECRET: 32+ 字符随机字符串（否则重启后会话失效）
 - LLM API Key（DashScope/Qwen 或 DeepSeek）
 - Gitea（可选，用于代码推送）
 
@@ -78,6 +79,7 @@ POST /api/v1/synthesize
 |--------|----------|------|
 | POST | `/api/v1/synthesize` | 提交 PRD 文本（JSON） |
 | POST | `/api/v1/synthesize/multipart` | 提交 PRD 文本 + 附件（图片/CSV/PDF） |
+| GET | `/docs` | Swagger UI 交互式 API 文档（启动后访问） |
 | GET | `/api/v1/pipeline` | 列出最近的管道运行 |
 | GET | `/api/v1/pipeline/:id/status` | 查询特定运行状态 |
 | GET | `/api/v1/pipeline/:id/stream` | SSE 实时进度推送 |
@@ -103,6 +105,7 @@ POST /api/v1/synthesize
 | [API-SPEC](docs/API-SPEC.md) | REST API 详细规范 | 接口开发 |
 | [DATABASE-SCHEMA](docs/DATABASE-SCHEMA.md) | 数据库表结构 | 数据层变更 |
 | [RUNBOOK](docs/RUNBOOK.md) | 部署、监控、备份、故障处理 | 运维操作 |
+| [PRODUCTION-CHECKLIST](docs/PRODUCTION-CHECKLIST.md) | 生产部署检查清单 | 上线前必读 |
 
 ## 配置
 
@@ -113,6 +116,7 @@ POST /api/v1/synthesize
 | `ANFSF_HOST` | 否 | `0.0.0.0` | 服务器绑定地址 |
 | `ANFSF_PORT` | 否 | `3000` | 服务器端口 |
 | `ANFSF_API_TOKEN` | 否 | — | API 认证令牌 |
+| `JWT_SECRET` | 否 | (自动生成) | JWT 签名密钥，未设置则重启后会话失效 |
 | `TOKEN_BUDGET` | 否 | `5000000` | 每项目 Token 预算 |
 | `DATABASE_URL` | 否 | — | PostgreSQL URL（空则使用 SQLite） |
 | `GITEA_URL` | 否 | `http://localhost:3001` | Gitea 服务地址 |

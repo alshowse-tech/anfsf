@@ -6,11 +6,12 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { getApiToken } from '../api/client';
 
 const API_BASE = import.meta.env.VITE_ANFSF_API || '';
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('anfsf_api_token');
+  const token = getApiToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

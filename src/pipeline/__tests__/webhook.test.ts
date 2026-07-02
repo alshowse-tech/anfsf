@@ -1,8 +1,15 @@
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import { registerWebhook, listWebhooks, removeWebhook, clearWebhooks } from "../webhook";
+import * as fs from 'fs';
+import * as path from 'path';
+
+const TEST_STORAGE = path.resolve('.anfsf/webhooks.json');
 
 describe("WebhookRegistry", () => {
-  beforeEach(() => { clearWebhooks(); });
+  beforeEach(() => {
+    clearWebhooks();
+    try { fs.unlinkSync(TEST_STORAGE); } catch {}
+  });
 
   it("registers a webhook", () => {
     const wh = registerWebhook("https://example.com/hook", ["ticket.created"]);

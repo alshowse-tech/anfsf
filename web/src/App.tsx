@@ -1,5 +1,11 @@
+﻿import OrchestrationStatus from "./components/OrchestrationStatus";
+import SkillsRegistry from "./components/SkillsRegistry";
+import ConfirmationReview from "./components/ConfirmationReview";
+import RequirementReviewPage from "./components/RequirementReviewPage";
+import ProjectDashboardBase from "./components/ProjectDashboardBase";
+
 import { useState } from "react";
-import { BrowserRouter, Routes, Route, Link, useSearchParams, useNavigate, NavLink } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, useSearchParams, useNavigate } from "react-router-dom";
 import StageTabs from "./components/StageTabs";
 import HomeDashboard from "./components/HomeDashboard";
 import PRDForm from "./components/PRDForm";
@@ -7,22 +13,30 @@ import PipelineProgress from "./components/PipelineProgress";
 import RunList from "./components/RunList";
 import ResultView from "./components/ResultView";
 import MermaidDiagram from "./components/MermaidDiagram";
-import ApiTokenSettings from "./components/ApiTokenSettings";
 import ErrorBoundary from "./components/ErrorBoundary";
 import TestFeedback from "./components/TestFeedback";
-import { LLMPlayground } from "./components/LLMPlayground";
-import SettingsModal from "./components/SettingsModal";
-import { t } from "./i18n";
+import { t, getLang, setLang } from "./i18n";
 import DevWorkspaceV2 from "./components/DevWorkspaceV2";
 import VerifyPanel from "./components/VerifyPanel";
 import ReleaseGate from "./components/ReleaseGate";
 import EvolutionPanel from "./components/EvolutionPanel";
+import WebhookStatus from './components/WebhookStatus';
+import SettingsPage from './components/SettingsPage';
+import AuditLog from './components/AuditLog';
+import CLITerminal from './components/CLITerminal';
+import ProjectList from "./components/ProjectList";
+import ProjectDetail from "./components/ProjectDetail";
+import GlobalAnalysis from "./components/GlobalAnalysis";
 
+import LoginPage from './components/LoginPage';
+import ProtectedRoute from './components/ProtectedRoute';
 const AGENT_LOOP_DIAGRAM = "graph TD\n  A[PRD Input] --> B{Quality Check}\n  B -->|pass| C[Agent Loop]\n  B -->|fail| D[Guided Mode]\n  C --> E[Verify + Fix]\n  E --> F[Write Files]\n  F --> G[Push Gitea]\n  G --> H[Done]\n";
 
 function Layout() {
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [completedRunId, setCompletedRunId] = useState<string | null>(null);
+  const [langVersion, setLangVersion] = useState(0);
+  void langVersion; // force re-render on language toggle
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const runIdFromUrl = searchParams.get("runId");
@@ -31,9 +45,8 @@ function Layout() {
   };
   const handleNewRun = () => { setActiveRunId(null); };
   const handlePipelineComplete = (runId: string) => { setCompletedRunId(runId); };
-  const [showSettings, setShowSettings] = useState(false);
-
   return (
+    <ProtectedRoute>
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
         <div className="max-w-6xl mx-auto px-4 py-3">
@@ -42,11 +55,8 @@ function Layout() {
               <h1 className="text-xl font-bold text-gray-900">ANFSF OS</h1>
             </Link>
             <div className="flex items-center gap-2 relative">
-              <button onClick={() => setShowSettings(!showSettings)}
-                className="text-gray-500 hover:text-gray-700 p-1 text-lg">
-                {String.fromCharCode(0x2699)}
-              </button>
-              {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+              <button onClick={() => { const nl = getLang() === "en" ? "zh" : "en"; setLang(nl); setLangVersion(v => v + 1); }} className="text-xs font-medium text-gray-500 hover:text-gray-700 px-2 py-1 border rounded shrink-0">{getLang() === "en" ? "中文" : "EN"}</button>
+              <Link to="/settings" className="text-gray-500 hover:text-gray-700 p-1 text-lg no-underline">{String.fromCharCode(0x2699)}</Link>
             </div>
           </div>
           <StageTabs />
@@ -58,9 +68,9 @@ function Layout() {
             <Routes>
               <Route path="/" element={<HomeDashboard />} />
               <Route path="/require" element={
-                activeRunId || runIdFromUrl ? (
+                activeRunId ?? runIdFromUrl ?? '' ? (
                   <>
-                    <PipelineProgress runId={activeRunId || runIdFromUrl}
+                    <PipelineProgress runId={activeRunId ?? runIdFromUrl ?? ''}
                       onComplete={handlePipelineComplete} />
                     {completedRunId && (
                       <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-center">
@@ -80,10 +90,23 @@ function Layout() {
               <Route path="/test" element={<TestFeedback />} />
               <Route path="/release" element={<ReleaseGate />} />
               <Route path="/evolve" element={<EvolutionPanel />} />
+              <Route path="/webhooks" element={<WebhookStatus />} />
+              <Route path="/orchestrate" element={<OrchestrationStatus />} />
+              <Route path="/skills" element={<SkillsRegistry />} />
+              <Route path="/confirm" element={<ConfirmationReview />} />
+              <Route path="/require/review" element={<RequirementReviewPage />} />
+              <Route path="/dashboard/:projectId" element={<ProjectDashboardBase />} />
               <Route path="/history" element={<RunList />} />
               <Route path="/result" element={<ResultView />} />
               <Route path="/diagram" element={
                 <MermaidDiagram chart={AGENT_LOOP_DIAGRAM} className="flex justify-center" />} />
+                          <Route path="/projects" element={<ProjectList />} />
+              <Route path="/projects/:projectId" element={<ProjectDetail />} />
+              <Route path="/analysis/global" element={<GlobalAnalysis />} />
+              <Route path="/analysis/:projectId" element={<GlobalAnalysis />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/audit-log" element={<AuditLog />} />
+              <Route path="/cli" element={<CLITerminal />} />
             </Routes>
           </ErrorBoundary>
         </div>
@@ -94,9 +117,22 @@ function Layout() {
         </div>
       </main>
     </div>
+    </ProtectedRoute>
   );
 }
 
 export default function App() {
-  return <BrowserRouter><Layout /></BrowserRouter>;
+  return <BrowserRouter><Routes>
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/*" element={<Layout />} />
+  </Routes></BrowserRouter>;
 }
+
+
+
+
+
+
+
+
+

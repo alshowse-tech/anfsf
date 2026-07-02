@@ -140,3 +140,71 @@ describe('safeEval helper', () => {
     expect(result.returnValue).toBe('safe');
   });
 });
+
+// ============================================================================
+// Phase 4: Bash command execution tests
+// ============================================================================
+
+describe('SandboxExecutor.executeBash', () => {
+  it('executes a simple command', async () => {
+    const executor = new SandboxExecutor({ maxExecutionTimeMs: 10000 }, 'bash-command');
+    const result = await executor.executeBash('node -e "console.log(\'hello world\')"');
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('hello world');
+    expect(result.exitCode).toBe(0);
+    expect(result.durationMs).toBeGreaterThan(0);
+  });
+
+  it('captures command output', async () => {
+    const executor = new SandboxExecutor({ maxExecutionTimeMs: 10000 }, 'bash-command');
+    const result = await executor.executeBash('node -e "console.log(\'line1\');console.log(\'line2\')"');
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('line1');
+    expect(result.output).toContain('line2');
+  });
+
+  it('captures stderr output', async () => {
+    const executor = new SandboxExecutor({ maxExecutionTimeMs: 10000 }, 'bash-command');
+    const result = await executor.executeBash('node -e "process.stderr.write(\'error message\')"');
+    expect(result.success).toBe(true);
+    // stderr is returned in result.error when exit code is 0
+    expect(result.error).toContain('error message');
+  });
+
+  it('returns non-zero exit code for failing commands', async () => {
+    const executor = new SandboxExecutor({ maxExecutionTimeMs: 10000 }, 'bash-command');
+    const result = await executor.executeBash('node -e "process.exit(42)"');
+    expect(result.success).toBe(false);
+    expect(result.exitCode).toBe(42);
+  });
+
+  it('rejects empty commands', async () => {
+    const executor = new SandboxExecutor({ maxExecutionTimeMs: 10000 }, 'bash-command');
+    const result = await executor.executeBash('');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('non-empty string');
+  });
+
+  it('rejects whitespace-only commands', async () => {
+    const executor = new SandboxExecutor({ maxExecutionTimeMs: 10000 }, 'bash-command');
+    const result = await executor.executeBash('   ');
+    expect(result.success).toBe(false);
+  });
+
+  it('times out on long-running commands', async () => {
+    const executor = new SandboxExecutor({ maxExecutionTimeMs: 500 }, 'bash-command');
+    // Use node to sleep 10 seconds (will timeout at 500ms)
+    const result = await executor.executeBash('node -e "setTimeout(()=>{},10000)"', { timeout: 500 });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('timed out');
+  });
+
+  it('runs in specified working directory', async () => {
+    const executor = new SandboxExecutor({ maxExecutionTimeMs: 10000 }, 'bash-command');
+    const tmpDir = require('os').tmpdir();
+    const result = await executor.executeBash('node -e "console.log(process.cwd())"', { cwd: tmpDir });
+    expect(result.success).toBe(true);
+    // The provided cwd should appear in the output (trimmed for trailing newline)
+    expect(result.output.trim()).toBe(tmpDir);
+  });
+});

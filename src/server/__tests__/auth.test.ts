@@ -21,7 +21,7 @@ describe('API Authentication Middleware', () => {
         });
         expect(res.status).toBe(401);
         const body = await res.json() as Record<string, unknown>;
-        expect(body.error).toBe('Unauthorized');
+        expect(body.error).toBe('UNAUTHORIZED');
       } finally {
         await server.stop();
       }
@@ -188,7 +188,7 @@ describe('API Authentication Middleware', () => {
       try {
         const res = await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Authorization': 'Bearer test' },
           body: JSON.stringify({ prdText: 'test' }),
         });
         expect(res.status).toBe(202);

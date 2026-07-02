@@ -28,6 +28,9 @@ import {
 } from "./agent-loop-base";
 import { VerificationRunner, DEFAULT_TOOLS, type VerificationResult, type VerificationError, type VerificationTool } from "./verification-runner";
 
+import { ToolRegistry } from '../tools';
+import { ToolExecutor, type ToolLoopConfig } from './tool-executor';
+
 export { AgentLoop, BudgetExhaustedError, AgentRoundTokenUsage, AgentLoopConfig, DEFAULT_AGENT_CONFIG } from "./agent-loop-base";
 export type { AgentLoopResult } from "./agent-loop-base";
 export type { VerificationError } from "./verification-runner";
@@ -125,6 +128,11 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     config: Partial<AgentLoopConfig> = {},
     budget?: TokenBudget,
     extraTools?: VerificationTool[],
+    /**
+     * Optional ToolRegistry for LLM tool-calling loop (Phase 3).
+     * When provided, generate() and fix() will use tool-calling instead of pure text prompts.
+     */
+    toolRegistry?: ToolRegistry,
   ) {
     super();
     this.llm = llm;
@@ -134,6 +142,7 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
       ...(extraTools ?? []),
     ]);
     this.budget = budget;
+    this.toolRegistry = toolRegistry;
   }
 
   /**
@@ -172,6 +181,72 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
     const extraContext = [history, await getKnowledgeInjection(this.currentProjectType)].filter(Boolean).join("\n");
     const messages = buildSkeletonPrompt(spec, extraContext);
 
+    // =====================================================================
+    // Phase 3: Tool-calling loop path (when ToolRegistry is provided)
+    // =====================================================================
+    if (this.toolRegistry) {
+      const executor = new ToolExecutor(this.llm, this.toolRegistry, {
+        workingDir: this.outputPath || process.cwd(),
+        allowedPaths: this.outputPath ? [this.outputPath] : [],
+        timeoutMs: this.config.llmTimeout,
+      });
+
+      const systemPrompt = messages[0]?.content || '';
+      const userPrompt = messages[1]?.content || '';
+
+      const toolConfig: Partial<ToolLoopConfig> = {
+        maxRounds: 5,
+        maxTokens: this.config.maxTokens,
+        llmTimeout: this.config.llmTimeout,
+      };
+
+      const { content, state } = await executor.run(systemPrompt, userPrompt, toolConfig);
+
+      // Record aggregated token usage from all tool loop rounds
+      let totalPrompt = 0;
+      let totalCompletion = 0;
+      let totalTokens = 0;
+      for (const u of state.usage) {
+        totalPrompt += u.promptTokens;
+        totalCompletion += u.completionTokens;
+        totalTokens += u.totalTokens;
+      }
+      if (totalTokens > 0) {
+        this.roundTokenUsages.push({
+          round: 0,
+          promptTokens: totalPrompt,
+          completionTokens: totalCompletion,
+          totalTokens,
+        });
+        if (this.budget) {
+          const result = this.budget.consumeSync(
+            { promptTokens: totalPrompt, completionTokens: totalCompletion, totalTokens },
+            'unknown',
+            'codegen',
+            'generation',
+          );
+          if (!result.allowed && result.threshold === 'hardBlock') {
+            throw new BudgetExhaustedError(
+              result.reason || 'Budget hard cap reached',
+              this.budget.usageRate(),
+              this.budget.remaining(),
+            );
+          }
+        }
+      }
+
+      const code = parseCodeFromResponse(content);
+      if (code.files.length === 0) {
+        throw new Error(
+          'LLM returned 0 parseable files (tool loop). Response length: ' + content.length,
+        );
+      }
+      return code;
+    }
+
+    // =====================================================================
+    // Fallback: pure text LLM path (backward compatible)
+    // =====================================================================
     const request: any = {
       messages,
       max_tokens: this.config.maxTokens,
@@ -246,6 +321,62 @@ export class CodeGenerationLoop extends AgentLoop<RequirementSpec, GeneratedCode
 
     const fixMessages = buildFixPrompt(errors, code.files);
 
+    // =====================================================================
+    // Phase 3: Tool-calling fix loop (when ToolRegistry is provided)
+    // =====================================================================
+    if (this.toolRegistry) {
+      const executor = new ToolExecutor(this.llm, this.toolRegistry, {
+        workingDir: this.outputPath || process.cwd(),
+        allowedPaths: this.outputPath ? [this.outputPath] : [],
+        timeoutMs: this.config.llmTimeout,
+      });
+
+      const systemPrompt = fixMessages[0]?.content || '';
+      const userPrompt = fixMessages[1]?.content || '';
+
+      const { content, state } = await executor.run(systemPrompt, userPrompt, {
+        maxRounds: 3,
+        maxTokens: this.config.maxTokens,
+        llmTimeout: this.config.llmTimeout,
+      });
+
+      // Record aggregated token usage
+      let totalPrompt = 0;
+      let totalCompletion = 0;
+      let totalTokens = 0;
+      for (const u of state.usage) {
+        totalPrompt += u.promptTokens;
+        totalCompletion += u.completionTokens;
+        totalTokens += u.totalTokens;
+      }
+      if (totalTokens > 0) {
+        this.roundTokenUsages.push({
+          round: this.roundTokenUsages.length,
+          promptTokens: totalPrompt,
+          completionTokens: totalCompletion,
+          totalTokens,
+        });
+        if (this.budget) {
+          this.budget.consumeSync(
+            { promptTokens: totalPrompt, completionTokens: totalCompletion, totalTokens },
+            'unknown',
+            'codegen',
+            'fix',
+          );
+        }
+      }
+
+      const fixedFiles = parseCodeFromResponse(content);
+      if (fixedFiles.files.length > 0) {
+        return mergeFixedFiles(code, fixedFiles.files);
+      }
+      console.error('[AgentLoop] Fix tool loop returned 0 files, keeping previous code');
+      return code;
+    }
+
+    // =====================================================================
+    // Fallback: pure text fix path (backward compatible)
+    // =====================================================================
     const request: any = {
       messages: fixMessages,
       max_tokens: this.config.maxTokens,

@@ -1,0 +1,218 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>ANFSF 试生产操作手册</title><style>body{font-family:system-ui,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;padding:40px;color:#333}h1{font-size:24px;border-bottom:2px solid #2563eb;padding-bottom:8px;margin-top:40px;color:#1e40af}h2{font-size:20px;margin-top:32px;color:#1e3a5f}h3{font-size:16px;margin-top:24px;color:#333}code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px}pre{background:#1e293b;color:#e2e8f0;padding:16px;border-radius:8px;overflow-x:auto}pre code{background:none;color:inherit;padding:0}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border:1px solid #ddd;padding:8px 12px;text-align:left;font-size:14px}th{background:#f8fafc;font-weight:600}blockquote{border-left:4px solid #2563eb;margin:16px 0;padding:8px 16px;background:#f8fafc}hr{border:none;border-top:1px solid #e2e8f0;margin:32px 0}.header{text-align:center;padding:40px 0;border-bottom:1px solid #e2e8f0;margin-bottom:40px}.header h1{font-size:28px;border:none;margin-top:0}@media print{body{padding:20px}pre{page-break-inside:avoid}h2{page-break-after:avoid}}</style></head><body><div class="header"><h1>ANFSF Agent Loop 平台</h1><h2>试生产操作手册</h2><p style="color:#666">版本 1.0 | 2026-07-02</p></div><h1>ANFSF Agent Loop 平台 — 试生产操作手册</h1><p>> <b>版本</b>: 1.0 | <b>日期</b>: 2026-07-02</p><p>> <b>系统</b>: ANFSF (Autonomous Non-Fungible Software Factory)</p><h2>第一章: 系统概述</h2><h3>1.1 平台简介</h3><p>ANFSF 是一个<b>智能软件开发系统</b>，能够将 PRD（产品需求文档）自动转化为可编译的 TypeScript 项目骨架代码。</p><p><b>核心能力</b>:</p><ul><li>输入 PRD 文本 → 自动生成全栈项目骨架</li><ul><li>代码质量/幻觉/安全三重验证</li><ul><li>测试文件自动生成</li><ul><li>多 Agent 并行生成（大项目自动拆分）</li><ul><li>Gitea 仓库自动推送</li></ul><h3>1.2 系统架构</h3><pre><code>┌──────────────────────────────────────────────────────┐
+│                   用户 (浏览器)                        │
+└──────────┬──────────────────────────────┬─────────────┘
+           │ HTTP (8080)                  │ HTTP (3001)
+           ▼                              ▼
+┌──────────────────┐          ┌────────────────────┐
+│   Frontend       │          │   Grafana           │
+│   React SPA      │          │   (监控仪表盘)       │
+│   nginx :8080    │          │   :3001             │
+└────────┬─────────┘          └────────────────────┘
+         │ /api → proxy :3000        ▲
+         ▼                            │
+┌──────────────────────────────────────────────────┐
+│   Backend API (Fastify)  :3000                   │
+│   POST /api/v1/synthesize  — 生成代码             │
+│   GET  /api/v1/pipeline     — 查询状态            │
+│   GET  /docs                — API 文档            │
+│   POST /api/v1/auth/login   — 登录               │
+└──────────┬───────────────────────────┬───────────┘
+           │                           │
+           ▼                           ▼
+┌──────────────────┐    ┌──────────────────────────┐
+│   PostgreSQL     │    │   Prometheus              │
+│   (或 SQLite)    │    │   (指标采集)              │
+└──────────────────┘    └──────────────────────────┘
+</pre><h3>1.3 端口一览</h3><table><thead><tr><th>服务</th><th>端口</th><th>访问地址</th></tr></thead><tbody><tr><td>前端界面 (Docker)</td><td>8080</td><td><code>http://localhost:8080</code></td></tr><tr><td>前端界面 (本地开发)</td><td>5173</td><td><code>http://localhost:5173</code></td></tr><tr><td>后端 API</td><td>3000</td><td><code>http://localhost:3000</code></td></tr><tr><td>API 文档 (Swagger)</td><td>3000</td><td><code>http://localhost:3000/docs</code></td></tr><tr><td>Grafana 监控</td><td>3001</td><td><code>http://localhost:3001</code></td></tr><tr><td>健康检查</td><td>3000</td><td><code>GET http://localhost:3000/health</code></td></tr><tr><td>Prometheus 指标</td><td>3000</td><td><code>GET http://localhost:3000/metrics</code></td></tr></tbody></table><hr><h2>第二章: 环境准备</h2><h3>2.1 前置条件</h3><table><thead><tr><td>依赖</td><td>版本要求</td><td>验证命令</td></tr><tr><td>Node.js</td><td>>= 18.0.0</td><td><code>node -v</code></td></tr><tr><td>npm</td><td>>= 10.0</td><td><code>npm -v</code></td></tr><tr><td>Docker (可选)</td><td>24+</td><td><code>docker -v</code></td></tr><tr><td>Docker Compose (可选)</td><td>2.0+</td><td><code>docker compose version</code></td></tr></tbody></table><h3>2.2 环境变量</h3><pre><code># === 必填 ===
+export LLM_API_KEY="sk-xxxxxxxxxxxx"       # LLM Provider API Key
+export JWT_SECRET="&lt;32字节随机字符串>"       # JWT 签名密钥, 推荐: openssl rand -hex 32
+
+# === 推荐 ===
+export ANFSF_API_TOKEN="anfsf-token-xxx"   # API 访问令牌
+export ANFSF_MODEL="qwen3.5-plus"          # 默认 LLM 模型
+export LLM_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+# === 可选 ===
+export TOKEN_BUDGET="5000000"              # 项目 Token 预算
+export ANFSF_PORT="3000"                   # 服务端口
+export LOG_LEVEL="info"                    # 日志级别
+export LOG_FILE="./logs/anfsf.log"         # 日志文件路径
+
+# === PostgreSQL (可选，默认 SQLite) ===
+export DATABASE_URL="postgresql://anfsf:password@localhost:5432/anfsf"
+export POSTGRES_PASSWORD="your_password"
+</pre><h3>2.3 快速启动验证</h3><pre><code># 验证 LLM 连接
+curl $LLM_BASE_URL/chat/completions \
+  -H "Authorization: Bearer $LLM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"qwen3.5-plus","messages":[{"role":"user","content":"hi"}],"max_tokens":5}'
+
+# 应收到 200 响应
+</pre><hr><h2>第三章: 启动系统</h2><h3>3.1 方式一: Docker Compose (推荐)</h3><pre><code># 1. 克隆代码
+git clone &lt;repo-url>
+cd anfsf
+
+# 2. 配置环境变量
+export LLM_API_KEY="sk-xxxxxxxx"
+export JWT_SECRET="$(openssl rand -hex 32)"
+export ANFSF_API_TOKEN="anfsf-token-prod-001"
+export GRAFANA_ADMIN_PASSWORD="grafana-admin-xxx"
+
+# 3. 启动全部服务
+docker compose up -d
+
+# 4. 确认启动
+docker compose ps
+# 应看到全部 5 个服务状态为 healthy 或 running:
+#   anfsf-backend    healthy
+#   anfsf-frontend   healthy
+#   anfsf-postgres   healthy
+#   prometheus       running
+#   grafana          running
+
+# 5. 验证
+curl http://localhost:3000/health
+# → {"status":"ok","uptime":...,"version":"1.0.0"}
+</pre><h3>3.2 方式二: 本地开发模式</h3><pre><code># 1. 安装依赖
+cd anfsf
+npm install
+cd web &amp;&amp; npm install &amp;&amp; cd ..
+
+# 2. 配置环境变量
+export LLM_API_KEY="sk-xxxxxxxx"
+export JWT_SECRET="local-dev-jwt-secret"
+
+# 3. 启动后端 (终端 1)
+npm run server
+
+# 4. 启动前端 (终端 2)
+cd web &amp;&amp; npm run dev
+
+# 5. 访问
+# 前端: http://localhost:5173
+# API:  http://localhost:3000
+# Docs: http://localhost:3000/docs
+</pre><h3>3.3 方式三: 生产单机部署</h3><pre><code># 1. 构建
+npm run build
+cd web &amp;&amp; npm run build &amp;&amp; cd ..
+
+# 2. 启动
+export NODE_ENV=production
+npm run start
+
+# 3. 前端单独部署
+cd web &amp;&amp; npm run preview
+</pre><hr><h2>第四章: 首次登录</h2><h3>4.1 用户注册</h3><p>系统启动后没有默认账户。首次使用时需要注册：</p><p><b>方式 A — 通过 API 注册</b>:</p><pre><code>curl -X POST http://localhost:3000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "YourStrongPassword123!",
+    "role": "admin"
+  }'
+# → {"status":"ok"}
+</pre><p><b>方式 B — 通过前端注册</b>:</p><p>1. 打开浏览器访问 <code>http://localhost:8080</code> (Docker) 或 <code>http://localhost:5173</code> (本地开发)</p><p>2. 页面自动跳转到登录页 <code>/login</code></p><p>3. 点击"注册"链接 (如登录页无注册入口，使用方式 A)</p><p>4. 填写用户名和密码</p><p>5. 登录成功后自动跳转首页</p><h3>4.2 登录</h3><pre><code>curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "YourStrongPassword123!"}'
+# → {"status":"ok","token":"eyJhbGciOiJIUzI1NiIs...","user":{...}}
+</pre><p>从响应中获取 JWT token，后续 API 调用需要此 token。</p><h3>4.3 验证登录</h3><pre><code>curl http://localhost:3000/api/v1/auth/me \
+  -H "Authorization: Bearer &lt;your-jwt-token>"
+# → {"authenticated":true,"username":"admin","role":"admin"}
+</pre><h3>4.4 密码管理</h3><ul><li>密码使用 bcrypt 加密存储</li><ul><li>注册时需满足最小长度 6 位</li><ul><li>管理员角色可选择: <code>admin</code>, <code>pm</code>, <code>frontend</code>, <code>backend</code>, <code>qa</code>, <code>devops</code>, <code>viewer</code></li><ul><li>如果遗忘密码，删除 <code>.anfsf/users.json</code> 后重启服务即可重新注册</li></ul><hr><h2>第五章: 使用系统</h2><h3>5.1 首页导航</h3><p>登录成功后进入首页 (<code>/</code>)，页面包含:</p><pre><code>┌────────────────────────────────────────────────────────┐
+│  ANFSF OS                        [⚙ 设置]              │
+│  [首页] [需求] [开发] [验证] [测试] [发布] [编排]...    │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│  项目清单                          [+ 新建项目]         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
+│  │ Todo App  │  │ 电商平台  │  │ 博客系统  │              │
+│  │ created   │  │ stage2   │  │ done     │              │
+│  │ 2026-06-28│  │ 2026-06-25│  │ 2026-06-20│              │
+│  │ [Pipeline]│  │ [Pipeline]│  │ [Pipeline]│              │
+│  └──────────┘  └──────────┘  └──────────┘              │
+│                                                        │
+│  系统健康                                               │
+│  项目: 3   流水线运行: 12   活跃阶段: 4                │
+└────────────────────────────────────────────────────────┘
+</pre><p><b>顶部导航栏</b>:</p><table><thead><tr><td>Tab</td><td>路径</td><td>功能</td></tr><tr><td>首页</td><td><code>/</code></td><td>项目总览 + 系统健康</td></tr><tr><td>需求</td><td><code>/require</code></td><td>提交 PRD + 查看生成进度</td></tr><tr><td>开发</td><td><code>/dev</code></td><td>修复记录 + 工单</td></tr><tr><td>验证</td><td><code>/verify</code></td><td>代码验证结果</td></tr><tr><td>测试</td><td><code>/test</code></td><td>测试反馈</td></tr><tr><td>发布</td><td><code>/release</code></td><td>发布门禁检查</td></tr><tr><td>编排</td><td><code>/orchestrate</code></td><td>多 Agent 状态</td></tr><tr><td>技能</td><td><code>/skills</code></td><td>技能注册信息</td></tr><tr><td>Webhooks</td><td><code>/webhooks</code></td><td>自动修复记录</td></tr><tr><td>项目</td><td><code>/projects</code></td><td>项目清单</td></tr><tr><td>分析</td><td><code>/analysis/global</code></td><td>全局分析</td></tr><tr><td>进化</td><td><code>/evolve</code></td><td>系统指标</td></tr><tr><td>设置</td><td><code>/settings</code></td><td>系统配置</td></tr></tbody></table><h3>5.2 创建项目并生成代码</h3><p><b>步骤 1: 提交 PRD</b></p><p>1. 点击首页的"+ 新建项目"按钮 → 跳转到 <code>/require</code></p><p>2. 在文本框中输入 PRD 内容 — 例如:</p><pre><code># Todo 应用
+
+一个简单的任务管理应用，支持:
+- 添加任务（标题 + 描述）
+- 标记任务为已完成
+- 删除任务
+- 查看所有任务列表
+
+技术栈:
+- 前端: React + TypeScript
+- 后端: Node.js + Express
+- 数据库: SQLite
+</pre><p>3. 可选：上传附件（图片、PDF 等）</p><p>4. 点击"运行流水线"按钮</p><p><b>步骤 2: 查看生成进度</b></p><p>提交后页面自动切换到进度视图，显示:</p><pre><code>┌─ 实时进度 ─────────────────────────────────────────┐
+│  [● 实时] Todo App — 正在生成...                    │
+│                                                     │
+│  ① 质量检查 ───── ② Agent Loop ● ──── ③ 生成完毕    │
+│                                                     │
+│  生成轮数: 1/2  文件: 12  Token: 15K  耗时: 4.2s    │
+│                                                     │
+│  ✓ PRD Quality: 85/100                              │
+│  ✓ Generating skeleton...                           │
+│  ● Installing dependencies...                        │
+│  ○ Running compile check...                          │
+└─────────────────────────────────────────────────────┘
+</pre><p>进度条会根据后端 SSE 事件实时更新。绿色圆点表示"实时"状态。</p><p><b>步骤 3: 查看生成结果</b></p><p>流水线完成后，页面显示:</p><ul><li><b>"查看产出物"</b> → 浏览生成的文件代码</li><ul><li><b>"在 Gitea 中查看"</b> → 跳转到 Gitea 仓库（如已配置）</li></ul><h3>5.3 查看验证结果</h3><p>项目生成完成后，进入 <code>/verify</code> 页面:</p><pre><code>┌─ 验证摘要 ──────────────────────────────────────────┐
+│  已确认修复: 3      待处理修复: 1                    │
+│  L1 Auto: 2   L2 Suggest: 1   L3 Manual: 1         │
+├─ 验证工具详情 ──────────────────────────────────────┤
+│  ▼ tsc-compile    ✅ 通过  耗时: 3.2s               │
+│  ▼ code-quality   ⚠️ 警告  耗时: 0.01s             │
+│     • [static] 文件过长: 520 行                     │
+│     • [policy] 检测到 console.log                   │
+│  ▼ hallucination  ✅ 通过  耗时: 0.01s              │
+│  ▼ security       ✅ 通过  耗时: 0.02s              │
+├─ 状态操作 ──────────────────────────────────────────┤
+│  [验证通过→开发]  [进入测试]  [返回开发]              │
+└─────────────────────────────────────────────────────┘
+</pre><p>验证执行 4 项检查:</p><p>1. <b>tsc-compile</b> — TypeScript 编译检查</p><p>2. <b>code-quality-guard</b> — 代码质量（复杂度/TODO/console.log）</p><p>3. <b>hallucination-guard</b> — 幻觉检测（不存在的 API/矛盾声明）</p><p>4. <b>security-auditor</b> — 安全审计（OWASP Top 10）</p><h3>5.4 查看编排状态</h3><p>进入 <code>/orchestrate</code> 页面查看多 Agent 系统状态:</p><pre><code>┌─ Agent 健康 ─────────────────────────────────────────┐
+│  ● Active Agents: 2                                  │
+│  ● Registered: 4 (code-generation, test-generation)   │
+│  ● Queued Messages: 0                                │
+├─ 总线统计 ───────────────────────────────────────────┤
+│  ● Messages Processed: 234                           │
+│  ● Avg Latency: 8ms                                  │
+├─ DAG 状态 ──────────────────────────────────────────┤
+│  Wave 1: [auth-task ■, crud-task ■]                  │
+│  Wave 2: [ui-task □]                                 │
+│  总计: 2/3 任务完成                                   │
+└──────────────────────────────────────────────────────┘
+</pre><h3>5.5 配置 LLM Provider</h3><p>进入 <code>/settings/llm</code>:</p><pre><code>┌─ LLM Provider 配置 ────────────────────────────────┐
+│  API Key:    [••••••••••••••••]  (已配置)           │
+│  Base URL:   [https://dashscope.aliyuncs.com/...]   │
+│  默认模型:   [qwen3.5-plus ▼]                       │
+│                                                     │
+│  [测试连接]  [保存]                                  │
+│  ✅ 连接成功 (延迟: 320ms)                          │
+└─────────────────────────────────────────────────────┘
+</pre><p>其他配置页面:</p><ul><li><code>/settings/pipeline</code> — Pipeline 参数（maxRetries/超时/阈值）</li><ul><li><code>/settings/notifications</code> — Webhook 通知配置</li><ul><li><code>/settings/tenants</code> — 租户管理</li><ul><li><code>/settings/gitea</code> — Gitea 仓库配置</li></ul><h3>5.6 查看系统分析</h3><p>进入 <code>/analysis/global</code>:</p><pre><code>┌─ 瓶颈阶段排名 ─────────────────────────────────────┐
+│  #1  stage2_dev   avg: 4.5s  P95: 6.0s  失败率 33% │
+│     ████████████████████████████████░░░░  4.5s      │
+│  #2  stage4_verify avg: 3.2s  P95: 5.1s  失败率 20% │
+│     ██████████████████████████░░░░░░░░  3.2s        │
+├─ 编译错误 TOP 5 ────────────────────────────────────┤
+│  TS2322: Type X not assignable to Y   15 次         │
+│  TS6133: X declared but never used    8 次          │
+├─ 组件复用排行 ─────────────────────────────────────┤
+│  Button   出现在 5 个项目                            │
+│  Card     出现在 4 个项目                            │
+└─────────────────────────────────────────────────────┘
+</pre><hr><h2>第六章: 故障排除</h2><h3>6.1 服务启动失败</h3><table><thead><tr><td>症状</td><td>检查项</td><td>解决</td></tr><tr><td>端口占用</td><td><code>lsof -ti:3000</code></td><td>关闭占用进程或修改 <code>ANFSF_PORT</code></td></tr><tr><td>LLM 连接失败</td><td><code>curl $LLM_BASE_URL/...</code></td><td>检查 <code>LLM_API_KEY</code> 和 <code>LLM_BASE_URL</code></td></tr><tr><td>数据库连接失败</td><td><code>docker compose logs postgres</code></td><td>检查 <code>DATABASE_URL</code>，确认 PostgreSQL 健康</td></tr><tr><td>JWT 未配置</td><td>启动日志 warning</td><td>设置环境变量 <code>JWT_SECRET</code></td></tr></tbody></table><h3>6.2 前端访问异常</h3><table><thead><tr><td>问题</td><td>检查</td></tr><tr><td>白屏</td><td>浏览器控制台查看错误 → 确认后端启动</td></tr><tr><td>401 未授权</td><td>重新登录获取新 Token</td></tr><tr><td>API 请求失败</td><td><code>vite.config.ts</code> 中 proxy 配置的 target 端口是否与后端一致</td></tr></tbody></table><h3>6.3 代码生成失败</h3><table><thead><tr><td>症状</td><td>原因</td></tr><tr><td>0 个生成文件</td><td>PRD 质量评分过低 → 需进入引导模式</td></tr><tr><td>编译错误未修复</td><td>Token 预算耗尽 → 增加 <code>TOKEN_BUDGET</code></td></tr><tr><td>Gitea 推送失败</td><td>Gitea 服务未启动或配置错误</td></tr></tbody></table><h3>6.4 实用命令</h3><pre><code># 查看实时日志
+docker compose logs -f anfsf
+
+# 查看 API 文档
+open http://localhost:3000/docs
+
+# 查看 Prometheus 指标
+curl http://localhost:3000/metrics
+
+# 重置用户数据
+rm .anfsf/users.json &amp;&amp; docker compose restart anfsf
+# (如用 SQLite) 重置数据库
+rm .anfsf/runs.db &amp;&amp; docker compose restart anfsf
+</pre><hr><h2>第七章: 生产部署清单</h2><h3>7.1 安全加固</h3><ul><li>[ ] <code>JWT_SECRET</code> 已设置为 32 字节随机字符串</li><ul><li>[ ] <code>ANFSF_API_TOKEN</code> 已设置</li><ul><li>[ ] 注册的用户已赋予合适角色</li><ul><li>[ ] 已配置 HTTPS（建议 Nginx 反向代理）</li><ul><li>[ ] CORS 已限制到具体域名（设置 <code>ANFSF_ALLOWED_ORIGINS</code>）</li></ul><h3>7.2 运维准备</h3><ul><li>[ ] Docker 数据卷已挂载持久化目录</li><ul><li>[ ] Prometheus 已配置报警规则</li><ul><li>[ ] Grafana 仪表盘已导入</li><ul><li>[ ] 日志轮转已配置（设置 <code>LOG_FILE</code>）</li><ul><li>[ ] 数据库定期备份已配置</li></ul><hr><h2>附录</h2><h3>A. 环境变量完整清单</h3><table><thead><tr><td>变量名</td><td>说明</td><td>必填</td><td>默认值</td></tr><tr><td><code>LLM_API_KEY</code></td><td>LLM Provider API Key</td><td><b>是</b></td><td>—</td></tr><tr><td><code>JWT_SECRET</code></td><td>JWT 签名密钥</td><td><b>是</b></td><td>自动生成(重启失效)</td></tr><tr><td><code>ANFSF_API_TOKEN</code></td><td>API 访问令牌</td><td>推荐</td><td>—</td></tr><tr><td><code>LLM_BASE_URL</code></td><td>LLM Provider URL</td><td>否</td><td>DashScope 默认地址</td></tr><tr><td><code>ANFSF_MODEL</code></td><td>默认模型</td><td>否</td><td><code>qwen3.5-plus</code></td></tr><tr><td><code>ANFSF_PORT</code></td><td>服务端口</td><td>否</td><td><code>3000</code></td></tr><tr><td><code>ANFSF_HOST</code></td><td>绑定地址</td><td>否</td><td><code>0.0.0.0</code></td></tr><tr><td><code>TOKEN_BUDGET</code></td><td>项目 Token 预算</td><td>否</td><td><code>5000000</code></td></tr><tr><td><code>LOG_LEVEL</code></td><td>日志级别</td><td>否</td><td><code>info</code></td></tr><tr><td><code>LOG_FILE</code></td><td>日志文件路径</td><td>否</td><td>stderr 输出</td></tr><tr><td><code>DATABASE_URL</code></td><td>PostgreSQL 连接串</td><td>否</td><td>默认 SQLite</td></tr><tr><td><code>ANFSF_ALLOWED_ORIGINS</code></td><td>CORS 允许域名</td><td>否</td><td>仅 localhost</td></tr><tr><td><code>GITEA_URL</code></td><td>Gitea 地址</td><td>否</td><td><code>http://localhost:3001</code></td></tr><tr><td><code>GITEA_WEBHOOK_SECRET</code></td><td>Gitea Webhook 密钥</td><td>否</td><td>不验证</td></tr></tbody></table><h3>B. API 端点速查</h3><table><thead><tr><td>方法</td><td>路径</td><td>说明</td><td>是否需要 Token</td></tr><tr><td>GET</td><td><code>/health</code></td><td>健康检查</td><td>❌</td></tr><tr><td>GET</td><td><code>/ready</code></td><td>就绪检查</td><td>❌</td></tr><tr><td>GET</td><td><code>/metrics</code></td><td>Prometheus 指标</td><td>❌</td></tr><tr><td>POST</td><td><code>/api/v1/auth/register</code></td><td>注册</td><td>❌</td></tr><tr><td>POST</td><td><code>/api/v1/auth/login</code></td><td>登录</td><td>❌</td></tr><tr><td>GET</td><td><code>/api/v1/auth/me</code></td><td>当前用户</td><td>✅</td></tr><tr><td>POST</td><td><code>/api/v1/auth/logout</code></td><td>登出</td><td>✅</td></tr><tr><td>POST</td><td><code>/api/v1/synthesize</code></td><td>提交 PRD 生成代码</td><td>✅</td></tr><tr><td>POST</td><td><code>/api/v1/synthesize/multipart</code></td><td>带附件提交 PRD</td><td>✅</td></tr><tr><td>GET</td><td><code>/api/v1/pipeline/:id/status</code></td><td>查询运行状态</td><td>✅</td></tr><tr><td>GET</td><td><code>/api/v1/pipeline/:id/files</code></td><td>列出生成文件</td><td>✅</td></tr><tr><td>GET</td><td><code>/api/v1/pipeline</code></td><td>运行历史</td><td>✅</td></tr><tr><td>GET</td><td><code>/api/v1/pipeline/:id/stream</code></td><td>SSE 实时进度</td><td>✅</td></tr><tr><td>GET</td><td><code>/api/v1/orchestrate/status</code></td><td>编排状态</td><td>✅</td></tr><tr><td>GET</td><td><code>/api/v1/skills</code></td><td>技能列表</td><td>✅</td></tr><tr><td>GET</td><td><code>/docs</code></td><td>Swagger API 文档</td><td>❌</td></tr><tr><td>GET</td><td><code>/api/v1/knowledge/metrics/stages</code></td><td>阶段指标</td><td>✅</td></tr><tr><td>GET</td><td><code>/api/v1/knowledge/metrics/bottlenecks</code></td><td>瓶颈分析</td><td>✅</td></tr><tr><td>GET</td><td><code>/api/v1/knowledge/compile-patterns</code></td><td>编译错误模式</td><td>✅</td></tr></tbody></table><h3>C. 参考链接</h3><ul><li>API 交互文档: <code>http://localhost:3000/docs</code></li><ul><li>Prometheus 指标: <code>http://localhost:3000/metrics</code></li><ul><li>Grafana 仪表盘: <code>http://localhost:3001</code> (admin / 配置密码)</li><ul><li>Docker Hub 镜像: <code>ghcr.io/your-org/anfsf</code></li></ul></body></html>

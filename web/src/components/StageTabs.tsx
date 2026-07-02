@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+﻿import { NavLink } from "react-router-dom";
 import { t } from "../i18n";
 
 interface StageTab { path: string; label: string; stage: number; }
@@ -11,6 +11,14 @@ const TABS: StageTab[] = [
   { path: "/test", label: t("Testing"), stage: 4 },
   { path: "/release", label: t("Release"), stage: 5 },
   { path: "/evolve", label: t("Evolution"), stage: -1 },
+  { path: "/orchestrate", label: t("Orchestrate"), stage: -1 },
+  { path: "/skills", label: t("Skills"), stage: -1 },
+  { path: "/webhooks", label: t("Webhooks"), stage: -1 },
+  { path: "/projects", label: t("Projects"), stage: -1 },
+  { path: "/analysis/global", label: t("Analysis"), stage: -1 },
+  { path: "/settings", label: t("Settings"), stage: -1 },
+  { path: "/audit-log", label: t("Audit Log"), stage: -1 },
+  { path: "/cli", label: t("CLI"), stage: -1 },
 ];
 
 export default function StageTabs() {
@@ -33,3 +41,5 @@ export default function StageTabs() {
     </nav>
   );
 }
+
+

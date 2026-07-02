@@ -130,7 +130,7 @@ describe('Server', () => {
   });
 
   test('server responds to health check', async () => {
-    const server = await createServer({ apiKey: 'test-key', port: 0 });
+    const server = await createServer({ apiKey: 'test-key', apiToken: 'test-token', port: 0 });
     await server.start();
 
     const address = server.app.server.address();
@@ -149,7 +149,7 @@ describe('Server', () => {
   });
 
   test('server returns metrics in Prometheus format', async () => {
-    const server = await createServer({ apiKey: 'test-key', port: 0 });
+    const server = await createServer({ apiKey: 'test-key', apiToken: 'test-token', port: 0 });
     await server.start();
 
     const address = server.app.server.address();
@@ -168,7 +168,7 @@ describe('Server', () => {
   });
 
   test('POST /api/v1/synthesize returns 202 with jobId', async () => {
-    const server = await createServer({ apiKey: 'test-key', port: 0 });
+    const server = await createServer({ apiKey: 'test-key', apiToken: 'test-token', port: 0 });
     await server.start();
 
     const address = server.app.server.address();
@@ -177,7 +177,7 @@ describe('Server', () => {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'Build a todo app' }),
       });
       expect(res.status).toBe(202);
@@ -190,7 +190,7 @@ describe('Server', () => {
   });
 
   test('POST /api/v1/synthesize returns 400 for empty prdText', async () => {
-    const server = await createServer({ apiKey: 'test-key', port: 0 });
+    const server = await createServer({ apiKey: 'test-key', apiToken: 'test-token', port: 0 });
     await server.start();
 
     const address = server.app.server.address();
@@ -199,7 +199,7 @@ describe('Server', () => {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: '' }),
       });
       expect(res.status).toBe(400);
@@ -209,14 +209,16 @@ describe('Server', () => {
   });
 
   test('GET /api/v1/pipeline/:id/status returns 404 for unknown run', async () => {
-    const server = await createServer({ apiKey: 'test-key', port: 0 });
+    const server = await createServer({ apiKey: 'test-key', apiToken: 'test-token', port: 0 });
     await server.start();
 
     const address = server.app.server.address();
     const port = (typeof address === 'object' && address) ? address.port : 3000;
 
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/api/v1/pipeline/nonexistent/status`);
+      const res = await fetch(`http://127.0.0.1:${port}/api/v1/pipeline/nonexistent/status`, {
+        headers: { 'Authorization': 'Bearer test-token' },
+      });
       expect(res.status).toBe(404);
     } finally {
       await server.stop();
@@ -224,7 +226,7 @@ describe('Server', () => {
   });
 
   test('GET /api/v1/pipeline returns list of runs', async () => {
-    const server = await createServer({ apiKey: 'test-key', port: 0 });
+    const server = await createServer({ apiKey: 'test-key', apiToken: 'test-token', port: 0 });
     await server.start();
 
     const address = server.app.server.address();
@@ -234,11 +236,13 @@ describe('Server', () => {
       // Create a run first
       await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'test prd' }),
       });
 
-      const res = await fetch(`http://127.0.0.1:${port}/api/v1/pipeline`);
+      const res = await fetch(`http://127.0.0.1:${port}/api/v1/pipeline`, {
+        headers: { 'Authorization': 'Bearer test-token' },
+      });
       expect(res.status).toBe(200);
       const body = await res.json() as unknown[];
       expect(Array.isArray(body)).toBe(true);

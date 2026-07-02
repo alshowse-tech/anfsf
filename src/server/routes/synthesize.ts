@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/v1/synthesize — Trigger pipeline run (Agent Loop)
  * POST /api/v1/synthesize/multipart — Trigger pipeline with file attachments
  */
@@ -22,6 +22,7 @@ import { PipelineStateMachine } from '../../pipeline/pipeline-state-machine';
 import { CodeGenerationLoop, BudgetExhaustedError, type RequirementSpec } from '../../agents/code-generation-loop';
 import { TaskGenerator } from '../../pipeline/task-generator';
 import { TokenBudget } from '../../pipeline/token-budget';
+import { StoreBudgetPersistence } from '../../pipeline/budget-persistence-store';
 import { createCodeQualityGuardTool } from '../../agents/verification-tools/code-quality-guard-tool';
 import { createHallucinationGuardTool } from '../../agents/verification-tools/hallucination-guard-tool';
 import { createSecurityAuditorTool } from '../../agents/verification-tools/security-auditor-tool';
@@ -205,7 +206,7 @@ async function runAgentPipeline(
           warnThreshold: 0.7,
           blockThreshold: 0.9,
           hardBlockThreshold: 1.35,
-        });
+        }, new StoreBudgetPersistence(store as any, jobId));
         const savedRecords = await Promise.resolve(store.loadBudgetRecords(jobId));
         if (savedRecords && savedRecords.length > 0) {
           const savedUsed = savedRecords.reduce((sum: number, r: { tokens: { totalTokens: number } }) => sum + r.tokens.totalTokens, 0);

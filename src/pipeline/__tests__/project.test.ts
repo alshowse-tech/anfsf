@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import { ProjectRegistry, getProjectRegistry, resetProjectRegistry } from "../project";
+import * as fs from 'fs';
+import * as path from 'path';
+
+const TEST_STORAGE = path.resolve('.anfsf/projects.json');
 
 describe("ProjectRegistry", () => {
-  beforeEach(() => { resetProjectRegistry(); });
+  beforeEach(() => {
+    resetProjectRegistry();
+    // Clean persisted state between tests
+    try { fs.unlinkSync(TEST_STORAGE); } catch {}
+  });
 
   it("creates and retrieves a project", () => {
     var reg=getProjectRegistry();

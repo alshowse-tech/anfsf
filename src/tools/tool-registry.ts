@@ -16,6 +16,8 @@ import type {
   ToolExecutionReport,
 } from './types';
 
+import type { LLMToolDefinition } from '../integrations/llm-client';
+
 // ============================================================================
 // ToolRegistry
 // ============================================================================
@@ -159,6 +161,59 @@ export class ToolRegistry {
   clear(): void {
     this.tools.clear();
   }
+
+  /**
+   * Convert all registered tool definitions to LLM-compatible format (function-calling schema).
+   * Used by ToolExecutor to pass available tools to the LLM API.
+   */
+  toLLMDefinitions(): LLMToolDefinition[] {
+    return this.list().map(tool => {
+      const def = tool.definition;
+      const properties: Record<string, {
+        type: string;
+        description: string;
+        enum?: string[];
+        items?: { type: string };
+      }> = {};
+      const required: string[] = [];
+
+      for (const p of def.parameters) {
+        const prop: {
+          type: string;
+          description: string;
+          enum?: string[];
+          items?: { type: string };
+        } = {
+          type: p.type,
+          description: p.description,
+        };
+        if (p.enum) {
+          prop.enum = p.enum;
+        }
+        if (p.items) {
+          prop.items = { type: p.items.type };
+        }
+        properties[p.name] = prop;
+        if (p.required) {
+          required.push(p.name);
+        }
+      }
+
+      return {
+        type: 'function',
+        function: {
+          name: def.name,
+          description: def.description,
+          parameters: {
+            type: 'object',
+            properties,
+            required,
+          },
+        },
+      } as LLMToolDefinition;
+    });
+  }
+
 }
 
 // ============================================================================

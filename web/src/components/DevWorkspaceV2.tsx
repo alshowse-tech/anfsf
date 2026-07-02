@@ -30,13 +30,14 @@ export default function DevWorkspaceV2() {
   const [fixes, setFixes] = useState<FixRecord[]>([]);
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [activeTab, setActiveTab] = useState<"fixes" | "tickets">("fixes");
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchData = () => {
     if (!projectId) return;
     fetch(API_BASE + "/api/v1/feedback/fixes?projectId=" + encodeURIComponent(projectId))
-      .then(r => r.json()).then(d => { if (d.fixes) setFixes(d.fixes); }).catch(() => {});
+      .then(r => r.json()).then(d => { if (d.fixes) setFixes(d.fixes); }).catch(() => setFetchError('加载修复记录失败'));
     fetch(API_BASE + "/api/v1/tickets?projectId=" + encodeURIComponent(projectId))
-      .then(r => r.json()).then(d => { if (d.tickets) setTickets(d.tickets); }).catch(() => {});
+      .then(r => r.json()).then(d => { if (d.tickets) setTickets(d.tickets); }).catch(() => setFetchError('加载工单失败'));
   };
 
   useEffect(() => { fetchData(); }, [projectId]);
@@ -46,7 +47,7 @@ export default function DevWorkspaceV2() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fixStatus: status }),
-    }).then(fetchData).catch(() => {});
+    }).then(fetchData).catch(() => setFetchError('更新修复状态失败'));
   };
 
   const pendingFixes = fixes.filter(f => f.fixStatus === "suggestion_ready" || f.fixStatus === "located_only");
@@ -61,6 +62,12 @@ export default function DevWorkspaceV2() {
         <button onClick={fetchData}
           className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200">{t("Load")}</button>
       </div>
+      {fetchError && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+          {fetchError}
+          <button onClick={() => setFetchError(null)} className="ml-2 text-red-400 hover:text-red-600">&times;</button>
+        </div>
+      )}
 
       {projectId && (
         <>

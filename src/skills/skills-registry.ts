@@ -559,6 +559,51 @@ export class SkillsRegistry {
   getLoadOrder(): string[] {
     return this.loadOrder;
   }
+
+  // ============================================================================
+  // Fusion Skills Support
+  // ============================================================================
+
+  /**
+   * Register a fusion skill (from src/skills/*-skill.ts, inherited from Skill base class).
+   * Wraps it as a registry Skill object so it integrates with the registry's
+   * dependency graph, event system, and lifecycle.
+   */
+  register(fusionSkill: { name: string; version: string; description: string }): void {
+    const skillKey = `${fusionSkill.name}@${fusionSkill.version}`;
+    if (this.skills.has(skillKey)) return; // idempotent
+
+    const skill: Skill = {
+      name: fusionSkill.name,
+      version: fusionSkill.version,
+      description: fusionSkill.description,
+      dependencies: [],
+      entryPoint: 'execute',
+      code: '',
+      tags: [],
+      permissions: [],
+      configSchema: undefined,
+      status: 'loaded' as SkillStatus,
+      loadedAt: now(),
+    };
+    this.skills.set(skillKey, skill);
+    this.updateDependencyGraph(skill);
+    this.emitEvent('skill:loaded', fusionSkill.name, fusionSkill.version);
+  }
+
+  /**
+   * Get a skill instance by name (not key). First match wins.
+   */
+  getSkill(name: string): Skill | undefined {
+    return Array.from(this.skills.values()).find(s => s.name === name);
+  }
+
+  /**
+   * List all registered skill names.
+   */
+  getSkillNames(): string[] {
+    return Array.from(this.skills.values()).map(s => s.name);
+  }
 }
 
 // ============================================================================

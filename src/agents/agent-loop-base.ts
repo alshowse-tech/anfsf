@@ -8,6 +8,8 @@
  */
 
 import type { TokenBudget } from '../pipeline/token-budget';
+import { ToolRegistry, type ToolContext } from '../tools';
+import type { SkillsRegistry } from '../skills/skills-registry';
 
 // ============================================================================
 // Generic Types
@@ -89,6 +91,24 @@ export abstract class AgentLoop<TInput, TOutput, TError> {
    * and check this.budget?.preEvaluate() before each LLM call.
    */
   protected budget?: TokenBudget;
+
+  /**
+   * Optional tool registry for tool-calling loops (Phase 3+).
+   * When set, generate()/fix() can use LLM tool-calling instead of pure text prompts.
+   */
+  protected toolRegistry?: ToolRegistry;
+
+  /**
+   * Optional tool execution context (working directory, allowed paths).
+   * Must be set together with toolRegistry.
+   */
+  protected toolContext?: ToolContext;
+
+  /**
+   * Optional skills registry for advanced context compression and skill lookup.
+   * When set, generate() can use the context-compressor skill to reduce PRD size.
+   */
+  protected skillsRegistry?: SkillsRegistry;
 
   abstract generate(input: TInput): Promise<TOutput>;
   abstract verify(output: TOutput): Promise<TError[]>;
@@ -177,6 +197,22 @@ export abstract class AgentLoop<TInput, TOutput, TError> {
       return 32_768;
     }
     return 0;
+  }
+
+  /**
+   * Set the tool registry and context for tool-calling loop support.
+   * Must be called before generate/fix if tool-calling is desired.
+   */
+  setToolRegistry(registry: ToolRegistry, context: ToolContext): void {
+    this.toolRegistry = registry;
+    this.toolContext = context;
+  }
+
+  /**
+   * Set the skills registry for context compression and skill lookup.
+   */
+  setSkillsRegistry(registry: SkillsRegistry): void {
+    this.skillsRegistry = registry;
   }
 
   private successResult(output: TOutput, round: number): AgentLoopResult<TOutput, TError> {

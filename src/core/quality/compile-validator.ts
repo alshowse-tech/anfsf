@@ -7,6 +7,7 @@
  */
 
 import { spawn } from 'child_process';
+import type { SandboxExecutor } from '../../skills/sandbox-executor';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -29,10 +30,12 @@ function getTscPath(): string {
 export class CompileValidator {
   private timeoutMs: number;
   private tscPath: string;
+  private sandbox?: SandboxExecutor;
 
-  constructor(timeoutMs: number = 60_000) {
+  constructor(timeoutMs: number = 60_000, sandbox?: SandboxExecutor) {
     this.timeoutMs = timeoutMs;
     this.tscPath = getTscPath();
+    this.sandbox = sandbox;
   }
 
   /**
@@ -51,6 +54,9 @@ export class CompileValidator {
       };
     }
 
+    if (this.sandbox) {
+      return this.runTscInSandbox(safeDir, start);
+    }
     return this.runTsc(safeDir, start);
   }
 
@@ -133,4 +139,37 @@ export class CompileValidator {
       });
     });
   }
+
+  /**
+   * Run tsc --noEmit through the sandbox executor for process isolation.
+   */
+  private async runTscInSandbox(
+    projectDir: string,
+    startTime: number,
+  ): Promise<CompileValidationResult> {
+    const result = await this.sandbox!.executeBash(
+      'node "' + this.tscPath + '" --noEmit',
+      { cwd: projectDir, timeout: this.timeoutMs },
+    );
+
+    const duration = Date.now() - startTime;
+    const allOutput = [result.output, result.error].filter(Boolean).join('\n');
+
+    if (result.success) {
+      const warnings = allOutput
+        .split('\n')
+        .filter(line => line.trim() && line.toLowerCase().includes('warn'))
+        .map(line => line.trim());
+      return { success: true, errors: [], warnings, duration }
+    }
+
+    const errors = allOutput
+      .split('\n')
+      .filter(line => line.trim() && !line.toLowerCase().includes('warn'))
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+
+    return { success: false, errors, warnings: [], duration }
+  }
+
 }

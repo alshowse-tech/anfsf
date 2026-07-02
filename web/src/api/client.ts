@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ANFSF API Client
  *
  * All /api/v1/* requests include Authorization header when a token is configured.
@@ -6,11 +6,15 @@
  * Returns typed ApiError on failures.
  */
 
+import type { OrchestrateStatus, SkillInfo, ToolInfo, ProjectInfo, ProjectDetail, StepDetail, StageSummary, BottleneckInfo, FixRecordInfo, CompilePatternInfo, ComponentPatternInfo, LLMConfigData, PipelineConfigData } from './types';
+
 const API_BASE = import.meta.env.VITE_ANFSF_API || '';
 
 // Token source priority: sessionStorage > env > none
 // Using sessionStorage instead of localStorage — token is cleared on tab close (XSS mitigation)
-function getApiToken(): string | undefined {
+export function getApiToken(): string | undefined {
+  const jwt = sessionStorage.getItem("anfsf_jwt");
+  if (jwt) return jwt;
   return sessionStorage.getItem('anfsf_api_token') || import.meta.env.VITE_ANFSF_API_TOKEN || undefined;
 }
 
@@ -92,6 +96,20 @@ async function parseError(res: Response): Promise<ApiError> {
 
 async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(url, init);
+
+  if (res.status === 429) {
+    const retryAfter = res.headers.get('Retry-After');
+    const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000;
+    if (typeof window !== 'undefined') {
+      (window as any).__lastRateLimit = { url, retryAfter: waitMs, timestamp: Date.now() };
+    }
+    throw new ApiClientError({
+      status: 429,
+      message: `Rate limited. Retry after ${retryAfter || 5}s`,
+      details: [`Wait ${(waitMs / 1000).toFixed(0)}s before next request`],
+    });
+  }
+
   if (!res.ok) {
     throw new ApiClientError(await parseError(res));
   }
@@ -141,6 +159,80 @@ export async function fetchRunDetail(id: string): Promise<RunDetail> {
   return res.json();
 }
 
+
+// === Phase 1: Orchestrate ===
+export async function fetchOrchestrateStatus(): Promise<OrchestrateStatus> {
+  const res = await safeFetch(API_BASE + "/api/v1/orchestrate/status", { headers: authHeaders() });
+  return res.json();
+}
+// === Phase 1: Skills & Tools ===
+export async function fetchSkills(): Promise<SkillInfo[]> {
+  const res = await safeFetch(API_BASE + "/api/v1/skills", { headers: authHeaders() });
+  return (await res.json()).skills ?? [];
+}
+export async function fetchTools(): Promise<ToolInfo[]> {
+  const res = await safeFetch(API_BASE + "/api/v1/tools", { headers: authHeaders() });
+  return (await res.json()).tools ?? [];
+}
+// === Phase 1: Projects ===
+export async function fetchProjects(): Promise<ProjectInfo[]> {
+  const res = await safeFetch(API_BASE + "/api/v1/projects", { headers: authHeaders() });
+  const data = await res.json(); return data.projects ?? [];
+}
+export async function fetchProjectDetail(id: string): Promise<ProjectDetail> {
+  const res = await safeFetch(API_BASE + "/api/v1/projects/" + encodeURIComponent(id), { headers: authHeaders() });
+  const data = await res.json(); return data.project;
+}
+export async function fetchStepDetails(runId: string): Promise<StepDetail[]> {
+  const run = await fetchRunDetail(runId);
+  return (run.steps || []).filter(s => s.name && s.name.startsWith('verify:'));
+}
+// === Phase 1: Metrics / Analysis ===
+export async function fetchStageMetrics(): Promise<StageSummary[]> {
+  const res = await safeFetch(API_BASE + "/api/v1/knowledge/metrics/stages", { headers: authHeaders() });
+  return (await res.json()).stages ?? [];
+}
+export async function fetchBottlenecks(thresholdMs?: number): Promise<BottleneckInfo[]> {
+  const params = thresholdMs ? '?thresholdMs=' + thresholdMs : '';
+  const res = await safeFetch(API_BASE + "/api/v1/knowledge/metrics/bottlenecks" + params, { headers: authHeaders() });
+  return (await res.json()).bottlenecks ?? [];
+}
+export async function fetchCompilePatterns(): Promise<CompilePatternInfo[]> {
+  const res = await safeFetch(API_BASE + "/api/v1/knowledge/compile-patterns", { headers: authHeaders() });
+  return (await res.json()).patterns ?? [];
+}
+export async function fetchComponentPatterns(): Promise<ComponentPatternInfo[]> {
+  const res = await safeFetch(API_BASE + "/api/v1/knowledge/component-patterns", { headers: authHeaders() });
+  return (await res.json()).components ?? [];
+}
+export async function fetchFixes(projectId?: string): Promise<FixRecordInfo[]> {
+  const params = projectId ? '?projectId=' + encodeURIComponent(projectId) : '';
+  const res = await safeFetch(API_BASE + "/api/v1/feedback/fixes" + params, { headers: authHeaders() });
+  return (await res.json()).fixes ?? [];
+}
+// === Phase 1: Config ===
+export async function fetchLLMConfig(): Promise<LLMConfigData> {
+  const res = await safeFetch(API_BASE + "/api/v1/config/llm", { headers: authHeaders() });
+  return res.json();
+}
+export async function updateLLMConfig(data: Partial<LLMConfigData>): Promise<void> {
+  await safeFetch(API_BASE + "/api/v1/config/llm", {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+}
+export async function fetchPipelineConfig(): Promise<PipelineConfigData> {
+  const res = await safeFetch(API_BASE + "/api/v1/config/pipeline", { headers: authHeaders() });
+  return res.json();
+}
+export async function updatePipelineConfig(data: Partial<PipelineConfigData>): Promise<void> {
+  await safeFetch(API_BASE + "/api/v1/config/pipeline", {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+}
+
+
 export async function fetchHealth() {
   const res = await safeFetch(`${API_BASE}/health`);
   return res.json();
@@ -160,5 +252,54 @@ export function clearApiToken(): void {
 }
 
 export function hasApiToken(): boolean {
+  return !!getApiToken();
+}
+
+// === Webhook Management ===
+export async function fetchWebhooks(): Promise<{ webhooks: import("./types").WebhookRegistration[]; total: number }> {
+  const res = await safeFetch(API_BASE + "/api/v1/webhooks", { headers: authHeaders() });
+  return res.json();
+}
+export async function createWebhook(url: string, events: string[]): Promise<{ status: string; webhook?: import("./types").WebhookRegistration }> {
+  const res = await safeFetch(API_BASE + "/api/v1/webhooks", {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ url, events }),
+  });
+  return res.json();
+}
+export async function deleteWebhook(id: string): Promise<void> {
+  await safeFetch(API_BASE + "/api/v1/webhooks/" + encodeURIComponent(id), {
+    method: 'DELETE', headers: authHeaders(),
+  });
+}
+
+// === Audit Log ===
+export async function fetchAuditLog(limit = 50, offset = 0): Promise<{ entries: any[]; total: number }> {
+  const res = await safeFetch(API_BASE + "/api/v1/audit-log?limit=" + limit + "&offset=" + offset, { headers: authHeaders() });
+  return res.json();
+}
+export async function createAuditLogEntry(operation: string, details: string, user?: string): Promise<void> {
+  await safeFetch(API_BASE + "/api/v1/audit-log", {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ operation, details, user: user || 'system' }),
+  });
+}
+
+// === Auth ===
+export async function login(username: string, password: string): Promise<{ status: string; token?: string; user?: { username: string; role: string }; error?: string }> {
+  const res = await safeFetch(API_BASE + "/api/v1/auth/login", {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await res.json();
+  if (data.token) sessionStorage.setItem('anfsf_jwt', data.token);
+  return data;
+}
+
+export function logout(): void {
+  sessionStorage.removeItem('anfsf_jwt');
+}
+
+export function isAuthenticated(): boolean {
   return !!getApiToken();
 }

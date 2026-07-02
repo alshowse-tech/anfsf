@@ -105,6 +105,7 @@ describe('Rate Limiting (integration)', () => {
   it('returns 429 when rate limit exceeded', async () => {
     const server = await createServer({
       apiKey: 'llm-key',
+      apiToken: 'test-token',
       rateLimitQps: 2,
       rateLimitBurst: 2,
       port: 0,
@@ -118,14 +119,14 @@ describe('Rate Limiting (integration)', () => {
       // Use up the burst
       const r1 = await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'test' }),
       });
       expect(r1.status).toBe(202);
 
       const r2 = await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'test' }),
       });
       expect(r2.status).toBe(202);
@@ -133,7 +134,7 @@ describe('Rate Limiting (integration)', () => {
       // Third request should be rate limited
       const r3 = await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'test' }),
       });
       expect(r3.status).toBe(429);
@@ -160,12 +161,12 @@ describe('Rate Limiting (integration)', () => {
       // Hit rate limit on /api/v1/ first
       await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'test' }),
       });
       await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'test' }),
       });
 
@@ -192,12 +193,12 @@ describe('Rate Limiting (integration)', () => {
     try {
       await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'test' }),
       });
       const res = await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'test' }),
       });
       expect(res.status).toBe(429);
@@ -222,7 +223,7 @@ describe('Rate Limiting (integration)', () => {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/api/v1/synthesize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test-token' },
         body: JSON.stringify({ prdText: 'test' }),
       });
       expect(res.headers.get('x-ratelimit-limit')).toBeDefined();

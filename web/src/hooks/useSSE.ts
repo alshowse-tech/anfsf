@@ -45,6 +45,8 @@ export function useSSE(runId: string | null) {
     });
 
     // Handle server-side timeout
+    es.addEventListener('verification', (e) => { try { const data = JSON.parse(e.data); setEvents((prev) => [...prev, data]); } catch {} });
+
     es.addEventListener('timeout', (_) => {
       reconnectAttempts.current = 0;
       setConnected(false);

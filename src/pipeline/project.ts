@@ -1,3 +1,4 @@
+﻿import * as crypto from 'crypto';
 /**
  * ANFSF Pipeline ? Project Management (GAP-17)
  *
@@ -6,6 +7,8 @@
  */
 
 import { DEFAULT_TENANT_ID } from "./tenant";
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface Project {
   id: string;
@@ -22,12 +25,44 @@ let _projectRegistry: ProjectRegistry | null = null;
 
 export class ProjectRegistry {
   private projects: Map<string, Project> = new Map();
+  private storagePath: string = path.resolve('.anfsf/projects.json');
+
+  constructor() {
+    this.load();
+  }
+
+  save(): void {
+    try {
+      if (typeof process === 'undefined') return; // browser environment
+      const dir = path.dirname(this.storagePath);
+      fs.mkdirSync(dir, { recursive: true });
+      const data = JSON.stringify(Array.from(this.projects.entries()), null, 2);
+      fs.writeFileSync(this.storagePath, data, 'utf-8');
+    } catch (e) {
+      console.warn('[ProjectRegistry] Failed to save projects:', e);
+    }
+  }
+
+  load(): void {
+    try {
+      if (typeof process === 'undefined') return; // browser environment
+      if (fs.existsSync(this.storagePath)) {
+        const raw = fs.readFileSync(this.storagePath, 'utf-8');
+        const entries: [string, Project][] = JSON.parse(raw);
+        this.projects = new Map(entries);
+      }
+    } catch (e) {
+      console.warn('[ProjectRegistry] Failed to load projects:', e);
+      this.projects = new Map();
+    }
+  }
 
   create(name: string, prdText: string, tenantId: string = DEFAULT_TENANT_ID): Project {
-    const id = "proj_" + Math.random().toString(36).slice(2, 10) + "_" + Date.now();
+    const id = "proj_" + crypto.randomUUID().slice(0, 8) + "_" + Date.now();
     const now = Date.now();
     const project: Project = { id, name, prdText, tenantId, projectState: "created", createdAt: now, updatedAt: now };
     this.projects.set(id, project);
+    this.save();
     return project;
   }
 
@@ -46,11 +81,14 @@ export class ProjectRegistry {
     if (!p) return false;
     p.projectState = state;
     p.updatedAt = Date.now();
+    this.save();
     return true;
   }
 
   remove(id: string): boolean {
-    return this.projects.delete(id);
+    const result = this.projects.delete(id);
+    if (result) this.save();
+    return result;
   }
 
   size(): number { return this.projects.size; }
@@ -64,3 +102,4 @@ export function getProjectRegistry(): ProjectRegistry {
 export function resetProjectRegistry(): void {
   _projectRegistry = null;
 }
+

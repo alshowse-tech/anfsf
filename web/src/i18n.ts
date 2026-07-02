@@ -1,4 +1,4 @@
-const translations: Record<string, string> = {
+﻿const translations: Record<string, string> = {
   // StageTabs — navigation
   "Home": "首页",
   "Requirements": "需求",
@@ -88,12 +88,16 @@ const translations: Record<string, string> = {
   "Role": "角色",
   "Remove": "移除",
   "Add": "添加",
+  "View all": "查看全部",
+  "CLI": "命令行",
+  "Audit Log": "审计日志",
 };
 
-let currentLang: "en" | "zh" = "zh";
+let currentLang: "en" | "zh" = (typeof localStorage !== "undefined" ? (localStorage.getItem("anfsf_lang") as "en" | "zh" || "zh") : "zh");
 
 export function setLang(lang: "en" | "zh") {
-  currentLang = lang;
+    currentLang = lang;
+    if (typeof localStorage !== "undefined") localStorage.setItem("anfsf_lang", lang);
 }
 
 export function getLang(): "en" | "zh" {

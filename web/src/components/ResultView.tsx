@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import JSZip from 'jszip';
 
 const API_BASE = import.meta.env.VITE_ANFSF_API || '';
 
@@ -51,6 +52,7 @@ export default function ResultView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [projectName, setProjectName] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [activeTab, setActiveTab] = useState<'frontend' | 'backend' | 'all'>('all');
 
   useEffect(() => {
@@ -95,6 +97,25 @@ export default function ResultView() {
     }
   };
 
+  const handleDownloadAll = async () => {
+    if (!runId || files.length === 0) return;
+    setDownloading(true);
+    try {
+      const zip = new JSZip();
+      for (const file of files) {
+        const url = API_BASE + "/api/v1/pipeline/" + runId + "/files/content?filePath=" + encodeURIComponent(file.path) + "&category=" + file.category;
+        const res = await fetch(url);
+        if (res.ok) { const data = await res.json(); zip.file(file.path, data.content); }
+      }
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = (projectName || 'project') + '.zip'; a.click();
+      URL.revokeObjectURL(url);
+    } catch { setError('下载失败'); }
+    finally { setDownloading(false); }
+  };
+
   if (!runId) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -117,6 +138,7 @@ export default function ResultView() {
         {projectName && (
           <span className="text-sm text-gray-500 font-mono">项目: {projectName}</span>
         )}
+        {projectName && <button onClick={handleDownloadAll} disabled={downloading} className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 disabled:opacity-50">{downloading ? '打包中...' : '下载全部'}</button>}
       </div>
 
       {error && (

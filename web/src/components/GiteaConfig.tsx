@@ -12,7 +12,7 @@ export default function GiteaConfig() {
   useEffect(() => {
     fetch(API_BASE + "/api/v1/config/gitea")
       .then(r => r.json()).then(d => { if (d.config) { setUrl(d.config.url || ""); setToken(d.config.token || ""); setOwner(d.config.owner || ""); } })
-      .catch(() => {});
+      .catch(() => setMessage('无法加载配置'));
   }, []);
 
   const save = async () => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { t } from "../i18n";
 
@@ -34,7 +34,7 @@ export default function ReleaseGate() {
       {projectId && (
         <>
           <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">{t("Release Gate — 3-Layer Check")}</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">{t("Release Gate 鈥?3-Layer Check")}</h3>
             <div className="space-y-3">
               <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                 <input type="checkbox" checked={systemChecked} onChange={e => setSystemChecked(e.target.checked)}
@@ -63,7 +63,7 @@ export default function ReleaseGate() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button onClick={() => action("/api/v1/pipeline/:id/release", t("Release"))}
               disabled={!canRelease}
               className="flex-1 px-4 py-3 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">

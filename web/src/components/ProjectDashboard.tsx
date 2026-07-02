@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ANFSF — Project Dashboard (T-402)
  *
  * Displays a single project's five-stage pipeline progress.
@@ -6,11 +6,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { getApiToken } from '../api/client';
 
 const API_BASE = import.meta.env.VITE_ANFSF_API || '';
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('anfsf_api_token');
+  const token = getApiToken();
   return token ? { Authorization: 'Bearer ' + token } : {};
 }
 
@@ -86,6 +87,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
   onStageClick,
   runId,
 }) => {
+  void projectState;
   const [fetchedRun, setFetchedRun] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
