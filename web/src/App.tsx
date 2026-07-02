@@ -29,6 +29,7 @@ import ProjectDetail from "./components/ProjectDetail";
 import GlobalAnalysis from "./components/GlobalAnalysis";
 
 import LoginPage from './components/LoginPage';
+import RegisterPage from './components/RegisterPage';
 import ProtectedRoute from './components/ProtectedRoute';
 const AGENT_LOOP_DIAGRAM = "graph TD\n  A[PRD Input] --> B{Quality Check}\n  B -->|pass| C[Agent Loop]\n  B -->|fail| D[Guided Mode]\n  C --> E[Verify + Fix]\n  E --> F[Write Files]\n  F --> G[Push Gitea]\n  G --> H[Done]\n";
 
@@ -124,6 +125,7 @@ function Layout() {
 export default function App() {
   return <BrowserRouter><Routes>
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/register" element={<RegisterPage />} />
     <Route path="/*" element={<Layout />} />
   </Routes></BrowserRouter>;
 }

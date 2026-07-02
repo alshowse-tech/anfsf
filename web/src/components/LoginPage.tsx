@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { login } from '../api/client';
 
 export default function LoginPage() {
@@ -47,7 +47,11 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-        <p className="text-xs text-gray-400 text-center mt-4">Default: admin / admin</p>
+        <p className="text-center mt-4">
+          <Link to="/register" className="text-sm text-blue-600 hover:text-blue-800">
+            No account? Register here
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -205,9 +205,9 @@ curl -X POST http://localhost:3000/api/v1/auth/register \
 
 1. 打开浏览器访问 `http://localhost:8080` (Docker) 或 `http://localhost:5173` (本地开发)
 2. 页面自动跳转到登录页 `/login`
-3. 点击"注册"链接 (如登录页无注册入口，使用方式 A)
-4. 填写用户名和密码
-5. 登录成功后自动跳转首页
+3. 点击 **"No account? Register here"** 链接进入注册页 `/register`
+4. 填写用户名、密码（至少6位）、确认密码
+5. 注册成功后自动登录并跳转首页
 
 ### 4.2 登录
 
